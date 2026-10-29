@@ -119,6 +119,8 @@ export class Game {
       this.lightMgr.setCount(settings.preset.dynamicLights);
     };
     settings.on('change:quality', this.onQuality);
+    this.onResize = () => this.effects.setViewport(this.engine.height * this.engine.renderer.getPixelRatio());
+    window.addEventListener('resize', this.onResize);
   }
 
   // ------------------------------------------------------------------ levels
@@ -157,6 +159,7 @@ export class Game {
       await sleep(700);
     }
     if (this.hidden) this.leaveHiding(true);
+    this.boss = null;
     this.levelId = id;
     const level = this.getLevel(id);
     this.ui.loading(true, `${def.name.toUpperCase()} — ${def.title}`, 'Generating…');
@@ -223,7 +226,7 @@ export class Game {
   // ------------------------------------------------------------------ main loop
   update(dt) {
     if (!this.running) return;
-    if (this.paused) { this.hud.update(this, dt); return; }
+    if (this.paused) { this.hud.update(this, dt); input.endFrame(); return; }
     this.time += dt;
     worldUniforms.time.value = this.time;
     const level = this.levelId ? this.level : null;
@@ -1224,6 +1227,7 @@ export class Game {
     this.running = false;
     this.sceneDef?.teardownScene?.(this);
     settings.off('change:quality', this.onQuality);
+    window.removeEventListener('resize', this.onResize);
     for (const r of this.remotes.values()) r.dispose();
     this.remotes.clear();
     this.renderer.clear();

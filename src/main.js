@@ -20,6 +20,12 @@ import { audio } from './audio/audio.js';
 
 const $ = id => document.getElementById(id);
 
+// dev: ?quality=low|medium|high overrides the saved preset for this session
+{
+  const q = new URLSearchParams(location.search).get('quality');
+  if (q && ['low', 'medium', 'high'].includes(q)) settings.data.quality = q;
+}
+
 class App {
   constructor() {
     this.engine = new Engine($('stage'));

@@ -105,19 +105,19 @@ export default {
 
   // ------------------------------------------------------------- client view
   build(lib) {
-    const ink = new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 0.25, metalness: 0.3 });
+    const ink = new THREE.MeshStandardMaterial({ color: 0x060607, roughness: 0.42, metalness: 0.15 });
     const g = new THREE.Group();
     const R = {};
     const pelvis = joint(g, 0, 1.22, 0);
     R.pelvis = pelvis;
-    pelvis.add(ball(ink, 0.13, 1.4, 0.6, 0.8));
+    pelvis.add(ball(ink, 0.1, 1.25, 0.75, 0.75));
     R.legs = [];
     for (const s of [-1, 1]) {
       const hip = joint(pelvis, s * 0.12, -0.02, 0);
-      hip.add(limb(ink, 0.64, 0.035, 0.028));
+      hip.add(limb(ink, 0.64, 0.05, 0.035));
       const knee = joint(hip, 0, -0.64, 0);
-      knee.add(ball(ink, 0.04));
-      knee.add(limb(ink, 0.6, 0.028, 0.02));
+      knee.add(ball(ink, 0.055));
+      knee.add(limb(ink, 0.6, 0.04, 0.028));
       const foot = boxm(ink, 0.06, 0.03, 0.2); foot.position.set(0, -0.6, 0.06); knee.add(foot);
       R.legs.push({ hip, knee, s });
     }
@@ -130,12 +130,14 @@ export default {
       rib.position.set(0, 0.36 + i * 0.065, 0.02);
       spine.add(rib);
     }
-    const clav = boxm(ink, 0.5, 0.03, 0.04); clav.position.set(0, 0.78, 0); spine.add(clav);
+    const clav = boxm(ink, 0.46, 0.04, 0.05); clav.position.set(0, 0.78, 0); spine.add(clav);
     R.neck = joint(spine, 0, 0.8, 0);
     for (let i = 0; i < 3; i++) { const v = ball(ink, 0.03); v.position.set(0, 0.04 + i * 0.06, 0); R.neck.add(v); }
     R.head = joint(R.neck, 0, 0.2, 0);
-    const skull = ball(ink, 0.14, 0.95, 1.15, 1.05, 12); skull.position.y = 0.1; R.head.add(skull);
-    const jaw = boxm(ink, 0.13, 0.04, 0.1); jaw.position.set(0, -0.02, 0.06); R.head.add(jaw);
+    const skull = ball(ink, 0.13, 0.95, 1.1, 1.1, 12); skull.position.y = 0.12; R.head.add(skull);
+    const cheek = ball(ink, 0.09, 1.3, 0.8, 1.0); cheek.position.set(0, 0.04, 0.05); R.head.add(cheek);
+    const jaw = boxm(ink, 0.11, 0.035, 0.11); jaw.position.set(0, -0.03, 0.07); R.head.add(jaw);
+    for (let k = 0; k < 6; k++) { const tooth = boxm(new THREE.MeshStandardMaterial({ color: 0x9a9384, roughness: 0.6 }), 0.012, 0.025, 0.01); tooth.position.set(-0.04 + k * 0.016, 0.0, 0.12); R.head.add(tooth); }
     R.jaw = jaw;
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xd8e8ff });
     R.eyes = [];
@@ -146,12 +148,14 @@ export default {
     R.arms = [];
     for (const s of [-1, 1]) {
       const sh = joint(spine, s * 0.25, 0.76, 0);
-      sh.add(limb(ink, 0.62, 0.028, 0.022));
+      sh.add(ball(ink, 0.06));
+      sh.add(limb(ink, 0.62, 0.04, 0.03));
       const el = joint(sh, 0, -0.62, 0);
-      el.add(ball(ink, 0.032));
-      el.add(limb(ink, 0.6, 0.022, 0.016));
-      const hand = joint(el, 0, -0.6, 0);
-      for (let f = -1; f <= 1; f++) { const fi = limb(ink, 0.2, 0.008, 0.004, 4); fi.position.x = f * 0.02; fi.rotation.z = f * 0.15; hand.add(fi); }
+      el.add(ball(ink, 0.045));
+      el.add(limb(ink, 0.58, 0.032, 0.022));
+      const hand = joint(el, 0, -0.58, 0);
+      hand.add(ball(ink, 0.04, 1, 1.4, 0.6));
+      for (let f = -2; f <= 1; f++) { const fi = limb(ink, 0.26, 0.011, 0.005, 4); fi.position.x = f * 0.02 + 0.01; fi.rotation.z = f * 0.12; fi.rotation.x = -0.25; hand.add(fi); }
       R.arms.push({ sh, el, s });
     }
     return { group: g, rig: R };
@@ -170,7 +174,7 @@ export default {
     const stunned = st.s === 'stunned';
     const collapsed = st.s === 'collapsed';
     R.pelvis.position.y = collapsed ? Math.max(0.1, 1.22 - v.stateT * 2) : 1.22 + Math.abs(Math.sin(w)) * 0.06 * run;
-    R.spine.rotation.set(0.12 + run * 0.2 + tw[0] * 0.3, tw[1] * 0.2, tw[2] * 0.3);
+    R.spine.rotation.set(0.32 + run * 0.2 + tw[0] * 0.3, tw[1] * 0.2, tw[2] * 0.3);
     R.legs.forEach((L, i) => {
       const ph = Math.sin(w + i * Math.PI);
       L.hip.rotation.x = ph * 0.7 * run - 0.1;
@@ -182,7 +186,7 @@ export default {
     R.arms.forEach((A, i) => {
       const sw = Math.sin(w + i * Math.PI) * 0.6 * run;
       A.sh.rotation.set(sw + tw[i] * 0.4, 0, A.s * 0.15);
-      A.el.rotation.x = -0.3 - run * 0.4;
+      A.el.rotation.x = -0.55 - run * 0.4;
       if (st.s === 'attack') { const k = Math.min(1, v.stateT * 3); A.sh.rotation.x = -2.2 * k; A.el.rotation.x = -0.2; }
       if (stunned) { A.sh.rotation.set(-2.5, 0, A.s * -0.5); A.el.rotation.x = -1.8; }
     });

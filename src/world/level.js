@@ -33,6 +33,7 @@ export class LevelInstance {
         .map(l => ({ ...l, lx: l.tx - cx * CS, lz: l.tz - cz * CS }));
       this.def.generate(c, { level: this, rng, ports, landmarks: lms, seed: this.levelSeed });
       this.chunks.set(key, c);
+      this.onGenerate?.(c);
       if (this.chunks.size > MAX_CACHED) this.evict();
     }
     c.used = this.tick;
@@ -294,7 +295,6 @@ export class LevelInstance {
     for (let g = 0; g < 64; g++) {
       if (tx === ttx && tz === ttz) return true;
       if (tMaxX < tMaxZ) { tMaxX += tDeltaX; tx += stepX; } else { tMaxZ += tDeltaZ; tz += stepZ; }
-      if (tMaxX > 1 + tDeltaX && tMaxZ > 1 + tDeltaZ && (tx !== ttx || tz !== ttz)) { /* past end */ }
       if (this.typeAt(tx, tz) === T_SOLID) return tx === ttx && tz === ttz ? true : false;
     }
     return true;

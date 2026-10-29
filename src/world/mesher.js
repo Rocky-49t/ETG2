@@ -121,7 +121,7 @@ export function buildChunkMesh(level, c, lib) {
           }
         }
       }
-      if (hasCeil && type !== T_SOLID) {
+      if (hasCeil && type === T_FLOOR) {
         const C = cm(i);
         const s = C.scale || 2;
         B.grid(C.mat, [x0, ce, z0], [TILE, 0, 0], [0, 0, TILE], 2, 2, [0, -1, 0], (x, y, z) => [x / s, z / s]);

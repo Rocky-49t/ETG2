@@ -11,7 +11,7 @@ import { input } from '../core/input.js';
 import { settings } from '../core/settings.js';
 import { bus } from '../core/events.js';
 import { RNG, hash4, clamp, damp } from '../core/rng.js';
-import { worldUniforms } from '../gfx/materials.js';
+import { worldUniforms, buildDecalAtlas, DECAL_TEXTS } from '../gfx/materials.js';
 import { LightManager } from '../gfx/lights.js';
 import { LevelInstance } from '../world/level.js';
 import { WorldRenderer } from '../world/renderer.js';
@@ -115,7 +115,7 @@ export class Game {
     this.stats.on('zero', cause => this.onZero(cause));
     this.inventory.on('change', () => this.hud.inventoryChanged(this));
     this.onQuality = () => {
-      this.renderer.radius = settings.preset.renderRadius;
+      this.renderer.radius = this.def?.renderRadius ?? settings.preset.renderRadius;
       this.lightMgr.setCount(settings.preset.dynamicLights);
     };
     settings.on('change:quality', this.onQuality);
@@ -124,8 +124,23 @@ export class Game {
   // ------------------------------------------------------------------ levels
   getLevel(id) {
     let l = this.levels.get(id);
-    if (!l) { l = new LevelInstance(LEVELS[id], this.seed); this.levels.set(id, l); }
+    if (!l) {
+      l = new LevelInstance(LEVELS[id], this.seed);
+      l.onGenerate = c => this.onChunkGenerated(id, l, c);
+      this.levels.set(id, l);
+    }
     return l;
+  }
+
+  // Apply replicated state to freshly generated chunk data (doors already
+  // opened, runtime terrain changes...).
+  onChunkGenerated(id, level, c) {
+    for (const o of c.objects) {
+      if (!o.collider) continue;
+      const s = this.world.get(id, o.id);
+      if (s?.open || s?.unlocked) o.collider.disabled = true;
+    }
+    LEVELS[id].applyRuntime?.(this, level, c);
   }
   get level() { return this.getLevel(this.levelId); }
   get def() { return LEVELS[this.levelId]; }
@@ -174,6 +189,11 @@ export class Game {
 
   applyLevelVisuals(def) {
     const scene = this.engine.scene;
+    if (this.sceneDef && this.sceneDef !== def) this.sceneDef.teardownScene?.(this);
+    this.sceneDef = def;
+    this.renderer.radius = def.renderRadius ?? settings.preset.renderRadius;
+    const decals = this.lib.baked.get('decals');
+    if (decals) { decals.map?.dispose(); decals.map = buildDecalAtlas(def.decalTexts || DECAL_TEXTS); }
     scene.fog = new THREE.FogExp2(def.fog.color, def.fog.density);
     scene.background = new THREE.Color(def.background ?? def.fog.color);
     this.hemi.color.set(def.hemi?.sky ?? 0x888888);
@@ -1165,6 +1185,7 @@ export class Game {
 
   dispose() {
     this.running = false;
+    this.sceneDef?.teardownScene?.(this);
     settings.off('change:quality', this.onQuality);
     for (const r of this.remotes.values()) r.dispose();
     this.remotes.clear();

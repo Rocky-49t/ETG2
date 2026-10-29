@@ -71,6 +71,16 @@ export class WorldRenderer {
     this.onChunkBuilt?.(key, m);
   }
 
+  // Rebuild one chunk's mesh after its tile data changed at runtime.
+  rebuild(cx, cz) {
+    const key = cx + ',' + cz;
+    const m = this.meshes.get(key);
+    if (!m) return;
+    this._dispose(key, m);
+    this.meshes.delete(key);
+    this._build(cx, cz);
+  }
+
   update(x, z, budgetMs = 6) {
     if (!this.level) return;
     const want = this._wanted(x, z);

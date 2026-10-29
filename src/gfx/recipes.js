@@ -138,8 +138,8 @@ export const RECIPES = {
       const n = f(N1, u, v, 6, 5);
       const spk = f(N2, u, v, 90, 2);
       const w = W1(u * 6, v * 6, 6);
-      const crack = smoothstep(0.035, 0.0, w.f2 - w.f1) * smoothstep(0.45, 0.6, f(N3, u, v, 5, 3));
-      let c = 0.52 + (n - 0.5) * 0.18 + (spk - 0.5) * 0.08 - crack * 0.25;
+      const crack = smoothstep(0.03, 0.0, w.f2 - w.f1) * smoothstep(0.55, 0.68, f(N3, u, v, 5, 3));
+      let c = 0.52 + (n - 0.5) * 0.18 + (spk - 0.5) * 0.08 - crack * 0.18;
       const st = stain(u, v, 2, 0.64, N3);
       c -= st.t * 0.08;
       s.set(i, c, c * 0.98, c * 0.95);
@@ -266,10 +266,10 @@ export const RECIPES = {
         if (chip > 0.7) { h -= 0.2; r *= 0.85; g *= 0.85; b *= 0.85; }
       }
       // soot and efflorescence
-      const soot = f(N2, u, v, 3, 4);
-      const k = smoothstep(0.45, 0.75, soot) * 0.45;
+      const soot = f(N2, u, v, 4, 4);
+      const k = smoothstep(0.5, 0.8, soot) * 0.22;
       r *= 1 - k; g *= 1 - k; b *= 1 - k;
-      const salt = smoothstep(0.68, 0.8, f(N3, u, v * 0.5, 4, 4)) * 0.25;
+      const salt = smoothstep(0.74, 0.86, f(N3, u, v, 8, 3)) * 0.12;
       r += salt; g += salt; b += salt * 0.95;
       s.set(i, r, g, b);
       s.h[i] = h;
@@ -381,8 +381,8 @@ export const RECIPES = {
       const sc = smoothstep(0.66, 0.74, f(N2, u * 4, v, 16, 3)) * smoothstep(0.25, 0.32, v) * smoothstep(0.42, 0.35, v);
       r -= sc * 0.2; g -= sc * 0.2; b -= sc * 0.2;
       // mould spots
-      const mould = smoothstep(0.7, 0.78, f(N3, u, v, 4, 5));
-      r -= mould * 0.25; g -= mould * 0.2; b -= mould * 0.25;
+      const mould = smoothstep(0.76, 0.84, f(N3, u, v, 6, 5));
+      r -= mould * 0.12; g -= mould * 0.09; b -= mould * 0.12;
       s.set(i, r, g, b);
       s.h[i] = 0.5 + (fine - 0.5) * 0.15;
       s.rough[i] = 0.85;
@@ -532,6 +532,18 @@ export const RECIPES = {
       s.rough[i] = 0.9;
     });
     return { normal: 2 };
+  },
+
+  // ------------------------------------------------------------- Water
+  waterNormal(s) {
+    s.each((u, v, i) => {
+      const a = f(N1, u, v, 6, 4, 0.55), b = f(N2, u + 0.37, v + 0.11, 12, 3, 0.5);
+      const w = W2(u * 5, v * 5, 5);
+      s.h[i] = a * 0.6 + b * 0.3 + (w.f2 - w.f1) * 0.25;
+      s.set(i, 0.5, 0.5, 1);
+      s.rough[i] = 0.05;
+    });
+    return { normal: 3.2 };
   },
 
   // ------------------------------------------------------------- Creatures

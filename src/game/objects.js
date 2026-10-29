@@ -20,7 +20,7 @@ export const OBJECT_KINDS = {
       if (pose) { m.rotation.set(pose[0], pose[1], pose[2]); m.position.y = pose[3]; }
       g.add(m);
       // a touch larger than life on the floor so loot reads at a glance
-      g.scale.setScalar(ITEMS[o.item]?.type === 'weapon' ? 1.15 : 1.4);
+      g.scale.setScalar(ITEMS[o.item]?.type === 'weapon' ? 1.2 : 1.6);
       return g;
     },
     hidden: (o, s) => !!s?.taken,

@@ -35,16 +35,19 @@ Dev shortcuts: `?solo=1&level=L3&seed=MYSEED&difficulty=hard` jumps straight int
 | J | Journal (collected notes) |
 | T / Enter | Chat (co-op) |
 | Esc | Pause / settings |
+| ` | Cheat console (see below) |
 
 ## The run
 
 | Level | Atmosphere | Threat | Exit |
 | --- | --- | --- | --- |
-| **0: The Lobby** | Mono-yellow office space: wallpaper, damp carpet, humming fluorescents; partitions, room clusters, halls and tall pillar halls | **The Hush**: blind, hunts by sound. Crouch past it. *(easy)* | A pit "where the carpet forgets to hold". Follow painted arrows and flickering lights. |
+| **0: The Lobby** | Mono-yellow office space: wallpaper, damp carpet, humming fluorescents; partitions, room clusters, halls and tall pillar halls | **The Hush**: blind, hunts by sound. Crouch past it. *(easy)* | Pits "where the carpet forgets to hold": one guaranteed 2–3 chunks out, plus more scattered through the level. Follow the spray-painted EXIT arrows and the sound of the draft. |
 | **1: Industrial Tunnels** | Brick service corridors, pipes, steam vents (they scald), machine halls, boiler rooms with furnaces | **Marrowhounds**: bone dogs in packs. They circle, dart in and retreat. Fire (lighters, flares, furnaces) keeps them off; focused light makes them flinch. *(medium)* | The **service door**, opened with a keycard from the foreman's office or a break room. |
 | **2: Offices & Sewers** | Cubicle farms, offices with doors, conference rooms; stairs down into a connected sewer tunnel network | **The Inkwalker**: a persistent black skeleton. A flashlight held on its skull stuns it (focus the beam). It drags you out of lockers if it saw you go in. *(hard)* | The **stairwell**. Find a fuse in a sewer pump room and power the fuse box. |
 | **3: Pool Rooms** | White-tiled halls, clear pools with caustics, flooded corridors, skylights onto a sky that isn't there | **The Undertow**: hunts swimmers and lunges at people standing at the pool edge. It gurgles as it closes in. *(hard if it gets you, easy to avoid)* | The **main drain** at the bottom of the deepest pool. Unlock it with the drain valve key from a pump room, then swim down. |
 | **5: The Sky Bridge** | A colossal bridge over an endless fog void, colossal pillars, wind gusts, lanterns | **The Goaner**: three-phase boss (see below) | Defeat the Goaner. The gate beyond the arena opens. |
+
+**More than one way out.** Every level except the Sky Bridge has secondary exits generated with the rest of the map. Level 0 scatters extra pits; Levels 1–3 scatter floor hatches (maintenance hatches, manholes, service hatches) that skip the key puzzle: force one open in three loud heaves, or pry it with a crowbar. Exits breathe a cold draft you can hear from about 40 m away, EXIT arrows are painted beside the doorway that leads toward the nearest exit (so they chain room to room), and objective items (keycard, fuse, valve key) chirp softly when you're close.
 
 **Rare:** **The Lookalike** wears a teammate's shape (yours, when you're alone). It only moves while nobody is looking at it, and a sustained flashlight beam makes it come apart.
 
@@ -91,6 +94,20 @@ Host-authoritative, star topology. The host simulates entities, the director, wo
 ## Audio
 Everything is synthesized with the Web Audio API: per-level ambience beds (mains hum, machinery drones, HVAC and sewer water, lapping pools, wind), HRTF-spatialized one-shots with wall occlusion, a reverb bus per level, footsteps per surface, weapons, reloads, impacts, creature vocalisations (clicks, shrieks, growls, howls, gurgles, the Goaner's roar and bleat, wing buzz), a tension drone driven by threat, horror stingers, whispers and heartbeat. Underwater and hiding apply a muffle filter.
 
+## Cheat console
+Press **`** to open it. It's always available in solo. In co-op the host runs `cheats on` (enabling cheats for themselves), then `grant <player|number|all>` and `revoke <player|all>` to share access; `players` lists everyone and their status. The host re-checks permission on every request that touches shared state, so a client can't spawn creatures without being granted. Tab completes, arrow keys walk the history.
+
+| Command | Effect |
+| --- | --- |
+| `give <item> [qty]`, `items` | Add an item / list item ids |
+| `heal`, `god`, `notarget` | Restore all stats · invulnerability · creatures ignore you |
+| `fly`, `noclip`, `speed <x>` | Fly with collision (Space/C) · fly through walls · speed multiplier |
+| `ammo`, `sanity <n>` | Refill magazines, durability, battery and fuel · set sanity |
+| `level <id\|next>` | Travel to L0, L1, L2, L3, L5 |
+| `tp <x> <z>`, `tp exit`, `tp key`, `tp <player>`, `pos` | Teleport · print position |
+| `spawn <entity> [n]`, `entities`, `killall` | Spawn creatures in front of you · list types · kill everything on the level |
+| `flag <name> [0\|1]` | Set a level flag (`serviceDoor`, `power`, `stairOpen`, `drainOpen`, `bossDead`) |
+
 ## Project structure
 
 ```
@@ -111,7 +128,7 @@ src/
                       director (tension), entities/* (one module per creature)
   audio/              engine, sfx recipes, ambience profiles
   net/session.js      PeerJS + BroadcastChannel transports
-  ui/                 HUD, screens/modals, menus (settings, customization), lobby
+  ui/                 HUD, screens/modals, menus (settings, customization), lobby, cheat console
 tools/                dev harnesses (screenshots, multiplayer smoke test, syntax check)
 ```
 

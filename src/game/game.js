@@ -282,6 +282,7 @@ export class Game {
     audio.ambience?.update(dt, { sewer: this.player.pos.y < -1.5 });
     this.updateBuzz(dt);
     this.updateExitSense(dt);
+    this.updateProbe(dt);
     this.sanityFx.update(dt);
     this.updatePost(dt);
     this.def.clientUpdate?.(this, dt);
@@ -787,6 +788,15 @@ export class Game {
       if (this.player.underwater) water.color.set(this.def.waterFogColor || 0x0d3a40);
       else water.color.set(this.def.fog.color);
     }
+  }
+
+  updateProbe(dt) {
+    const v = this.ambientLightAt(this.player.pos) * (worldUniforms.bakedScale.value);
+    const k = (this.def?.probeGain ?? 0.16) * v;
+    const tint = this.def?.probeTint || [1, 0.94, 0.82];
+    const pr = worldUniforms.dynProbe.value;
+    const a = Math.min(1, dt * 3);
+    pr.r += (tint[0] * k - pr.r) * a; pr.g += (tint[1] * k - pr.g) * a; pr.b += (tint[2] * k - pr.b) * a;
   }
 
   // Exits breathe: a spatial draft sound leads players the last stretch, and a

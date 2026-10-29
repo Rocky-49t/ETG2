@@ -10,6 +10,9 @@ export const worldUniforms = {
   bakedScale: { value: 1.0 },  // dimmed during blackouts / low sanity
   bakedTint: { value: new THREE.Color(1, 1, 1) },
   time: { value: 0 },
+  // light probe for movable props (containers, items, lockers): the baked
+  // light level around the player, so they match the lit room they sit in
+  dynProbe: { value: new THREE.Color(0, 0, 0) },
 };
 
 const NOISE_GLSL = /* glsl */`
@@ -58,8 +61,8 @@ export function patchBaked(mat, opts = {}) {
 // Definitions: recipe + material params + uv scale (metres per texture repeat).
 export const MATERIAL_DEFS = {
   wallpaper: { recipe: 'wallpaper', params: { roughness: 1 }, },
-  carpet: { recipe: 'carpet', params: { roughness: 1 }, stains: { body: '0.24, 0.25, 0.22', rim: '0.16, 0.17, 0.15' } },
-  ceilingTile: { recipe: 'ceilingTile', params: { roughness: 1, metalness: 1 }, stains: { body: '0.16, 0.22, 0.34', rim: '0.24, 0.3, 0.38' } },
+  carpet: { recipe: 'carpet', params: { roughness: 1 }, stains: { body: '0.32, 0.33, 0.28', rim: '0.12, 0.12, 0.1' } },
+  ceilingTile: { recipe: 'ceilingTile', params: { roughness: 1, metalness: 1 }, stains: { body: '0.17, 0.23, 0.34', rim: '0.1, 0.13, 0.17' } },
   lightPanel: { recipe: 'lightPanel', params: { emissive: 0xfff4dc, emissiveIntensity: 1.9, roughness: 1, metalness: 1 }, emissiveBaked: true },
   trim: { recipe: 'trim', params: { roughness: 1 } },
   concrete: { recipe: 'concrete', params: { roughness: 1 } },
@@ -152,6 +155,15 @@ export class MaterialLib {
     const mat = new THREE.MeshStandardMaterial(params);
     mat.name = name;
     if (baked) patchBaked(mat, { emissiveBaked: def.emissiveBaked, variation: def.variation, stains: def.stains });
+    else {
+      mat.onBeforeCompile = shader => {
+        shader.uniforms.dynProbe = worldUniforms.dynProbe;
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform vec3 dynProbe;')
+          .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\nirradiance += dynProbe * 3.14159;');
+      };
+      mat.customProgramCacheKey = () => 'dynProbe';
+    }
     return mat;
   }
 

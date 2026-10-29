@@ -220,14 +220,22 @@ export function buildDecalAtlas(seedTexts = DECAL_TEXTS) {
       g.beginPath(); g.ellipse(0, 0, C * 0.035, C * 0.11, 0, 0, Math.PI * 2); g.fill(); g.restore();
     }
   });
-  // 3 water stain
+  // 3 damp stain (irregular blotch with darker tide line)
   cell(3, (g, C) => {
-    for (let i = 0; i < 6; i++) {
-      g.strokeStyle = `rgba(90,60,20,${0.15 + i * 0.05})`;
-      g.lineWidth = 3 + i;
-      g.beginPath(); g.ellipse(C / 2, C / 2, C * (0.42 - i * 0.05), C * (0.36 - i * 0.04), 0.3, 0, Math.PI * 2); g.stroke();
+    const pts = [];
+    const n = 22;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const r = C * (0.28 + Math.random() * 0.14);
+      pts.push([C / 2 + Math.cos(a) * r, C / 2 + Math.sin(a) * r * 0.85]);
     }
-    g.fillStyle = 'rgba(80,55,20,0.18)'; g.beginPath(); g.ellipse(C / 2, C / 2, C * 0.3, C * 0.25, 0.3, 0, Math.PI * 2); g.fill();
+    const path = () => { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); };
+    g.filter = 'blur(6px)';
+    path(); g.fillStyle = 'rgba(70,50,18,0.32)'; g.fill();
+    g.filter = 'blur(2px)';
+    path(); g.lineWidth = 5; g.strokeStyle = 'rgba(60,40,12,0.35)'; g.stroke();
+    g.filter = 'none';
+    for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(55,38,12,0.18)'; g.beginPath(); g.arc(C / 2 + (Math.random() - 0.5) * C * 0.4, C / 2 + (Math.random() - 0.5) * C * 0.35, C * (0.04 + Math.random() * 0.08), 0, Math.PI * 2); g.fill(); }
   });
   // 4,5 blood
   for (const idx of [4, 5]) cell(idx, (g, C) => {

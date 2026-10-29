@@ -1,4 +1,6 @@
-// Dynamic light pool. Static fixtures are baked into vertex lighting; the
+// Dynamic light pool. NOTE: lights are never hidden/removed (that would
+// change the light count and force shader recompiles); unused ones sit at 0.
+// Static fixtures are baked into vertex lighting; the
 // nearest/most relevant fixtures additionally get a real PointLight from a
 // fixed-size pool so nearby surfaces receive specular + normal-mapped light.
 // Flickering and broken fixtures are dynamic-only, which gives them punch.
@@ -105,14 +107,13 @@ export class LightManager {
 
     for (const slot of this.pool) {
       const l = slot.src;
-      if (!l) { slot.light.intensity = 0; slot.light.visible = false; continue; }
+      if (!l) { slot.light.intensity = 0; continue; }
       slot.fade = Math.min(1, Math.max(0, slot.fade + (slot.releasing ? -dt * 4 : dt * 3)));
       if (slot.releasing && slot.fade <= 0) {
-        this.assigned.delete(l); slot.src = null; slot.light.visible = false; continue;
+        this.assigned.delete(l); slot.src = null; slot.light.intensity = 0; continue;
       }
       const fv = flickerValue(l, t);
       l._fv = fv;
-      slot.light.visible = true;
       slot.light.intensity = l.intensity * (l.dynGain ?? 1) * fv * slot.fade * globalK;
     }
 
@@ -139,7 +140,7 @@ export class LightManager {
   lightLevelAt(x, y, z) {
     let sum = 0;
     for (const slot of this.pool) {
-      if (!slot.src || !slot.light.visible) continue;
+      if (!slot.src || slot.light.intensity <= 0) continue;
       const p = slot.light.position;
       const d2 = (p.x - x) ** 2 + (p.y - y) ** 2 + (p.z - z) ** 2;
       sum += slot.light.intensity / (d2 + 1);

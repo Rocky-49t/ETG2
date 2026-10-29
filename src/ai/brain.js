@@ -1,0 +1,144 @@
+// Reusable AI helpers: perception (sight / hearing / light), path following,
+// steering with collision, and attack timing. Entity types compose these in
+// their think() functions.
+import { angleDiff } from '../core/rng.js';
+import { TILE } from '../world/chunk.js';
+
+export const NOISE = {
+  crouch: 0, walk: 6, sprint: 15, land: 10, jump: 5, swim: 7, splash: 12,
+  door: 12, locker: 7, melee: 6, pistol: 42, smg: 40, shotgun: 50, reload: 4,
+  decoy: 32, scream: 25, glass: 14, throw: 3,
+};
+
+// ---------------------------------------------------------------- perception
+export function canSee(e, p, level, opts = {}) {
+  const range = opts.range ?? 20;
+  const dx = p.x - e.x, dz = p.z - e.z;
+  const d = Math.hypot(dx, dz);
+  if (d > range) return false;
+  if (opts.fov !== undefined && d > 1.5) {
+    const a = Math.atan2(dx, dz);
+    if (Math.abs(angleDiff(e.yaw, a)) > opts.fov / 2) return false;
+  }
+  // darkness halves sight range unless the player is lit
+  if (opts.lightAware) {
+    const lit = p.light || p.lighter || (p.ambientLight ?? 0.3) > 0.25;
+    if (!lit && d > range * 0.45) return false;
+  }
+  if (p.hidden) return false;
+  const eyeY = e.y + (opts.eyeH ?? 1.6);
+  return level.lineOfSight(e.x, eyeY, e.z, p.x, p.y + (p.crouch ? 0.9 : 1.4), p.z);
+}
+
+// Loudest relevant noise heard by an entity this tick.
+export function hearNoise(e, noises, level, mult = 1) {
+  let best = null, bestScore = 0;
+  for (const n of noises) {
+    const d = Math.hypot(n.x - e.x, n.z - e.z);
+    let r = n.r * mult;
+    if (r <= 0) continue;
+    if (d > r) continue;
+    // walls muffle
+    if (d > 4 && !level.tileLOS(e.x, e.z, n.x, n.z)) { r *= 0.55; if (d > r) continue; }
+    const score = 1 - d / r;
+    if (score > bestScore) { bestScore = score; best = n; }
+  }
+  return best ? { ...best, score: bestScore } : null;
+}
+
+export function nearestPlayer(e, players, filter = () => true) {
+  let best = null, bd = Infinity;
+  for (const p of players) {
+    if (p.dead || !filter(p)) continue;
+    const d = Math.hypot(p.x - e.x, p.z - e.z);
+    if (d < bd) { bd = d; best = p; }
+  }
+  return best ? { p: best, d: bd } : null;
+}
+
+// Is player p shining a flashlight on point (x,y,z)? Returns 0..1 strength.
+export function lightOn(p, x, y, z, level, maxD = 12, focusBonus = true) {
+  if (!p.light || !p.dir) return 0;
+  const ex = p.x, ey = p.y + (p.crouch ? 1.0 : 1.55), ez = p.z;
+  const dx = x - ex, dy = y - ey, dz = z - ez;
+  const d = Math.hypot(dx, dy, dz);
+  if (d > maxD * (p.focus ? 1.4 : 1)) return 0;
+  const dot = (dx * p.dir.x + dy * p.dir.y + dz * p.dir.z) / (d || 1);
+  const cone = p.focus && focusBonus ? 0.985 : 0.965;
+  if (dot < cone) return 0;
+  if (!level.lineOfSight(ex, ey, ez, x, y, z)) return 0;
+  return (p.focus ? 2.2 : 1) * (1 - d / (maxD * 1.4));
+}
+
+// ---------------------------------------------------------------- movement
+export function faceToward(e, x, z, rate, dt) {
+  const a = Math.atan2(x - e.x, z - e.z);
+  const d = angleDiff(e.yaw, a);
+  e.yaw += Math.max(-rate * dt, Math.min(rate * dt, d));
+}
+
+// Move with collision toward a point. Returns distance remaining.
+export function stepToward(e, level, x, z, speed, dt, turnRate = 8) {
+  const dx = x - e.x, dz = z - e.z;
+  const d = Math.hypot(dx, dz);
+  if (d < 0.05) return d;
+  faceToward(e, x, z, turnRate, dt);
+  const step = Math.min(d, speed * dt);
+  const body = e.body;
+  body.x = e.x; body.y = e.y; body.z = e.z;
+  level.move(body, (dx / d) * step, (dz / d) * step);
+  const moved = Math.hypot(body.x - e.x, body.z - e.z);
+  e.x = body.x; e.z = body.z;
+  if (!e.flying) {
+    const g = level.groundAt(body);
+    if (g > -1e5 && g < e.y + 0.7) e.y += (g - e.y) * Math.min(1, dt * 12);
+    else if (g < e.y - 0.7) e.y = Math.max(g, e.y - 9 * dt); // fall
+  }
+  e.speedNow = moved / Math.max(dt, 1e-4);
+  e.stuck = step > 0.01 && moved < step * 0.25 ? (e.stuck || 0) + dt : 0;
+  return d - moved;
+}
+
+// Path-follow toward a goal, re-pathing periodically.
+export function goTo(e, level, gx, gz, speed, dt, opts = {}) {
+  e.pathT = (e.pathT || 0) - dt;
+  const goalMoved = !e.goal || Math.hypot(e.goal.x - gx, e.goal.z - gz) > (opts.repathDist ?? 1.5);
+  if (!e.path || e.pathT <= 0 || goalMoved || e.stuck > 0.6) {
+    e.goal = { x: gx, z: gz };
+    // direct line if clear and close
+    const direct = Math.hypot(gx - e.x, gz - e.z) < 18 && level.lineOfSight(e.x, e.y + 0.6, e.z, gx, e.y + 0.6, gz) && !opts.waterOnly;
+    e.path = direct ? [{ x: gx, z: gz }] : level.findPath(e.x, e.z, gx, gz, opts);
+    e.pathT = opts.repath ?? 0.7;
+    e.stuck = 0;
+    if (!e.path || !e.path.length) { e.path = null; return Infinity; }
+  }
+  let wp = e.path[0];
+  while (wp && Math.hypot(wp.x - e.x, wp.z - e.z) < (e.path.length > 1 ? 0.6 : 0.15)) { e.path.shift(); wp = e.path[0]; }
+  if (!wp) return 0;
+  stepToward(e, level, wp.x, wp.z, speed, dt, opts.turn ?? 8);
+  return Math.hypot(gx - e.x, gz - e.z);
+}
+
+export function wander(e, level, speed, dt, radius = 12, rng = Math.random) {
+  e.wanderT = (e.wanderT || 0) - dt;
+  if (!e.wanderGoal || e.wanderT <= 0 || Math.hypot(e.wanderGoal.x - e.x, e.wanderGoal.z - e.z) < 0.8) {
+    const p = level.randomWalkableNear(e.home ? e.home.x * 0.3 + e.x * 0.7 : e.x, e.home ? e.home.z * 0.3 + e.z * 0.7 : e.z, radius, rng);
+    e.wanderGoal = p || { x: e.x, z: e.z };
+    e.wanderT = 6 + rng() * 8;
+  }
+  return goTo(e, level, e.wanderGoal.x, e.wanderGoal.z, speed, dt, { repath: 2 });
+}
+
+// Move directly away from a point.
+export function fleeFrom(e, level, x, z, speed, dt) {
+  const dx = e.x - x, dz = e.z - z;
+  const d = Math.hypot(dx, dz) || 1;
+  const tx = e.x + (dx / d) * 4, tz = e.z + (dz / d) * 4;
+  stepToward(e, level, tx, tz, speed, dt, 10);
+}
+
+export function setState(e, s) {
+  if (e.state !== s) { e.state = s; e.stateT = 0; e.stateChanged = true; }
+}
+
+export function tileOf(x) { return Math.floor(x / TILE); }

@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Escape the Goanrooms II</title>
+  <meta name="description" content="A co-op first-person Backrooms survival horror game. Sequel to Escape the Goanrooms." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600;800&display=swap" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.min.js",
+        "three/addons/": "./vendor/three/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="grainOverlay"></div>
+
+  <!-- ============================== BOOT / LOADING -->
+  <div id="loading" class="screen show">
+    <div class="loadbox">
+      <div class="load-title" id="loadTitle">ESCAPE THE GOANROOMS II</div>
+      <div class="load-sub" id="loadSub">Preparing the hum…</div>
+      <div class="loadbar"><div id="loadFill"></div></div>
+      <div class="load-tip" id="loadTip"></div>
+    </div>
+  </div>
+
+  <!-- ============================== MAIN MENU -->
+  <div id="menu" class="screen">
+    <div class="menu-left">
+      <h1 class="title"><span class="t1">ESCAPE THE</span><span class="t2" data-text="GOANROOMS">GOANROOMS</span><span class="t3">II</span></h1>
+      <div class="tagline">You noclipped out of reality. Again.</div>
+      <nav class="menu-buttons">
+        <button id="btnSolo" class="big primary">Play Solo</button>
+        <button id="btnHost" class="big">Host Co-op</button>
+        <button id="btnJoin" class="big">Join Co-op</button>
+        <button id="btnCustomize" class="big">Customize Wanderer</button>
+        <button id="btnSettings" class="big">Settings</button>
+        <button id="btnHelp" class="big">How to Survive</button>
+      </nav>
+      <div class="menu-foot">Prototype build · procedural levels · P2P co-op · <a href="https://github.com/rocky-49t/ETG2" target="_blank" rel="noopener">source</a></div>
+    </div>
+    <div class="menu-right" id="menuSide"></div>
+  </div>
+
+  <!-- ============================== CUSTOMIZE -->
+  <div id="customize" class="screen modal-screen">
+    <section class="panel wide">
+      <h2>Your Wanderer</h2>
+      <div class="custom-grid">
+        <div class="custom-preview"><canvas id="avatarPreview" width="320" height="420"></canvas><div class="hint">drag to rotate</div></div>
+        <div class="custom-fields" id="customFields"></div>
+      </div>
+      <div class="row end">
+        <button id="btnRandomSkin">Randomize</button>
+        <button id="btnCustomDone" class="primary">Done</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================== LOBBY -->
+  <div id="lobby" class="screen modal-screen">
+    <section class="panel wide">
+      <h2 id="lobbyTitle">Co-op Lobby</h2>
+      <div class="lobby-grid">
+        <div>
+          <div class="field">
+            <label>Room code</label>
+            <div class="code-row"><div id="roomCode" class="room-code">-----</div><button id="btnCopyCode" class="small">Copy</button></div>
+          </div>
+          <div class="field" id="joinField">
+            <label for="joinCodeInput">Enter room code</label>
+            <div class="code-row"><input id="joinCodeInput" maxlength="8" autocomplete="off" spellcheck="false" placeholder="ABCDE" /><button id="btnDoJoin" class="primary">Join</button></div>
+          </div>
+          <div class="field">
+            <label for="netMode">Connection</label>
+            <select id="netMode">
+              <option value="peer">Online (PeerJS WebRTC)</option>
+              <option value="local">Local tabs (same browser, testing)</option>
+            </select>
+          </div>
+          <div class="field host-only">
+            <label for="seedInput">World seed</label>
+            <div class="code-row"><input id="seedInput" maxlength="24" autocomplete="off" spellcheck="false" /><button id="btnRandSeed" class="small">↻</button></div>
+          </div>
+          <div class="field host-only">
+            <label for="difficultySel">Difficulty</label>
+            <select id="difficultySel">
+              <option value="easy">Easy — fewer, slower entities</option>
+              <option value="normal" selected>Normal</option>
+              <option value="hard">Hard — relentless</option>
+            </select>
+          </div>
+          <div class="field host-only">
+            <label for="friendlyFire"><input type="checkbox" id="friendlyFire" /> Friendly fire</label>
+          </div>
+          <div id="lobbyStatus" class="status"></div>
+        </div>
+        <div>
+          <label class="lbl">Wanderers</label>
+          <ul id="lobbyPlayers" class="player-list"></ul>
+          <div class="lobby-chat">
+            <div id="lobbyChatLog" class="chat-log"></div>
+            <input id="lobbyChatInput" placeholder="Say something…" maxlength="160" autocomplete="off" />
+          </div>
+        </div>
+      </div>
+      <div class="row end">
+        <button id="btnLobbyLeave">Leave</button>
+        <button id="btnReady">Ready</button>
+        <button id="btnStart" class="primary host-only">Start Game</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================== SETTINGS -->
+  <div id="settings" class="screen modal-screen">
+    <section class="panel">
+      <h2>Settings</h2>
+      <div class="settings-grid" id="settingsFields"></div>
+      <div class="row end"><button id="btnSettingsDone" class="primary">Done</button></div>
+    </section>
+  </div>
+
+  <!-- ============================== HELP -->
+  <div id="help" class="screen modal-screen">
+    <section class="panel wide">
+      <h2>How to Survive</h2>
+      <div class="help-cols">
+        <div>
+          <h3>Controls</h3>
+          <table class="keys">
+            <tr><td>WASD</td><td>Move</td></tr>
+            <tr><td>Shift</td><td>Sprint (loud)</td></tr>
+            <tr><td>C / Ctrl</td><td>Crouch (quiet) · swim down</td></tr>
+            <tr><td>Space</td><td>Jump · swim up</td></tr>
+            <tr><td>Mouse</td><td>Look · LMB use/attack · RMB aim / focus beam</td></tr>
+            <tr><td>F</td><td>Toggle flashlight</td></tr>
+            <tr><td>E</td><td>Interact · hold to revive</td></tr>
+            <tr><td>R</td><td>Reload</td></tr>
+            <tr><td>1–6 / wheel</td><td>Hotbar</td></tr>
+            <tr><td>Tab / I</td><td>Inventory</td></tr>
+            <tr><td>G</td><td>Drop held item</td></tr>
+            <tr><td>J</td><td>Journal</td></tr>
+            <tr><td>T / Enter</td><td>Chat</td></tr>
+            <tr><td>Esc</td><td>Pause</td></tr>
+          </table>
+        </div>
+        <div>
+          <h3>Rules of the Goanrooms</h3>
+          <ul class="rules">
+            <li><b>Sound travels.</b> Sprinting, gunfire and slamming doors draw things toward you. Crouch to move silently.</li>
+            <li><b>Darkness eats your mind.</b> Sanity drains in the dark and near entities. Low sanity shows you things that aren't there — usually.</li>
+            <li><b>Drink, eat, patch up.</b> Almond water restores thirst and calms nerves. Bandages heal over time.</li>
+            <li><b>Every thing has a weakness.</b> Fire scares the hounds. Light stuns what walks in ink. Water hides what you should fear.</li>
+            <li><b>Hide.</b> Lockers and wardrobes keep you out of sight — if nothing saw you climb in.</li>
+            <li><b>Read the walls.</b> Previous wanderers left arrows, notes and warnings. Follow them.</li>
+            <li><b>Together.</b> In co-op, downed friends can be revived by holding E.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="row end"><button id="btnHelpDone" class="primary">Back</button></div>
+    </section>
+  </div>
+
+  <!-- ============================== HUD -->
+  <div id="hud" class="hidden">
+    <div id="crosshair"><div class="dot"></div></div>
+    <div id="hitmarker"></div>
+    <div id="objective"><div class="lvl" id="hudLevel"></div><div class="obj" id="hudObjective"></div></div>
+    <div id="bossBar" class="hidden"><div class="boss-name" id="bossName">THE GOANER</div><div class="boss-track"><div id="bossFill"></div><div id="bossFillLag"></div></div><div class="boss-phase" id="bossPhase"></div></div>
+    <div id="prompt"></div>
+    <div id="progressRing" class="hidden"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" class="bg"/><circle cx="20" cy="20" r="16" class="fg" id="progressArc"/></svg><span id="progressLabel"></span></div>
+    <div id="subtitles"></div>
+    <div id="vitals">
+      <div class="bar-row"><span class="ic">✚</span><div class="bar health"><div id="hpFill"></div><div id="hpLag"></div></div></div>
+      <div class="bar-row thin"><span class="ic">≫</span><div class="bar stamina"><div id="stFill"></div></div></div>
+      <div class="bar-row thin hidden" id="o2Row"><span class="ic">○</span><div class="bar oxygen"><div id="o2Fill"></div></div></div>
+      <div class="gauges">
+        <div class="gauge" id="gThirst" title="Thirst"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" class="bg"/><circle cx="18" cy="18" r="15" class="fg"/></svg><span>💧</span></div>
+        <div class="gauge" id="gHunger" title="Hunger"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" class="bg"/><circle cx="18" cy="18" r="15" class="fg"/></svg><span>🍞</span></div>
+        <div class="gauge" id="gSanity" title="Sanity"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" class="bg"/><circle cx="18" cy="18" r="15" class="fg"/></svg><span>◉</span></div>
+      </div>
+    </div>
+    <div id="hotbar"></div>
+    <div id="heldInfo"><div id="heldName"></div><div id="heldAmmo"></div></div>
+    <div id="lightInfo" class="hidden"><span class="ic">🔦</span><div class="bar battery"><div id="batFill"></div></div></div>
+    <div id="chat"><div id="chatLog" class="chat-log"></div><input id="chatInput" class="hidden" maxlength="200" autocomplete="off" placeholder="Say something…" /></div>
+    <div id="teamList"></div>
+    <div id="damageDirs"></div>
+    <div id="fpsMeter" class="hidden"></div>
+    <div id="toast"></div>
+  </div>
+
+  <!-- ============================== HIDING OVERLAY -->
+  <div id="hideOverlay" class="hidden"><div class="slats"></div><div class="hide-hint">Hidden · hold breath with <b>Shift</b> · <b>E</b> to leave</div></div>
+
+  <!-- ============================== INVENTORY -->
+  <div id="inventory" class="screen modal-screen">
+    <section class="panel inv-panel">
+      <div class="inv-cols">
+        <div class="inv-main">
+          <h2>Backpack</h2>
+          <div id="invGrid" class="inv-grid"></div>
+          <h3>Hotbar</h3>
+          <div id="invHotbar" class="inv-grid hot"></div>
+        </div>
+        <div class="inv-side">
+          <div id="containerBox" class="hidden">
+            <h2 id="containerTitle">Container</h2>
+            <div id="containerGrid" class="inv-grid"></div>
+            <button id="btnTakeAll" class="small">Take all</button>
+          </div>
+          <div id="itemDetail" class="item-detail">
+            <div class="detail-icon" id="detailIcon"></div>
+            <div class="detail-name" id="detailName">—</div>
+            <div class="detail-desc" id="detailDesc">Select an item.</div>
+            <div class="detail-actions">
+              <button id="btnUseItem" class="small">Use</button>
+              <button id="btnDropItem" class="small">Drop</button>
+              <button id="btnSplitItem" class="small">Split</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="inv-help">Click to select · drag to move · right-click to use · shift-click to quick-move · Tab to close</div>
+    </section>
+  </div>
+
+  <!-- ============================== NOTE / JOURNAL -->
+  <div id="note" class="screen modal-screen">
+    <section class="paper"><div id="noteTitle" class="note-title"></div><div id="noteBody" class="note-body"></div><div class="note-foot">Added to journal · <b>E</b> / <b>Esc</b> to close</div></section>
+  </div>
+  <div id="journal" class="screen modal-screen">
+    <section class="panel wide journal-panel">
+      <h2>Journal</h2>
+      <div class="journal-cols"><ul id="journalList"></ul><div id="journalEntry" class="paper small"></div></div>
+      <div class="row end"><button id="btnJournalDone" class="primary">Close</button></div>
+    </section>
+  </div>
+
+  <!-- ============================== PAUSE -->
+  <div id="pause" class="screen modal-screen">
+    <section class="panel">
+      <h2>Paused</h2>
+      <p id="pauseInfo" class="muted"></p>
+      <div class="stack">
+        <button id="btnResume" class="primary">Resume</button>
+        <button id="btnPauseJournal">Journal</button>
+        <button id="btnPauseSettings">Settings</button>
+        <button id="btnPauseHelp">Controls</button>
+        <button id="btnQuit" class="danger">Quit to Menu</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================== TRANSITION / DEATH / VICTORY -->
+  <div id="titleCard" class="hidden"><div class="tc-level" id="tcLevel"></div><div class="tc-name" id="tcName"></div><div class="tc-sub" id="tcSub"></div></div>
+  <div id="death" class="screen modal-screen">
+    <section class="panel center">
+      <h2 class="blood" id="deathTitle">YOU WERE LOST</h2>
+      <p id="deathText" class="muted"></p>
+      <div class="row center"><button id="btnRespawn" class="primary">Wake up again</button><button id="btnSpectate">Spectate</button><button id="btnDeathQuit">Quit</button></div>
+    </section>
+  </div>
+  <div id="spectate" class="hidden"><div>Spectating <b id="specName"></b></div><div class="muted">Click to switch · you return when the team reaches the next level</div></div>
+  <div id="victory" class="screen modal-screen">
+    <section class="panel center wide">
+      <h1 class="victory-title">THE GOANER FALLS</h1>
+      <p class="muted" id="victoryText">The bridge stops screaming. Somewhere below the void, a door you did not build swings open — and through it, a corridor that smells faintly of almonds.</p>
+      <div id="victoryStats" class="victory-stats"></div>
+      <p class="muted small">This is a temporary ending for the prototype. The Goanrooms go deeper.</p>
+      <div class="row center"><button id="btnVictoryMenu" class="primary">Return to Menu</button></div>
+    </section>
+  </div>
+  <div id="fade"></div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -239,6 +239,7 @@ export class Game {
     const cam = this.engine.camera;
     this.renderer.update(cam.position.x, cam.position.z);
     if (this.renderer.dirty) { const s = this.renderer.collectLights(); this.lightMgr.setSources(s.lights, s.fixtures); }
+    this.lightMgr.gameTime = this.time;
     this.lightMgr.update(dt, cam, level);
     this.objects.update(dt);
     this.objects.glints(dt);

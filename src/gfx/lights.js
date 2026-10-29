@@ -8,8 +8,9 @@ import * as THREE from 'three';
 import { noise1 } from '../core/rng.js';
 import { worldUniforms } from './materials.js';
 
-export function flickerValue(l, t) {
+export function flickerValue(l, t, now) {
   const s = l.seed || 0;
+  if (l.offUntil && now !== undefined && now >= l.offFrom && now < l.offUntil) return Math.random() < 0.04 ? 0.6 : 0;
   if (l.broken) {
     if (noise1(t * 0.9, s) < 0.8) return 0.0;
     return noise1(t * 28, s + 1) > 0.45 ? 1 : 0.05;
@@ -112,14 +113,14 @@ export class LightManager {
       if (slot.releasing && slot.fade <= 0) {
         this.assigned.delete(l); slot.src = null; slot.light.intensity = 0; continue;
       }
-      const fv = flickerValue(l, t);
+      const fv = flickerValue(l, t, this.gameTime);
       l._fv = fv;
       slot.light.intensity = l.intensity * (l.dynGain ?? 1) * fv * slot.fade * globalK;
     }
 
     // fixture emissives
     for (const fx of this.fixtures) {
-      const fv = flickerValue(fx.light, t);
+      const fv = flickerValue(fx.light, t, this.gameTime);
       fx.mat.emissiveIntensity = fx.mat.userData.baseIntensity * fv * globalK;
     }
   }

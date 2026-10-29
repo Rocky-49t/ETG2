@@ -126,6 +126,25 @@ export default {
   notes: ['l0_a', 'l0_b', 'l0_c', 'l0_d', 'l0_e', 'gen_a', 'gen_b'],
   entities: { primary: 'hush', max: 2, rare: ['lookalike'] },
 
+  // Set piece: the fluorescents die in a wave racing toward you, then return.
+  setPiece(game, levelId, ctx, p) {
+    if (Math.random() < 0.5) {
+      game.hostEvent(levelId, { k: 'lightWave', x: p.x, z: p.z, a: Math.random() * Math.PI * 2 });
+      return true;
+    }
+    return false;
+  },
+
+  clientEvent(game, m) {
+    if (m.k !== 'lightWave') return;
+    // the lights stutter, die, and come back: three blackout pulses
+    const pulses = [[0, 0.22], [550, 0.35], [1250, 2.6]];
+    for (const [delay, dur] of pulses) setTimeout(() => { game.blackoutT = Math.max(game.blackoutT, dur); }, delay);
+    const dx = Math.cos(m.a), dz = Math.sin(m.a);
+    game.sfx('distantThud', { x: m.x + dx * 20, y: 2, z: m.z + dz * 20 }, { volume: 0.7 });
+    setTimeout(() => { game.sfx('hushClick', { x: m.x - dx * 8, y: 1.5, z: m.z - dz * 8 }, { volume: 0.6 }); game.stats.scare(5); }, 1600);
+  },
+
   landmarks(level) {
     const exit = placeLandmark(level, 'L0exit', 55, 95);
     return [{ type: 'spawn', tx: 8, tz: 8 }, { type: 'exit', ...exit }];

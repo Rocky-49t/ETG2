@@ -484,6 +484,18 @@ export default {
     if (l === 'L2' && k === 'stairOpen') for (const ch of game.getLevel('L2').chunks.values()) for (const o of ch.objects) if (o.kind === 'stairDoor' && o.collider) o.collider.disabled = true;
   },
 
+  setPiece(game, levelId, ctx, p) {
+    const lvl = ctx.level;
+    const ch = lvl.chunk(Math.floor(p.x / 32), Math.floor(p.z / 32));
+    const doors = ch.objects.filter(o => o.kind === 'door' && game.world.get(levelId, o.id)?.open && Math.hypot(o.x - p.x, o.z - p.z) > 4);
+    if (!doors.length) return false;
+    const o = doors[Math.floor(Math.random() * doors.length)];
+    game.hostBroadcast({ t: 'os', l: levelId, id: o.id, s: { ...(game.world.get(levelId, o.id) || {}), open: false } });
+    if (o.collider) o.collider.disabled = false;
+    game.hostEvent(levelId, { k: 'sound', name: 'doorClose', x: o.x, y: 1, z: o.z, volume: 1.4 });
+    return true;
+  },
+
   // entities open office doors they walk into
   hostUpdate(game, ctx) {
     for (const e of game.entities.byLevel('L2')) {

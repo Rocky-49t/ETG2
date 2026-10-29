@@ -92,6 +92,8 @@ export class Director {
     if (!p) return;
     const r = Math.random();
     const def = ctx.level.def;
+    // level-specific set pieces feel scripted; use them sparingly
+    if (def.setPiece && Math.random() < 0.4 && def.setPiece(g, levelId, ctx, p)) return;
     if (r < 0.22 && def.allowBlackout !== false) {
       g.hostEvent(levelId, { k: 'blackout', dur: 4 + Math.random() * 5 });
     } else if (r < 0.5) {

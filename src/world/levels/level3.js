@@ -360,6 +360,26 @@ export default {
     }
   },
 
+  setPiece(game, levelId, ctx, p) {
+    const lvl = ctx.level;
+    for (let k = 0; k < 20; k++) {
+      const a = Math.random() * Math.PI * 2, d = 6 + Math.random() * 10;
+      const x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d;
+      if (lvl.waterAt(x, z) > lvl.floorAt(x, z) + 1) {
+        game.hostEvent(levelId, { k: 'poolSplash', x, y: WL, z });
+        return true;
+      }
+    }
+    return false;
+  },
+
+  clientEvent(game, m) {
+    if (m.k !== 'poolSplash') return;
+    game.effects.burst('splash', m);
+    game.sfx('splash', m, { volume: 1.1, ref: 5 });
+    setTimeout(() => game.sfx('tideGurgle', m, { volume: 0.5 }), 700);
+  },
+
   interact(game, o, s) {
     if (o.kind === 'drainGrate' && !s?.open) {
       if (game.inventory.has('drainKey')) { game.request({ t: 'int', l: 'L3', id: o.id, a: 'open' }); game.sfx('unlock', o, {}); }

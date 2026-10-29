@@ -193,6 +193,23 @@ export default {
     return [{ type: 'spawn', tx: 8, tz: 8 }, { type: 'exit', ...exit }, { type: 'key', ...key }, { type: 'key2', ...key2 }];
   },
 
+  setPiece(game, levelId, ctx, p) {
+    const a = Math.random() * Math.PI * 2;
+    game.hostEvent(levelId, { k: 'pipeBurst', x: p.x + Math.cos(a) * 5, y: 2.6, z: p.z + Math.sin(a) * 5 });
+    return true;
+  },
+
+  clientEvent(game, m) {
+    if (m.k !== 'pipeBurst') return;
+    game.sfx('metalGroan', m, { volume: 1, ref: 4 });
+    setTimeout(() => {
+      game.sfx('steamHiss', m, { volume: 1.2, ref: 3 });
+      game.sfx('hitWall', m, { volume: 1 });
+      for (let i = 0; i < 25; i++) game.effects.burst('steam', m, { x: (Math.random() - 0.5) * 2, y: -0.5, z: (Math.random() - 0.5) * 2 });
+      game.player.shake = Math.min(1, game.player.shake + 0.2);
+    }, 900);
+  },
+
   staticFires(level, x, z) {
     const out = [];
     const cx = Math.floor(x / 32), cz = Math.floor(z / 32);

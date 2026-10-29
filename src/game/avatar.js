@@ -68,9 +68,10 @@ function rbox(w, h, d, r = 0.02) {
   return g;
 }
 
-function part(geo, material, x = 0, y = 0, z = 0) {
+function part(geo, material, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
   const m = new THREE.Mesh(geo, material);
   m.position.set(x, y, z);
+  if (rx || ry || rz) m.rotation.set(rx, ry, rz);
   m.castShadow = true;
   m.receiveShadow = true;
   return m;
@@ -132,13 +133,45 @@ export class Avatar {
     head.add(part(new THREE.SphereGeometry(0.018, 6, 6), eyeM, 0.05, 0.14, 0.113));
     head.add(part(new THREE.BoxGeometry(0.06, 0.012, 0.01), mat('#5a2a20', 0.6), 0, 0.06, 0.115));
     head.add(part(new THREE.BoxGeometry(0.03, 0.04, 0.03), skinM, 0, 0.1, 0.12));
-    // hair
+    // hair: a scalp cap that wraps the back and sides, plus a style on top
     if (s.hair !== 'none' && s.headwear !== 'hood') {
-      if (s.hair === 'short' || s.hair === 'curly') head.add(part(rbox(0.235, 0.09, 0.245, 0.3), hairM, 0, 0.235, -0.005));
-      if (s.hair === 'curly') for (let i = 0; i < 7; i++) head.add(part(new THREE.SphereGeometry(0.045, 6, 5), hairM, Math.cos(i) * 0.09, 0.25 + (i % 2) * 0.02, Math.sin(i * 1.7) * 0.09));
-      if (s.hair === 'long') { head.add(part(rbox(0.24, 0.1, 0.25, 0.3), hairM, 0, 0.235, 0)); head.add(part(rbox(0.24, 0.28, 0.08), hairM, 0, 0.06, -0.1)); }
-      if (s.hair === 'mohawk') head.add(part(new THREE.BoxGeometry(0.05, 0.1, 0.24), hairM, 0, 0.28, 0));
-      if (s.hair === 'bun') { head.add(part(rbox(0.235, 0.08, 0.245, 0.3), hairM, 0, 0.235, 0)); head.add(part(new THREE.SphereGeometry(0.06, 8, 6), hairM, 0, 0.25, -0.12)); }
+      const cap = () => {
+        head.add(part(rbox(0.236, 0.07, 0.246, 0.3), hairM, 0, 0.237, -0.002));
+        head.add(part(rbox(0.232, 0.15, 0.04, 0.2), hairM, 0, 0.175, -0.104));
+        for (const sx of [-1, 1]) head.add(part(rbox(0.022, 0.09, 0.15, 0.3), hairM, sx * 0.111, 0.19, -0.035));
+      };
+      if (s.hair === 'short') { cap(); head.add(part(rbox(0.2, 0.035, 0.035, 0.3), hairM, 0.01, 0.23, 0.106, 0.15, 0, -0.08)); }
+      if (s.hair === 'curly') {
+        cap();
+        const curl = new THREE.SphereGeometry(0.042, 7, 5);
+        for (let i = 0; i < 16; i++) {
+          const a = (i / 16) * Math.PI * 2, ring = i % 2 ? 0.085 : 0.06;
+          head.add(part(curl, hairM, Math.cos(a) * ring, 0.262 + (i % 3) * 0.008, Math.sin(a) * ring * 1.05 - 0.01));
+        }
+        for (let i = 0; i < 6; i++) head.add(part(curl, hairM, -0.09 + i * 0.036, 0.15 + (i % 2) * 0.03, -0.115));
+      }
+      if (s.hair === 'long') {
+        cap();
+        head.add(part(rbox(0.25, 0.32, 0.06, 0.2), hairM, 0, 0.08, -0.105));
+        for (const sx of [-1, 1]) head.add(part(rbox(0.035, 0.26, 0.11, 0.3), hairM, sx * 0.118, 0.08, -0.04));
+        head.add(part(rbox(0.21, 0.04, 0.04, 0.3), hairM, -0.02, 0.225, 0.105, 0.2, 0, 0.12));
+      }
+      if (s.hair === 'mohawk') {
+        // shaved sides with a crest of tapered spikes
+        head.add(part(rbox(0.226, 0.03, 0.236, 0.3), mat(s.hairColor, 0.95, 0, { transparent: true, opacity: 0.45 }), 0, 0.236, 0));
+        const spike = new THREE.ConeGeometry(0.03, 0.11, 6);
+        for (let i = 0; i < 6; i++) {
+          const z = 0.1 - i * 0.042, h = 1 - Math.abs(i - 2) * 0.15;
+          const sp = part(spike, hairM, 0, 0.27 + h * 0.03, z);
+          sp.scale.set(1, h, 1.4); sp.rotation.x = -0.35 - i * 0.08;
+          head.add(sp);
+        }
+      }
+      if (s.hair === 'bun') {
+        cap();
+        head.add(part(new THREE.SphereGeometry(0.065, 10, 8), hairM, 0, 0.26, -0.13));
+        head.add(part(new THREE.TorusGeometry(0.045, 0.01, 6, 12), mat('#2a2a2a', 0.6), 0, 0.245, -0.11, 0.9, 0, 0));
+      }
     }
     // headwear
     if (s.headwear === 'cap') { head.add(part(rbox(0.24, 0.08, 0.25, 0.3), hwM, 0, 0.255, 0)); head.add(part(new THREE.BoxGeometry(0.2, 0.015, 0.12), hwM, 0, 0.225, 0.16)); }
@@ -152,7 +185,18 @@ export class Avatar {
       head.add(part(new THREE.CircleGeometry(0.015, 10), mat('#fff6d0', 0.2, 0, { emissive: '#fff1c0', emissiveIntensity: 2 }), 0, 0.2, 0.141));
     }
     // accessories
-    if (s.accessory === 'glasses') { head.add(part(new THREE.BoxGeometry(0.2, 0.04, 0.01), mat('#111', 0.2, 0.5), 0, 0.145, 0.118)); }
+    if (s.accessory === 'glasses') {
+      // round wire frames: rims, bridge, lenses and arms that run back to the ears
+      const frame = mat('#1a1a1a', 0.3, 0.6);
+      const rim = new THREE.TorusGeometry(0.032, 0.0055, 6, 16);
+      for (const sx of [-1, 1]) {
+        head.add(part(rim, frame, sx * 0.05, 0.142, 0.121));
+        head.add(part(new THREE.CircleGeometry(0.03, 14), mat('#a8c4d0', 0.05, 0.2, { transparent: true, opacity: 0.25 }), sx * 0.05, 0.142, 0.122));
+        head.add(part(new THREE.BoxGeometry(0.006, 0.006, 0.12), frame, sx * 0.112, 0.146, 0.065));
+        head.add(part(new THREE.BoxGeometry(0.03, 0.006, 0.006), frame, sx * 0.097, 0.146, 0.121));
+      }
+      head.add(part(new THREE.BoxGeometry(0.03, 0.006, 0.006), frame, 0, 0.15, 0.124));
+    }
     if (s.accessory === 'gasmask') { head.add(part(rbox(0.16, 0.13, 0.08), mat('#2b2f2a', 0.7), 0, 0.08, 0.12)); head.add(part(new THREE.CylinderGeometry(0.035, 0.04, 0.06, 10), mat('#444', 0.5), 0, 0.05, 0.18, )); }
     if (s.accessory === 'scarf') spine.add(part(rbox(0.26, 0.08, 0.26, 0.3), mat(s.headwearColor, 0.9), 0, 0.5, 0));
     if (s.accessory === 'backpack') { spine.add(part(rbox(0.3, 0.36, 0.14, 0.15), mat('#5b4a32', 0.85), 0, 0.26, -0.17)); spine.add(part(rbox(0.22, 0.1, 0.06), mat('#4a3b28', 0.85), 0, 0.16, -0.25)); }

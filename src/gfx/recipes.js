@@ -58,9 +58,8 @@ export const RECIPES = {
       let r = 0.60, g = 0.52, b = 0.30;
       const k = (fib - 0.5) * 0.16 + (loop - 0.5) * 0.04 + (mot - 0.5) * 0.18;
       r += k; g += k * 0.95; b += k * 0.7;
-      // damp patches
-      const st = stain(u + 0.3, v + 0.7, 2, 0.8, N3);
-      r -= st.t * 0.16 + st.rim * 0.1; g -= st.t * 0.16 + st.rim * 0.1; b -= st.t * 0.1 + st.rim * 0.07;
+      // damp patches come from a world-space shader term (see patchBaked) so they don't tile
+      const st = { t: 0 };
       // small dark spots
       const sp = W1(u * 18, v * 18, 18);
       if (sp.f1 < 0.12 && hash01(sp.id, 3) < 0.25) { r *= 0.72; g *= 0.70; b *= 0.68; }
@@ -87,9 +86,7 @@ export const RECIPES = {
       const bar = c.d < 0.006;
       if (bar) { r = 0.70; g = 0.69; b = 0.66; h = 0.85; }
       else if (c.d < 0.010) h -= 0.12;
-      // water stains on some tiles
-      const st = stain(u, v, 2, 0.8, N3);
-      if (!bar) { r -= st.t * 0.18 + st.rim * 0.2; g -= st.t * 0.22 + st.rim * 0.24; b -= st.t * 0.3 + st.rim * 0.28; }
+      // water stains: world-space shader term (patchBaked), not baked into the repeat
       s.set(i, r, g, b);
       s.h[i] = h;
       s.rough[i] = bar ? 0.5 : 0.95;

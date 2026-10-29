@@ -78,10 +78,12 @@ export class Stats extends Emitter {
     let ds = 0;
     ds -= env.darkness * 0.3;
     ds -= env.nearbyThreat * 1.8;
-    if (env.inBrightLight) ds += 0.25;
-    if (env.teammatesNear) ds += 0.2;
+    if (env.inBrightLight) ds += 0.45;
+    if (env.teammatesNear) ds += 0.35;
+    // a calm, lit stretch slowly settles the nerves
+    if (env.darkness < 0.35 && env.nearbyThreat < 0.05) ds += 0.15;
     if (env.sanityDrain) ds -= env.sanityDrain;
-    if (ds > 0 && this.sanity >= 75) ds = 0; // light alone can't fully restore
+    if (ds > 0 && this.sanity >= 85) ds = 0; // light alone can't fully restore
     this.sanity = clamp(this.sanity + ds * dt, 0, 100);
   }
 

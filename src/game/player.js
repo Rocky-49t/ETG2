@@ -76,7 +76,7 @@ export class PlayerController {
     // crouch height (blocked by low ceiling when standing up)
     const head = level.headAt(this.body);
     const canStand = head - this.pos.y >= STAND_H + 0.02;
-    this.crouching = wantCrouch || (!canStand && !this.swimming);
+    this.crouching = !this.fly && (wantCrouch || (!canStand && !this.swimming));
     const targetH = this.downed ? 0.6 : this.crouching ? CROUCH_H : STAND_H;
     this.height = damp(this.height, targetH, 12, dt);
 
@@ -90,7 +90,7 @@ export class PlayerController {
 
     let speed = this.downed ? 0.9 : this.swimming ? 2.3 : this.crouching ? 1.7 : wantSprint ? 5.7 : 3.3;
     if (wading) speed *= 0.65;
-    speed *= this.speedMul;
+    speed *= this.speedMul * (this.fly ? 2.2 : 1);
     this.sprinting = wantSprint && !this.swimming && (fwd !== 0 || str !== 0);
 
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
@@ -109,12 +109,18 @@ export class PlayerController {
       this.pos.x += (-sin * fwd * cp + cos * str) * 12 * dt;
       this.pos.z += (-cos * fwd * cp - sin * str) * 12 * dt;
       this.pos.y += (Math.sin(this.pitch) * fwd + up) * 12 * dt;
+      this.fallStartY = this.pos.y;
       this.updateCamera(dt, level);
       return;
     }
 
     // ---- vertical
-    if (this.swimming) {
+    if (this.fly) {
+      const up = (input.isDown('Space') ? 1 : 0) - (input.isDown('KeyC') || input.isDown('ControlLeft') ? 1 : 0);
+      this.vel.y = damp(this.vel.y, up * 6, 8, dt);
+      this.grounded = false;
+      this.fallStartY = this.pos.y;
+    } else if (this.swimming) {
       const up = (input.isDown('Space') ? 1 : 0) - (wantCrouch ? 1 : 0);
       // look-direction diving when moving forward
       const dive = fwd > 0 ? Math.sin(this.pitch) * 2.0 : 0;

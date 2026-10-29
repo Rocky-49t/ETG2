@@ -102,7 +102,7 @@ export class LightManager {
         slot.src = l; slot.fade = 0; slot.releasing = false;
         this.assigned.set(l, slot);
         slot.light.color.setRGB(l.color[0], l.color[1], l.color[2]);
-        slot.light.position.set(l.x, l.y - 0.15, l.z);
+        slot.light.position.set(l.x, l.y - 0.3, l.z);
         slot.light.distance = (l.range || 9) * 1.15;
       }
     }

@@ -8,14 +8,14 @@
 //  ammo, key, repair, misc
 
 export const ITEMS = {
-  almondWater: { name: 'Almond Water', desc: 'Faintly sweet and cold no matter how long it sat. Restores thirst and steadies the mind.', type: 'consumable', stack: 4, effects: { thirst: 38, sanity: 10 }, useTime: 1.1, sound: 'drink', icon: 'bottle', color: '#e9e3c6' },
+  almondWater: { name: 'Almond Water', desc: 'Faintly sweet and cold no matter how long it sat. Restores thirst and steadies the mind.', type: 'consumable', stack: 4, effects: { thirst: 38, sanity: 16 }, useTime: 1.1, sound: 'drink', icon: 'bottle', color: '#e9e3c6' },
   waterBottle: { name: 'Bottled Water', desc: 'A dusty plastic bottle. The seal is intact. Probably.', type: 'consumable', stack: 4, effects: { thirst: 30 }, useTime: 1.0, sound: 'drink', icon: 'bottle', color: '#8fc6e8' },
   snackBar: { name: 'Snack Bar', desc: 'Expired years ago. Still crunchy.', type: 'consumable', stack: 6, effects: { hunger: 22 }, useTime: 1.0, sound: 'eat', icon: 'bar', color: '#c9822f' },
   cannedBeans: { name: 'Canned Beans', desc: 'Heavy, filling and almost warm.', type: 'consumable', stack: 3, effects: { hunger: 48, health: 6 }, useTime: 2.0, sound: 'eat', icon: 'can', color: '#b54a32' },
   energyDrink: { name: 'Energy Drink', desc: 'Neon green. Grants a burst of stamina regeneration.', type: 'consumable', stack: 3, effects: { thirst: 14, staminaBoost: 40 }, useTime: 1.0, sound: 'drink', icon: 'can', color: '#5bd14f' },
   bandage: { name: 'Bandage', desc: 'Stops bleeding and slowly restores health.', type: 'consumable', stack: 5, effects: { regen: 28, stopBleed: true }, useTime: 2.2, sound: 'bandage', icon: 'bandage', color: '#e8e1d3' },
   medkit: { name: 'First Aid Kit', desc: 'A proper kit. Restores a large amount of health.', type: 'consumable', stack: 2, effects: { health: 55, stopBleed: true }, useTime: 4.0, sound: 'bandage', icon: 'medkit', color: '#d33b2e' },
-  painkillers: { name: 'Painkillers', desc: 'Takes the edge off. Restores sanity and a little health.', type: 'consumable', stack: 4, effects: { sanity: 26, health: 6 }, useTime: 1.2, sound: 'pills', icon: 'pills', color: '#e0e0e0' },
+  painkillers: { name: 'Painkillers', desc: 'Takes the edge off. Restores sanity and a little health.', type: 'consumable', stack: 4, effects: { sanity: 32, health: 6 }, useTime: 1.2, sound: 'pills', icon: 'pills', color: '#e0e0e0' },
   battery: { name: 'Battery', desc: 'Use to recharge your flashlight.', type: 'battery', stack: 6, icon: 'battery', color: '#d6b13a' },
 
   flashlight: { name: 'Flashlight', desc: 'Press F to toggle. Hold RMB (empty hands) to focus the beam — it stuns things that hate light.', type: 'flashlight', stack: 1, data: { charge: 100 }, icon: 'flashlight', color: '#3c3f44' },

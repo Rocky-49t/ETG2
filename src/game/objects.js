@@ -19,16 +19,18 @@ export const OBJECT_KINDS = {
       const pose = GROUND_POSE[o.item];
       if (pose) { m.rotation.set(pose[0], pose[1], pose[2]); m.position.y = pose[3]; }
       g.add(m);
+      // a touch larger than life on the floor so loot reads at a glance
+      g.scale.setScalar(ITEMS[o.item]?.type === 'weapon' ? 1.15 : 1.4);
       return g;
     },
     hidden: (o, s) => !!s?.taken,
     prompt: (o) => `Take ${ITEMS[o.item]?.name || o.item}${o.qty > 1 ? ' ×' + o.qty : ''}`,
-    radius: 0.45,
+    radius: 0.55,
   },
   drop: {
     build(o) { return OBJECT_KINDS.pickup.build(o); },
     prompt: (o) => `Take ${ITEMS[o.item]?.name || o.item}${o.qty > 1 ? ' ×' + o.qty : ''}`,
-    radius: 0.45,
+    radius: 0.55,
   },
   container: {
     build(o) { return containerModel(o.ctype); },

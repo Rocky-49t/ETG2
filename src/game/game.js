@@ -42,6 +42,8 @@ import { audio } from '../audio/audio.js';
 const SURFACES = { carpet: 'carpet', officeCarpet: 'carpet', fabric: 'carpet', poolTile: 'tile', poolTileBlue: 'tile', grate: 'metal', rustMetal: 'metal', darkMetal: 'metal' };
 const SNAP_RATE = 1 / 15, SEND_RATE = 1 / 20;
 
+const KEY_ITEMS = new Set(['keycard', 'fuse', 'drainKey']);
+
 export class Game {
   constructor(opts) {
     this.engine = opts.engine;
@@ -106,11 +108,15 @@ export class Game {
     this.settingsFlashing = settings.get('flashing');
     this.boss = null;     // client-side boss HUD info
     this.flags = {};      // local per-run flags (seen tutorial etc.)
+    this.cheats = { on: false, granted: new Set() };   // co-op cheat permissions (host-owned)
+    this.cheatGod = false; this.notarget = false;
 
     this.world.on('obj', (l, id) => { if (l === this.levelId) this.objects.refresh(id); this.onObjState?.(l, id); });
     this.world.on('dyn+', (l, d) => { if (l === this.levelId) this.objects.addDyn(d); });
     this.world.on('dyn-', (l, id) => { if (l === this.levelId) this.objects.removeDyn(id); });
 
+    const baseDamage = this.stats.damage.bind(this.stats);
+    this.stats.damage = (...a) => { if (!this.cheatGod) baseDamage(...a); };
     this.stats.on('damage', (a, cause) => this.onDamaged(a, cause));
     this.stats.on('zero', cause => this.onZero(cause));
     this.inventory.on('change', () => this.hud.inventoryChanged(this));
@@ -804,6 +810,21 @@ export class Game {
         }
       }
       this.exitNear = best ? { o: best, d: bd } : null;
+      // objective items chirp softly when close, so a searched room isn't missed
+      this.chirpT = (this.chirpT || 0) - 0.5;
+      if (this.chirpT <= 0 && level && !this.transitioning) {
+        const cx = Math.floor(P.x / CHUNK), cz = Math.floor(P.z / CHUNK);
+        outer: for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+          if (!level.hasChunk(cx + dx, cz + dz)) continue;
+          for (const o of level.chunk(cx + dx, cz + dz).objects) {
+            if (o.kind !== 'pickup' || !KEY_ITEMS.has(o.item) || this.world.get(this.levelId, o.id)?.taken) continue;
+            if (Math.hypot(o.x - P.x, o.z - P.z) > 22) continue;
+            this.sfx('keyChirp', { x: o.x, y: (o.y || 0) + 0.5, z: o.z }, { ref: 3 });
+            this.chirpT = 2.5;
+            break outer;
+          }
+        }
+      }
       if (best && bd < 14 && !this.flags['draft:' + this.levelId]) {
         this.flags['draft:' + this.levelId] = true;
         this.subtitle(best.kind === 'hatch' ? 'Cold air seeps up around a hatch in the floor nearby.' : 'A cold draft rises from somewhere close. The floor gives way near here.', 3.5);
@@ -838,7 +859,7 @@ export class Game {
       const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
       out.push({
         id: this.myId, levelId: this.levelId, x: P.pos.x, y: P.pos.y, z: P.pos.z, crouch: P.crouching, sprint: P.sprinting,
-        hidden: this.hidden, downed: this.downed, dead: this.dead || this.spectating || this.downed, light: this.lights.on, focus: this.lights.focus,
+        hidden: this.hidden || this.notarget, downed: this.downed, dead: this.dead || this.spectating || this.downed, light: this.lights.on, focus: this.lights.focus,
         dir: { x: dir.x, y: dir.y, z: dir.z }, lighter: this.held.lighterLit, sanity: this.stats.sanity, swim: P.swimming,
         inWater: this.level.waterAt(P.pos.x, P.pos.z) > P.pos.y + 0.4, ambientLight: this.ambientLightAt(P.pos),
       });
@@ -847,7 +868,7 @@ export class Game {
       if (id === this.myId || !s.lvl) continue;
       const cp = Math.cos(s.pt), dir = { x: -Math.sin(s.yw) * cp, y: Math.sin(s.pt), z: -Math.cos(s.yw) * cp };
       out.push({
-        id, levelId: s.lvl, x: s.x, y: s.y, z: s.z, crouch: s.cr, sprint: s.sp, hidden: s.hd, downed: s.dn, dead: s.dd || s.dn,
+        id, levelId: s.lvl, x: s.x, y: s.y, z: s.z, crouch: s.cr, sprint: s.sp, hidden: s.hd || s.nt, downed: s.dn, dead: s.dd || s.dn,
         light: s.fl, focus: s.fo, dir, lighter: s.lt, sanity: s.sn, swim: s.sw, inWater: s.iw, ambientLight: 0.3,
       });
     }
@@ -953,7 +974,7 @@ export class Game {
     const it = this.inventory.held;
     return {
       x: +P.pos.x.toFixed(2), y: +P.pos.y.toFixed(2), z: +P.pos.z.toFixed(2), yw: +P.yaw.toFixed(3), pt: +P.pitch.toFixed(3),
-      lvl: this.levelId, cr: P.crouching, sp: P.sprinting, sw: P.swimming, dn: this.downed, dd: this.dead || this.spectating, hd: this.hidden,
+      lvl: this.levelId, cr: P.crouching, sp: P.sprinting, sw: P.swimming, dn: this.downed, dd: this.dead || this.spectating, hd: this.hidden, nt: this.notarget || undefined,
       hi: it ? it.id : null, fl: this.lights.on, fo: this.lights.focus, lt: this.held.lighterLit, hp: Math.round(this.stats.health),
       sn: Math.round(this.stats.sanity), iw: this.level ? this.level.waterAt(P.pos.x, P.pos.z) > P.pos.y + 0.4 : false,
     };
@@ -1056,6 +1077,7 @@ export class Game {
         if (m.k === 'shot') this.noises.push({ x: m.x, y: m.y, z: m.z, r: NOISE[m.w] || 40, l: m.l, pid });
         break;
       }
+      case 'cheat': this.hostCheat(pid, m); break;
       case 'chat': {
         const text = String(m.text || '').slice(0, 200);
         if (text) this.hostBroadcast({ t: 'chat', from: pid, name: this.nameOf(pid), text });
@@ -1084,6 +1106,34 @@ export class Game {
     // team wipe check etc. could go here
   }
 
+  // Cheat console permission: always in solo; in co-op the host enables cheats
+  // and may grant them to other players.
+  canCheat(pid = this.myId) {
+    if (!this.online) return true;
+    if (!this.cheats.on) return false;
+    return (this.isHost && pid === this.myId) || this.cheats.granted.has(pid);
+  }
+
+  hostSyncCheats(text) {
+    this.hostBroadcast({ t: 'cheatPerm', on: this.cheats.on, ids: [...this.cheats.granted] }, false);
+    if (text) this.hostBroadcast({ t: 'sys', text });
+  }
+
+  hostCheat(pid, m) {
+    if (!this.canCheat(pid)) return;
+    if (m.c === 'spawn' && ENTITY_TYPES[m.type]) {
+      for (let i = 0; i < Math.min(8, m.n || 1); i++) this.entities.spawn(m.type, m.l, m.x + (Math.random() - 0.5) * 2, m.z + (Math.random() - 0.5) * 2);
+    } else if (m.c === 'killall') {
+      for (const e of this.entities.byLevel(m.l)) {
+        if (e.state === 'dead') continue;
+        const r = this.entities.damage(e.id, 1e9, 'cheat', pid);
+        if (!r?.killed) { e.hp = 0; e.state = 'dead'; e.stateT = 0; e.stateChanged = true; }
+      }
+    } else if (m.c === 'flag' && typeof m.k === 'string') {
+      this.hostBroadcast({ t: 'flag', l: m.l, k: m.k.slice(0, 32), v: !!m.v });
+    }
+  }
+
   nameOf(pid) { return pid === this.myId ? this.profile.name : (this.roster.get(pid)?.name || 'Wanderer'); }
 
   hostWelcome(pid, m) {
@@ -1096,6 +1146,7 @@ export class Game {
       level: this.levelId, spawn: { x: hostState.x, y: hostState.y, z: hostState.z }, ht: this.time,
     });
     this.hostBroadcast({ t: 'pinfo', id: pid, name, skin: normalizeSkin(m.skin) }, true, pid);
+    if (this.cheats.on) this.hostSend(pid, { t: 'cheatPerm', on: true, ids: [...this.cheats.granted] });
     this.hostBroadcast({ t: 'sys', text: `${name} noclipped into the run.` });
   }
 
@@ -1210,7 +1261,15 @@ export class Game {
         break;
       case 'dyn+': this.world.addDyn(m.l, m.d); break;
       case 'dyn-': this.world.removeDyn(m.l, m.id); break;
-      case 'flag': this.world.setFlag(m.l, m.k, m.v); this.def?.onFlag?.(this, m.l, m.k, m.v); break;
+      case 'flag': this.world.setFlag(m.l, m.k, m.v); LEVELS[m.l]?.onFlag?.(this, m.l, m.k, m.v); break;
+      case 'cheatPerm':
+        if (!this.isHost) {
+          const had = this.canCheat();
+          this.cheats.on = !!m.on; this.cheats.granted = new Set(m.ids || []);
+          if (had !== this.canCheat()) this.subtitle(this.canCheat() ? 'The host granted you the cheat console ( ` ).' : 'Your cheat console access was revoked.', 3);
+          if (!this.canCheat()) { this.cheatGod = false; this.notarget = false; this.player.fly = false; this.player.noclip = false; this.player.speedMul = 1; }
+        }
+        break;
       case 'give': {
         const left = this.inventory.add(m.item);
         this.sfx('pickup', null, {});

@@ -26,6 +26,7 @@ float etgNoise(vec3 x) {
 // world-space low-frequency albedo variation that hides texture tiling.
 export function patchBaked(mat, opts = {}) {
   const variation = opts.variation ?? 0.22;
+  const stains = opts.stains;
   mat.onBeforeCompile = shader => {
     shader.uniforms.bakedScale = worldUniforms.bakedScale;
     shader.uniforms.bakedTint = worldUniforms.bakedTint;
@@ -38,22 +39,28 @@ export function patchBaked(mat, opts = {}) {
         {
           float nv = etgNoise(vWPos * 0.21) * 0.65 + etgNoise(vWPos * 0.83) * 0.35;
           diffuseColor.rgb *= 1.0 + (nv - 0.5) * ${variation.toFixed(3)} * 2.0;
+          ${stains ? `
+          // world-space damp stains: irregular, placed by noise rather than by texture repeat
+          float sn = etgNoise(vWPos * 0.31 + vec3(17.0, 3.0, 5.0)) * 0.62 + etgNoise(vWPos * 1.07) * 0.28 + etgNoise(vWPos * 3.9) * 0.10;
+          float st = smoothstep(0.655, 0.70, sn);
+          float rim = smoothstep(0.64, 0.655, sn) * (1.0 - smoothstep(0.655, 0.68, sn));
+          diffuseColor.rgb *= 1.0 - st * vec3(${stains.body}) - rim * vec3(${stains.rim});` : ''}
         }`)
       .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\nirradiance += vBaked * bakedTint * (bakedScale * 3.14159);');
     if (opts.emissiveBaked) {
       shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= bakedScale;');
     }
   };
-  mat.customProgramCacheKey = () => 'baked' + (opts.emissiveBaked ? 'E' : '') + variation;
+  mat.customProgramCacheKey = () => 'baked' + (opts.emissiveBaked ? 'E' : '') + variation + (stains ? stains.body + stains.rim : '');
   return mat;
 }
 
 // Definitions: recipe + material params + uv scale (metres per texture repeat).
 export const MATERIAL_DEFS = {
   wallpaper: { recipe: 'wallpaper', params: { roughness: 1 }, },
-  carpet: { recipe: 'carpet', params: { roughness: 1 } },
-  ceilingTile: { recipe: 'ceilingTile', params: { roughness: 1, metalness: 1 } },
-  lightPanel: { recipe: 'lightPanel', params: { emissive: 0xfff4dc, emissiveIntensity: 2.6, roughness: 1, metalness: 1 }, emissiveBaked: true },
+  carpet: { recipe: 'carpet', params: { roughness: 1 }, stains: { body: '0.24, 0.25, 0.22', rim: '0.16, 0.17, 0.15' } },
+  ceilingTile: { recipe: 'ceilingTile', params: { roughness: 1, metalness: 1 }, stains: { body: '0.16, 0.22, 0.34', rim: '0.24, 0.3, 0.38' } },
+  lightPanel: { recipe: 'lightPanel', params: { emissive: 0xfff4dc, emissiveIntensity: 1.9, roughness: 1, metalness: 1 }, emissiveBaked: true },
   trim: { recipe: 'trim', params: { roughness: 1 } },
   concrete: { recipe: 'concrete', params: { roughness: 1 } },
   pillarPaint: { recipe: 'pillarPaint', params: { roughness: 1 } },
@@ -144,7 +151,7 @@ export class MaterialLib {
     }
     const mat = new THREE.MeshStandardMaterial(params);
     mat.name = name;
-    if (baked) patchBaked(mat, { emissiveBaked: def.emissiveBaked, variation: def.variation });
+    if (baked) patchBaked(mat, { emissiveBaked: def.emissiveBaked, variation: def.variation, stains: def.stains });
     return mat;
   }
 

@@ -300,6 +300,12 @@ export const SFX = {
     o1.connect(f).connect(g).connect(dest); o1.start();
     return { stop() { o1.stop(); }, set(k, v) { if (k === 'level') g.gain.setTargetAtTime(v * 0.08, A.now, 0.01); } };
   },
+  // faint two-note chirp from objective items (keycards, fuses, valve keys)
+  keyChirp(A, dest, o, t) {
+    tone(A, dest, t, { freq: 1320, d: 0.09, vol: 0.05 });
+    tone(A, dest, t + 0.12, { freq: 1760, d: 0.12, vol: 0.04 });
+    return 0.3;
+  },
   // cold air moaning up out of an exit: low wind with a slow swell and a hollow tone
   draftLoop(A, dest) {
     const n = noiseSrc(A, 'brown'); const f = filt(A, 'bandpass', 260, 0.9); const g = gain(A, 0.0);

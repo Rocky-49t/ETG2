@@ -270,6 +270,13 @@ export function containerModel(ctype) {
       dr.position.set(0, 0.08 + k * 0.31 + 0.15, 0.3);
       dr.add(mesh(box(0.43, 0.29, 0.02), m, 0, 0, 0.01));
       dr.add(mesh(box(0.12, 0.025, 0.025), LIB.dyn('chrome'), 0, 0.06, 0.03));
+      // drawer body (hidden inside the cabinet until pulled out)
+      const inner = LIB.dyn('darkMetal');
+      dr.add(mesh(box(0.4, 0.015, 0.5), inner, 0, -0.12, -0.25));
+      dr.add(mesh(box(0.015, 0.22, 0.5), inner, -0.195, -0.02, -0.25));
+      dr.add(mesh(box(0.015, 0.22, 0.5), inner, 0.195, -0.02, -0.25));
+      dr.add(mesh(box(0.4, 0.22, 0.015), inner, 0, -0.02, -0.5));
+      if (k === 2) for (let f = 0; f < 5; f++) dr.add(mesh(box(0.34, 0.2, 0.004), LIB.dyn('paper'), 0, -0.02, -0.08 - f * 0.08, -0.15 + f * 0.04));
       g.add(dr);
       drawers.push(dr);
     }

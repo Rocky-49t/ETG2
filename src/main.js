@@ -14,6 +14,7 @@ import { Game } from './game/game.js';
 import { Session } from './net/session.js';
 import { UI } from './ui/ui.js';
 import { buildSettings, Customizer } from './ui/menus.js';
+import { CheatConsole } from './ui/console.js';
 import { Lobby, randomSeedWord } from './ui/lobby.js';
 import { normalizeSkin, randomSkin } from './game/avatar.js';
 import { audio } from './audio/audio.js';
@@ -35,6 +36,7 @@ class App {
     this.game = null;
     this.lobby = new Lobby(this);
     this.customizer = new Customizer(skin => this.onSkinSaved(skin));
+    this.console = new CheatConsole(this.ui);
     this.attract = null;
     this.screenStack = [];
     if (!settings.get('skin')) settings.set('skin', normalizeSkin(randomSkin()));
@@ -188,6 +190,7 @@ class App {
   }
 
   quitToMenu() {
+    if (this.console.isOpen) this.console.close();
     if (this.game) { this.game.dispose(); this.game = null; }
     this.lobby.reset();
     this.ui.resetGameScreens();
@@ -202,6 +205,11 @@ class App {
     window.addEventListener('keydown', e => {
       const g = this.game;
       if (!g || input.isTyping(e)) return;
+      if (e.code === 'Backquote') {
+        e.preventDefault();
+        if (!this.ui.open.has('pause') && !g.won) this.console.toggle(g);
+        return;
+      }
       if (e.code === 'Escape') {
         if (this.ui.open.has('chat')) return;
         if (this.ui.open.has('settings')) { this.closeSettings(); return; }

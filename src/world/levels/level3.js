@@ -158,7 +158,7 @@ export default {
   ambient: [0.075, 0.09, 0.1],
   bakeGain: 0.07,
   exposure: 1.0,
-  fog: { color: 0x9fb8c0, density: 0.03 },
+  fog: { color: 0x84a0a8, density: 0.022 },
   background: 0x8fa8b0,
   waterFog: 0.09, waterFogColor: 0x2a8a96,
   grade: { lift: [0.01, 0.02, 0.03], gamma: [1.0, 1.0, 1.0], gain: [0.98, 1.02, 1.04], saturation: 0.88, tint: [0.97, 1.0, 1.02], vignette: 0.4, grain: 0.035, bloomStrength: 0.55, bloomThreshold: 0.85 },

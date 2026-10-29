@@ -378,8 +378,8 @@ export const RECIPES = {
       const grime = smoothstep(0.25, 0.0, v) * (0.5 + f(N3, u, 0.3, 8, 3) * 0.5) * 0.3;
       r -= grime; g -= grime; b -= grime * 0.9;
       // scuff marks at chair-rail height
-      const sc = smoothstep(0.66, 0.74, f(N2, u * 4, v, 16, 3)) * smoothstep(0.25, 0.32, v) * smoothstep(0.42, 0.35, v);
-      r -= sc * 0.2; g -= sc * 0.2; b -= sc * 0.2;
+      const sc = smoothstep(0.7, 0.78, f(N2, u * 4, v, 16, 3)) * smoothstep(0.25, 0.32, v) * smoothstep(0.42, 0.35, v) * smoothstep(0.5, 0.68, f(N1, u, 0.7, 3, 2));
+      r -= sc * 0.16; g -= sc * 0.16; b -= sc * 0.16;
       // mould spots
       const mould = smoothstep(0.76, 0.84, f(N3, u, v, 6, 5));
       r -= mould * 0.12; g -= mould * 0.09; b -= mould * 0.12;

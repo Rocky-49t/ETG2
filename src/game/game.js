@@ -147,6 +147,18 @@ export class Game {
   get level() { return this.getLevel(this.levelId); }
   get def() { return LEVELS[this.levelId]; }
 
+  // Face the longest clear sightline from a spawn point, so arrivals don't stare at a wall.
+  openYaw(level, sp) {
+    let best = 0, bestD = -1;
+    for (let k = 0; k < 16; k++) {
+      const a = k / 16 * Math.PI * 2, dx = -Math.sin(a), dz = -Math.cos(a);
+      const h = level.raycast(sp.x, sp.y + 1.5, sp.z, dx, 0, dz, 30);
+      const d = h ? h.dist ?? h.d ?? 30 : 30;
+      if (d > bestD + 0.5) { bestD = d; best = a; }
+    }
+    return best;
+  }
+
   async enterLevel(id, opts = {}) {
     if (this.transitioning) return;
     this.transitioning = true;
@@ -170,7 +182,7 @@ export class Game {
     this.views.clear();
     this.effects.clearTransient();
     const sp = opts.spawn || level.spawnPoint();
-    this.player.teleport(sp.x, sp.y, sp.z, opts.yaw ?? sp.yaw ?? 0);
+    this.player.teleport(sp.x, sp.y, sp.z, opts.yaw ?? sp.yaw ?? this.openYaw(level, sp));
     this.player.pitch = 0;
     this.renderer.buildAll(sp.x, sp.z);
     this.ui.loadingProgress(1, 'Ready');

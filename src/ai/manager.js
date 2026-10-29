@@ -17,10 +17,16 @@ export class EntityManager {
     const def = ENTITY_TYPES[type];
     if (!def) { console.warn('unknown entity', type); return null; }
     const level = this.game.getLevel(levelId);
-    const y = opts.y ?? Math.max(level.floorAt(x, z), -50);
+    if (!isFinite(level.floorAt(x, z)) && opts.y === undefined) {
+      // asked to spawn inside a wall or over the void: use the nearest walkable spot
+      const p = level.randomWalkableNear(x, z, 4) || level.randomWalkableNear(x, z, 10);
+      if (p) { x = p.x; z = p.z; }
+    }
+    let y = opts.y ?? Math.max(level.floorAt(x, z), -50);
+    if (!isFinite(y)) y = 0;
     const e = {
       id: nextId++, type, levelId, def,
-      x, y: y === -Infinity ? 0 : y, z, yaw: opts.yaw ?? Math.random() * Math.PI * 2,
+      x, y, z, yaw: opts.yaw ?? Math.random() * Math.PI * 2,
       hp: def.hp * (opts.hpMul ?? 1), maxHp: def.hp * (opts.hpMul ?? 1),
       state: 'idle', stateT: 0, stateChanged: true, anim: 0,
       home: { x, z }, body: { x, y: 0, z, r: def.radius ?? 0.4, h: def.height ?? 1.8, step: def.step ?? 0.5 },

@@ -91,6 +91,7 @@ export function stepToward(e, level, x, z, speed, dt, turnRate = 8) {
   e.x = body.x; e.z = body.z;
   if (!e.flying) {
     const g = level.groundAt(body);
+    if (!isFinite(e.y)) e.y = isFinite(g) ? g : 0;
     if (g > -1e5 && g < e.y + 0.7) e.y += (g - e.y) * Math.min(1, dt * 12);
     else if (g < e.y - 0.7) e.y = Math.max(g, e.y - 9 * dt); // fall
   }

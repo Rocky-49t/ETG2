@@ -168,6 +168,7 @@ class AudioEngine {
     if (!this.ready) return null;
     const recipe = SFX[name];
     if (!recipe) return null;
+    if (opts.pos && !(isFinite(opts.pos.x) && isFinite(opts.pos.y) && isFinite(opts.pos.z))) return null;
     if (opts.pos) {
       const d = Math.hypot(opts.pos.x - this.listenerPos.x, opts.pos.y - this.listenerPos.y, opts.pos.z - this.listenerPos.z);
       if (d > (opts.maxDist ?? 70)) return null;
@@ -188,13 +189,14 @@ class AudioEngine {
     if (!this.ready) return null;
     const recipe = SFX[name];
     if (!recipe) return null;
+    if (opts.pos && !(isFinite(opts.pos.x) && isFinite(opts.pos.y) && isFinite(opts.pos.z))) opts = { ...opts, pos: null };
     const out = this._out({ ...opts, reverb: opts.reverb ?? 0.3 });
     const ctl = recipe(this, out.input, { ...opts, loop: true }, this.now) || {};
     const handle = {
       out,
       setPos: p => {
         const pn = out.gain._panner;
-        if (!pn) return;
+        if (!pn || !(isFinite(p.x) && isFinite(p.y) && isFinite(p.z))) return;
         if (pn.positionX) { pn.positionX.setTargetAtTime(p.x, this.now, 0.05); pn.positionY.setTargetAtTime(p.y, this.now, 0.05); pn.positionZ.setTargetAtTime(p.z, this.now, 0.05); }
         else pn.setPosition(p.x, p.y, p.z);
       },

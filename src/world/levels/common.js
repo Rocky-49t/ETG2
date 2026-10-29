@@ -1,7 +1,7 @@
 // Helpers shared by level generators: lights, decals, interactive objects,
 // loot rolls and wall-adjacency queries.
 import { TILE, CS, T_SOLID, T_FLOOR, F_RESERVED, F_NAVBLOCK, F_LANDMARK } from '../chunk.js';
-import { hash4 } from '../../core/rng.js';
+import { hash4, hash01 } from '../../core/rng.js';
 
 export function addLight(c, l) {
   l.seed = hash4(Math.round(l.x * 10), Math.round(l.z * 10), 7) % 10000;
@@ -128,4 +128,93 @@ export function addVignette(c, rng, addPropFn, noteIds, floorY = 0) {
     return true;
   }
   return false;
+}
+
+// ---------------------------------------------------------------- side exits
+// Besides the guaranteed landmark exit, some chunks hold a secondary exit.
+// Whether a chunk has one (and where) depends only on the seed, so wayfinding
+// can point at exits in chunks that haven't been generated yet.
+export function sideExitAt(level, cx, cz) {
+  const se = level.def.sideExit;
+  if (!se) return null;
+  if (Math.max(Math.abs(cx), Math.abs(cz)) < (se.minR ?? 2)) return null;
+  if (hash01(cx, cz, level.levelSeed, 7771) >= se.p) return null;
+  const lm = level.landmarks.some(l => Math.floor(l.tx / CS) === cx && Math.floor(l.tz / CS) === cz);
+  if (lm) return null;
+  const lx = 4 + Math.floor(hash01(cx, cz, level.levelSeed, 7772) * 8);
+  const lz = 4 + Math.floor(hash01(cx, cz, level.levelSeed, 7773) * 8);
+  return { lx, lz, x: (cx * CS + lx + 0.5) * TILE, z: (cz * CS + lz + 0.5) * TILE };
+}
+
+// Nearest known exit (landmark or side exit) to a world point.
+export function nearestExit(level, x, z, R = 5) {
+  let best = null, bd = Infinity;
+  const e = level.byType.exit;
+  if (e) { const ex = (e.tx + 0.5) * TILE, ez = (e.tz + 0.5) * TILE; bd = Math.hypot(ex - x, ez - z); best = { x: ex, z: ez, main: true }; }
+  const ccx = Math.floor(x / (CS * TILE)), ccz = Math.floor(z / (CS * TILE));
+  for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
+    const se = sideExitAt(level, ccx + dx, ccz + dz);
+    if (!se) continue;
+    const d = Math.hypot(se.x - x, se.z - z);
+    if (d < bd) { bd = d; best = se; }
+  }
+  return best;
+}
+
+// Arrow next to the chunk doorway that leads toward `target`, so arrows chain
+// from chunk to chunk instead of only pointing "roughly that way".
+export function addPortArrow(c, rng, ports, target, opts = {}) {
+  if (!target) return false;
+  const W = CS * TILE;
+  const inside = target.x >= c.x0 && target.x < c.x0 + W && target.z >= c.z0 && target.z < c.z0 + W;
+  let goal = null;
+  if (inside) goal = { lx: Math.floor((target.x - c.x0) / TILE), lz: Math.floor((target.z - c.z0) / TILE), x: target.x, z: target.z };
+  else {
+    let bd = Infinity;
+    for (const side of ['n', 's', 'w', 'e']) for (const p of ports[side]) {
+      const mid = p.i + p.w / 2;
+      const lx = side === 'w' ? 0 : side === 'e' ? CS - 1 : Math.floor(mid);
+      const lz = side === 'n' ? 0 : side === 's' ? CS - 1 : Math.floor(mid);
+      const ox = side === 'w' ? -1 : side === 'e' ? 1 : 0, oz = side === 'n' ? -1 : side === 's' ? 1 : 0;
+      const wx = c.x0 + (side === 'w' || side === 'e' ? lx + 0.5 : mid) * TILE + ox * TILE * 2;
+      const wz = c.z0 + (side === 'n' || side === 's' ? lz + 0.5 : mid) * TILE + oz * TILE * 2;
+      const d = Math.hypot(wx - target.x, wz - target.z);
+      if (d < bd) { bd = d; goal = { lx, lz, x: c.tx(lx), z: c.tz(lz) }; }
+    }
+  }
+  if (!goal) return false;
+  const spots = wallSpots(c, (lx, lz, i) => Math.abs(lx - goal.lx) + Math.abs(lz - goal.lz) <= (opts.reach ?? 4) && c.floor[i] === 0)
+    .filter(s => Math.abs(s.nx * (goal.x - c.tx(s.lx))) + Math.abs(s.nz * (goal.z - c.tz(s.lz))) < TILE * 1.5);
+  if (!spots.length) return false;
+  for (let k = 0; k < Math.min(opts.count ?? 2, spots.length); k++) {
+    const s = spots.splice(rng.int(0, spots.length - 1), 1)[0];
+    addWayfinding(c, rng, [s], goal, { name: opts.name || 'arrow', size: opts.size || 0.85, y: opts.y ?? 1.45 });
+  }
+  return true;
+}
+
+// Secondary exit for levels whose main exit needs a key: a floor hatch that can
+// be forced open (noisy) or pried with a crowbar. Placed in open floor so it
+// never blocks a corridor. Call after the chunk's layout is final.
+export function addHatchExit(c, level, opts = {}) {
+  const se = sideExitAt(level, c.cx, c.cz);
+  if (!se) return null;
+  const ok = (lx, lz) => {
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const x = lx + dx, z = lz + dz;
+      if (x < 1 || z < 1 || x >= CS - 1 || z >= CS - 1) return false;
+      const i = z * CS + x;
+      if (c.type[i] !== T_FLOOR || c.floor[i] !== 0 || c.ramp[i] >= 0 || (c.flags[i] & (F_LANDMARK | F_NAVBLOCK))) return false;
+      if (c.water && c.water[i] > -1e5 && c.water[i] > c.floor[i]) return false;
+    }
+    return true;
+  };
+  for (let r = 0; r < 6; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+    if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+    const lx = se.lx + dx, lz = se.lz + dz;
+    if (!ok(lx, lz)) continue;
+    c.flags[lz * CS + lx] |= F_RESERVED | F_LANDMARK;
+    return addObject(c, { kind: 'hatch', x: c.tx(lx), y: 0, z: c.tz(lz), ry: (hash01(c.cx, c.cz, 91) * 4 | 0) * Math.PI / 2, to: level.def.next, label: opts.label || 'maintenance hatch', mat: opts.mat });
+  }
+  return null;
 }

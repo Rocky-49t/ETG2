@@ -175,7 +175,7 @@ export class MaterialLib {
 // ---------------------------------------------------------------------------
 // Decal atlas: 4x4 cells drawn with canvas 2D. Used for arrows, graffiti,
 // stains, handprints and blood. Cells referenced by name.
-export const DECALS = ['arrow', 'arrow2', 'hand', 'stain', 'blood', 'blood2', 'text0', 'text1', 'text2', 'text3', 'scratch', 'drip', 'tally', 'eye', 'circle', 'footprints'];
+export const DECALS = ['arrow', 'arrow2', 'hand', 'stain', 'blood', 'blood2', 'text0', 'text1', 'text2', 'text3', 'scratch', 'drip', 'tally', 'eye', 'arrowL', 'footprints'];
 export const DECAL_TEXTS = ['IT HEARS YOU', "DON'T RUN", 'NOT REAL', 'KEEP THE LIGHT ON', 'COUNT THE DOORS', 'BEHIND YOU?', 'WE WERE 6', 'DOWN IS OUT', 'LISTEN', 'NO ECHO HERE'];
 
 export function buildDecalAtlas(seedTexts = DECAL_TEXTS) {
@@ -207,7 +207,12 @@ export function buildDecalAtlas(seedTexts = DECAL_TEXTS) {
   };
   const paint = 'rgba(40,10,8,0.9)';
   // 0 arrow (spray)
-  cell(0, (g, C) => rough(g, [[C * 0.12, C * 0.5], [C * 0.82, C * 0.5], [C * 0.62, C * 0.3], [C * 0.82, C * 0.5], [C * 0.62, C * 0.7]], C * 0.07, paint));
+  cell(0, (g, C) => {
+    rough(g, [[C * 0.1, C * 0.6], [C * 0.86, C * 0.6], [C * 0.64, C * 0.4], [C * 0.86, C * 0.6], [C * 0.64, C * 0.8]], C * 0.085, paint);
+    g.fillStyle = paint; g.font = `bold ${Math.round(C * 0.2)}px Impact, Arial Black, sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.globalAlpha = 0.85; g.fillText('EXIT', C * 0.44, C * 0.3); g.globalAlpha = 1;
+  });
   // 1 arrow chalk
   cell(1, (g, C) => rough(g, [[C * 0.15, C * 0.55], [C * 0.8, C * 0.45], [C * 0.65, C * 0.32], [C * 0.8, C * 0.45], [C * 0.68, C * 0.62]], C * 0.035, 'rgba(235,235,225,0.85)'));
   // 2 hand print
@@ -292,10 +297,12 @@ export function buildDecalAtlas(seedTexts = DECAL_TEXTS) {
     g.beginPath(); g.moveTo(C * 0.1, C * 0.5); g.quadraticCurveTo(C * 0.5, C * 0.15, C * 0.9, C * 0.5); g.quadraticCurveTo(C * 0.5, C * 0.85, C * 0.1, C * 0.5); g.stroke();
     g.fillStyle = 'rgba(20,10,10,0.9)'; g.beginPath(); g.arc(C / 2, C / 2, C * 0.12, 0, Math.PI * 2); g.fill();
   });
-  // 14 circle/sigil
+  // 14 EXIT arrow pointing left (the mirrored twin of cell 0, text kept readable)
   cell(14, (g, C) => {
-    rough(g, Array.from({ length: 25 }, (_, i) => [C / 2 + Math.cos(i / 24 * Math.PI * 2) * C * 0.38, C / 2 + Math.sin(i / 24 * Math.PI * 2) * C * 0.38]), 5, paint);
-    rough(g, [[C * 0.5, C * 0.12], [C * 0.18, C * 0.75], [C * 0.85, C * 0.38], [C * 0.15, C * 0.38], [C * 0.82, C * 0.75], [C * 0.5, C * 0.12]], 4, paint);
+    rough(g, [[C * 0.9, C * 0.6], [C * 0.14, C * 0.6], [C * 0.36, C * 0.4], [C * 0.14, C * 0.6], [C * 0.36, C * 0.8]], C * 0.085, paint);
+    g.fillStyle = paint; g.font = `bold ${Math.round(C * 0.2)}px Impact, Arial Black, sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.globalAlpha = 0.85; g.fillText('EXIT', C * 0.56, C * 0.3); g.globalAlpha = 1;
   });
   // 15 footprints (bare, wet)
   cell(15, (g, C) => {

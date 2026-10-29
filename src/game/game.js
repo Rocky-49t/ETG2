@@ -275,6 +275,7 @@ export class Game {
     audio.updateListener(cam);
     audio.ambience?.update(dt, { sewer: this.player.pos.y < -1.5 });
     this.updateBuzz(dt);
+    this.updateExitSense(dt);
     this.sanityFx.update(dt);
     this.updatePost(dt);
     this.def.clientUpdate?.(this, dt);
@@ -437,6 +438,16 @@ export class Game {
           return;
         }
         this.request({ t: 'int', l, id: o.id, a: 'toggle' });
+        break;
+      case 'hatch':
+        if (s?.open) { this.useExit(o.to); return; }
+        {
+          const bar = this.inventory.has('crowbar');
+          this.request({ t: 'int', l, id: o.id, a: 'force', bar });
+          this.sfx(bar ? 'metalGroan' : 'hitWall', o, { volume: 1 });
+          this.emitNoise(bar ? 14 : 24);
+          if (!bar && !s?.prog) this.subtitle('Rusted shut. A few more heaves — or something to pry with.', 2.5);
+        }
         break;
       default:
         // level-specific kinds
@@ -770,6 +781,40 @@ export class Game {
       if (this.player.underwater) water.color.set(this.def.waterFogColor || 0x0d3a40);
       else water.color.set(this.def.fog.color);
     }
+  }
+
+  // Exits breathe: a spatial draft sound leads players the last stretch, and a
+  // one-off hint fires the first time they come close.
+  updateExitSense(dt) {
+    this.exitScanT = (this.exitScanT || 0) - dt;
+    if (this.exitScanT <= 0) {
+      this.exitScanT = 0.5;
+      const P = this.player.pos, level = this.level;
+      let best = null, bd = 42;
+      if (level && !this.transitioning) {
+        const cx = Math.floor(P.x / CHUNK), cz = Math.floor(P.z / CHUNK);
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+          if (!level.hasChunk(cx + dx, cz + dz)) continue;
+          for (const o of level.chunk(cx + dx, cz + dz).objects) {
+            if (o.kind !== 'exit' && o.kind !== 'hatch') continue;
+            if (o.kind === 'exit' && (o.to === 'victory' || o.requires)) continue;
+            const d = Math.hypot(o.x - P.x, o.z - P.z);
+            if (d < bd) { bd = d; best = o; }
+          }
+        }
+      }
+      this.exitNear = best ? { o: best, d: bd } : null;
+      if (best && bd < 14 && !this.flags['draft:' + this.levelId]) {
+        this.flags['draft:' + this.levelId] = true;
+        this.subtitle(best.kind === 'hatch' ? 'Cold air seeps up around a hatch in the floor nearby.' : 'A cold draft rises from somewhere close. The floor gives way near here.', 3.5);
+      }
+    }
+    const n = this.exitNear;
+    if (n) {
+      const pos = { x: n.o.x, y: (n.o.kind === 'hatch' ? 0.2 : 0), z: n.o.z };
+      if (!this.draft) this.draft = audio.loop('draftLoop', { pos, volume: 1, ref: 3, rolloff: 1.1 });
+      if (this.draft) { this.draft.setPos(pos); this.draft.set('level', Math.min(1, (1 - n.d / 42) * 1.4)); }
+    } else if (this.draft) { this.draft.set('level', 0); }
   }
 
   updateBuzz(dt) {
@@ -1116,6 +1161,13 @@ export class Game {
         if (m.a === 'unlock') { set({ ...s, unlocked: true, open: true }); this.syncDoorCollider(m.l, o, true); }
         else if (m.a === 'toggle' && (!o.locked || s.unlocked)) { set({ ...s, open: !s.open }); this.syncDoorCollider(m.l, o, !s.open); }
         break;
+      case 'hatch':
+        if (m.a === 'force' && !s.open) {
+          const prog = Math.min(1, (s.prog || 0) + (m.bar ? 1 : 0.34));
+          set({ prog, open: prog >= 1 });
+          if (prog >= 1) this.hostEvent(m.l, { k: 'sound', name: 'metalDoor', x: o.x, y: 0.5, z: o.z, volume: 1 });
+        }
+        break;
       default:
         LEVELS[m.l]?.hostInteract?.(this, pid, o, s, m);
     }
@@ -1261,6 +1313,7 @@ export class Game {
     scene.remove(this.lights.spot, this.lights.spot.target, this.lights.fill, this.lights.muzzleLight, this.lights.lighter, ...this.lights.pool);
     this.engine.camera.remove(this.viewmodel.root);
     this.buzz?.stop();
+    this.draft?.stop();
     audio.stopAll();
     worldUniforms.bakedScale.value = 1;
   }

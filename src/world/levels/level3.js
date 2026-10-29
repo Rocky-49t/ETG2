@@ -7,7 +7,7 @@ import { TILE, CS, T_SOLID, T_FLOOR, F_ROOM, F_DARK, F_RESERVED, F_LANDMARK, NO_
 import { openPorts, ensureConnected, carveRect, fillRect, openTile, carveL, portTiles } from '../gen.js';
 import { placeLandmark } from '../level.js';
 import { addProp, registerProps, LIGHT_VISUALS } from '../props.js';
-import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette } from './common.js';
+import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette, addHatchExit } from './common.js';
 import { hash01 } from '../../core/rng.js';
 import { registerObjectKind } from '../../game/objects.js';
 import { makeWaterMaterial, makeEnvMap } from '../../gfx/water.js';
@@ -225,6 +225,8 @@ export default {
     }
   },
 
+  sideExit: { p: 0.1, minR: 2 },
+
   generate(c, ctx) {
     const { rng, level, ports, landmarks } = ctx;
     const zone = zoneFor(level, c.cx, c.cz);
@@ -338,6 +340,7 @@ export default {
     if (rng.chance(0.35)) { const s = take(spots); if (s) { const p = wallPos(c, s, 0.4); addContainer(c, rng, rng.chance(0.5) ? 'cardboard' : 'cabinet', LOOT, p.x, 0, p.z, yawFor(s.nx, s.nz), [1, 2]); } }
     if (rng.chance(0.15)) { const s = take(spots); if (s) { const p = wallPos(c, s, 0.4); addNote(c, rng.pick(this.notes), p.x, 0.005, p.z, rng.float(0, 6)); } }
     if (rng.chance(0.06)) addVignette(c, rng, addProp, this.notes);
+    addHatchExit(c, level, { label: 'service hatch', mat: 'paintedMetal' });
     for (let k = rng.int(1, 2); k > 0; k--) {
       const lx = rng.int(0, CS - 1), lz = rng.int(0, CS - 1), i = lz * CS + lx;
       if (!dry(lx, lz, i)) continue;

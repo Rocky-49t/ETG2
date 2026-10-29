@@ -5,7 +5,7 @@ import { TILE, CS, T_SOLID, T_FLOOR, F_ROOM, F_DARK, F_RESERVED, F_LANDMARK } fr
 import { openPorts, ensureConnected, carveRect, fillRect, openTile } from '../gen.js';
 import { placeLandmark } from '../level.js';
 import { addProp } from '../props.js';
-import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette } from './common.js';
+import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette, sideExitAt, nearestExit, addPortArrow } from './common.js';
 import { hash01, makeNoise2D, RNG } from '../../core/rng.js';
 
 const darkNoise = makeNoise2D(404);
@@ -99,12 +99,40 @@ function genPillars(c, rng) {
   c.meta.pillars = true;
 }
 
+// A small dim room with a hole in the floor: "where the carpet forgets to hold".
+function pitRoom(c, rng, lx, lz) {
+  const ex = Math.max(3, Math.min(CS - 4, lx)), ez = Math.max(3, Math.min(CS - 4, lz));
+  fillRect(c, ex - 3, ez - 3, ex + 3, ez + 3, 0);
+  carveRect(c, ex - 2, ez - 2, ex + 2, ez + 2, { floor: 0, ceil: 2.8, fmat: 0, cmat: 0, flags: F_RESERVED | F_ROOM });
+  // doorway + corridor out toward the chunk centre
+  const side = rng.int(0, 3);
+  const dx = [1, 0, -1, 0][side], dz = [0, 1, 0, -1][side];
+  for (let k = 3; k < 10; k++) {
+    const tx = ex + dx * k, tz = ez + dz * k;
+    if (tx < 0 || tz < 0 || tx >= CS || tz >= CS) break;
+    openTile(c, tx, tz, { ...T(2.8), flags: F_RESERVED });
+  }
+  // the pit
+  for (let z = ez - 1; z <= ez; z++) for (let x = ex - 1; x <= ex; x++) {
+    openTile(c, x, z, { floor: -9, ceil: 2.8, fmat: 1, cmat: 0, flags: F_LANDMARK | F_DARK });
+  }
+  const px = c.x0 + ex * TILE, pz = c.z0 + ez * TILE;
+  addObject(c, { kind: 'exit', x: px, y: -3, z: pz, r: 2.2, to: 'L1', label: 'the pit' });
+  addLight(c, { x: px + 1.6, y: 2.4, z: pz + 1.6, kind: 'bulb', cord: 0.4, color: [1, 0.75, 0.45], intensity: 3, range: 7, flicker: 0.6 });
+  for (let k = 0; k < 7; k++) {
+    const a = rng.float(0, Math.PI * 2), d = rng.float(2.0, 3.6);
+    addDecal(c, { name: rng.pick(['stain', 'blood2', 'footprints']), x: px + Math.cos(a) * d, y: 0.005, z: pz + Math.sin(a) * d, nx: 0, ny: 1, nz: 0, size: rng.float(0.8, 1.6), rot: rng.float(0, 6.28) });
+  }
+  c.meta.exitRoom = { x: px, z: pz };
+}
+
 export default {
   id: 'L0',
   name: 'Level 0',
   title: 'The Lobby',
   next: 'L1',
-  objective: 'Find where the carpet forgets to hold.',
+  objective: 'Find where the carpet forgets to hold — a hole in the floor. Follow the EXIT arrows and listen for the draft.',
+  sideExit: { p: 0.1, minR: 2 },
   subtitle: 'The hum is louder than you remember.',
   palette: {
     floor: [{ mat: 'carpet', scale: 2.5 }, { mat: 'black', scale: 2 }],
@@ -164,43 +192,21 @@ export default {
     openPorts(c, ports, tmpl, 2);
 
     // landmarks
-    const exitL = level.byType.exit;
-    const exitW = { x: (exitL.tx + 0.5) * TILE, z: (exitL.tz + 0.5) * TILE };
     for (const lm of landmarks) {
       if (lm.type === 'spawn') {
         carveRect(c, lm.lx - 2, lm.lz - 2, lm.lx + 2, lm.lz + 2, { ...T(ceil), flags: F_RESERVED });
       } else if (lm.type === 'exit') {
-        const ex = Math.max(3, Math.min(CS - 4, lm.lx)), ez = Math.max(3, Math.min(CS - 4, lm.lz));
-        fillRect(c, ex - 3, ez - 3, ex + 3, ez + 3, 0);
-        carveRect(c, ex - 2, ez - 2, ex + 2, ez + 2, { floor: 0, ceil: 2.8, fmat: 0, cmat: 0, flags: F_RESERVED | F_ROOM });
-        // doorway + corridor out toward the chunk centre
-        const side = rng.int(0, 3);
-        const dx = [1, 0, -1, 0][side], dz = [0, 1, 0, -1][side];
-        for (let k = 3; k < 10; k++) {
-          const tx = ex + dx * k, tz = ez + dz * k;
-          if (tx < 0 || tz < 0 || tx >= CS || tz >= CS) break;
-          openTile(c, tx, tz, { ...T(2.8), flags: F_RESERVED });
-        }
-        // the pit
-        for (let z = ez - 1; z <= ez; z++) for (let x = ex - 1; x <= ex; x++) {
-          openTile(c, x, z, { floor: -9, ceil: 2.8, fmat: 1, cmat: 0, flags: F_LANDMARK | F_DARK });
-        }
-        const px = c.x0 + ex * TILE, pz = c.z0 + ez * TILE;
-        addObject(c, { kind: 'exit', x: px, y: -3, z: pz, r: 2.2, to: 'L1', label: 'the pit' });
-        addLight(c, { x: px + 1.6, y: 2.4, z: pz + 1.6, kind: 'bulb', cord: 0.4, color: [1, 0.75, 0.45], intensity: 3, range: 7, flicker: 0.6 });
-        for (let k = 0; k < 7; k++) {
-          const a = rng.float(0, Math.PI * 2), d = rng.float(2.0, 3.6);
-          addDecal(c, { name: rng.pick(['stain', 'blood2', 'footprints']), x: px + Math.cos(a) * d, y: 0.005, z: pz + Math.sin(a) * d, nx: 0, ny: 1, nz: 0, size: rng.float(0.8, 1.6), rot: rng.float(0, 6.28) });
-        }
-        c.meta.exitRoom = { x: px, z: pz };
+        pitRoom(c, rng, lm.lx, lm.lz);
       }
     }
 
+    const side = sideExitAt(level, c.cx, c.cz);
+    if (side) pitRoom(c, rng, side.lx, side.lz);
     ensureConnected(c, ports, tmpl);
 
     // ---- lights
-    const dist = Math.hypot(c.x0 + 16 - exitW.x, c.z0 + 16 - exitW.z);
-    const nearExit = dist < 50;
+    const goal = nearestExit(level, c.x0 + 16, c.z0 + 16);
+    const nearExit = Math.hypot(c.x0 + 16 - goal.x, c.z0 + 16 - goal.z) < 40;
     for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
       const i = lz * CS + lx;
       if (c.type[i] !== T_FLOOR || (c.flags[i] & F_LANDMARK)) continue;
@@ -237,7 +243,10 @@ export default {
     }
     // decals
     const allSpots = wallSpots(c);
-    if (rng.chance(nearExit ? 0.8 : 0.35)) addWayfinding(c, rng, allSpots, exitW);
+    // EXIT arrows: beside the doorway that leads toward the nearest exit (they
+    // chain chunk to chunk), plus an occasional loose one on any wall
+    if (!addPortArrow(c, rng, ports, goal, { count: 2 })) addWayfinding(c, rng, allSpots, goal, { name: 'arrow' });
+    if (rng.chance(0.3)) addWayfinding(c, rng, allSpots, goal, { name: 'arrow2' });
     if (rng.chance(0.25) && allSpots.length) {
       const s = rng.pick(allSpots), p = wallPos(c, s);
       addDecal(c, { name: rng.pick(['text0', 'text1', 'text2', 'text3', 'hand', 'tally', 'scratch', 'eye']), x: p.x, y: rng.float(1.0, 1.8), z: p.z, nx: s.nx, ny: 0, nz: s.nz, size: rng.float(0.7, 1.1), rot: rng.float(-0.1, 0.1) });

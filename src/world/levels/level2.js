@@ -8,7 +8,7 @@ import { TILE, CS, T_SOLID, T_FLOOR, F_ROOM, F_DARK, F_RESERVED, F_LANDMARK, NO_
 import { openPorts, ensureConnected, carveRect, fillRect, openTile, carveL, portTiles, chunkPorts } from '../gen.js';
 import { placeLandmark } from '../level.js';
 import { addProp, registerProps } from '../props.js';
-import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding } from './common.js';
+import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addHatchExit } from './common.js';
 import { hash01 } from '../../core/rng.js';
 import { registerObjectKind } from '../../game/objects.js';
 import { makeWaterMaterial, makeEnvMap } from '../../gfx/water.js';
@@ -389,6 +389,8 @@ export default {
     game.lib.register('water', makeWaterMaterial(game.lib, { color: 0x2c3a1e, opacity: 0.88, envMap: env, envIntensity: 0.6, normalScale: 0.25, flow: 1.6 }));
   },
 
+  sideExit: { p: 0.07, minR: 2 },
+
   generate(c, ctx) {
     const { rng, level, landmarks } = ctx;
     const zoneOf = (cx, cz) => zoneFor(level, cx, cz);
@@ -427,6 +429,7 @@ export default {
         addPickup(c, rng, LOOT, c.tx(lx) + rng.float(-0.5, 0.5), 0, c.tz(lz) + rng.float(-0.5, 0.5));
       }
     }
+    addHatchExit(c, level, { label: zone === 'sewer' ? 'manhole' : 'access hatch', mat: zone === 'sewer' ? 'rustMetal' : 'paintedMetal' });
   },
 
   buildStairwell(c, ctx, lx, lz) {

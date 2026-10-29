@@ -6,7 +6,7 @@ import { TILE, CS, T_SOLID, T_FLOOR, F_ROOM, F_DARK, F_RESERVED, F_LANDMARK, OPE
 import { openPorts, ensureConnected, carveRect, fillRect, openTile, carveL, portTiles } from '../gen.js';
 import { placeLandmark } from '../level.js';
 import { addProp, registerProps } from '../props.js';
-import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette } from './common.js';
+import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette, addHatchExit } from './common.js';
 import { hash01 } from '../../core/rng.js';
 import { registerObjectKind } from '../../game/objects.js';
 import { ITEMS } from '../../game/items.js';
@@ -184,6 +184,8 @@ export default {
   decalTexts: ['SERVICE EXIT', 'DOGS HATE FIRE', 'KEEP MOVING', 'NOT DOGS'],
   entities: { primary: 'marrowhound', max: 2, pack: [2, 3], spawnCd: 55, minDist: 24, maxDist: 40, rare: ['lookalike'] },
   eventSounds: ['metalGroan', 'distantThud', 'steamHiss', 'howl', 'knock'],
+
+  sideExit: { p: 0.07, minR: 2 },
 
   landmarks(level) {
     const exit = placeLandmark(level, 'L1exit', 45, 75);
@@ -396,6 +398,7 @@ export default {
     if (rng.chance(0.25)) { const s = take(allSpots); if (s) { const p = wallPos(c, s, 0.34); addLocker(c, p.x, 0, p.z, yawFor(s.nx, s.nz)); } }
     if (rng.chance(0.18)) { const s = take(allSpots); if (s) { const p = wallPos(c, s, 0.5); addProp(c, 'crate', p.x, 0, p.z, 0, { s: 0.8 }); addNote(c, rng.pick(this.notes), p.x, 0.81, p.z, 0.5); } }
     if (rng.chance(0.08)) addVignette(c, rng, addProp, this.notes);
+    addHatchExit(c, level, { label: 'maintenance hatch', mat: 'rustMetal' });
     // decals & wayfinding (hazard arrows toward the exit)
     const wspots = wallSpots(c);
     if (rng.chance(0.55)) addWayfinding(c, rng, wspots, exitW, { name: 'arrow' });

@@ -300,6 +300,16 @@ export const SFX = {
     o1.connect(f).connect(g).connect(dest); o1.start();
     return { stop() { o1.stop(); }, set(k, v) { if (k === 'level') g.gain.setTargetAtTime(v * 0.08, A.now, 0.01); } };
   },
+  // cold air moaning up out of an exit: low wind with a slow swell and a hollow tone
+  draftLoop(A, dest) {
+    const n = noiseSrc(A, 'brown'); const f = filt(A, 'bandpass', 260, 0.9); const g = gain(A, 0.0);
+    const lfo = osc(A, 'sine', 0.13); const lg = gain(A, 120); lfo.connect(lg).connect(f.frequency);
+    const t1 = osc(A, 'sine', 73); const tg = gain(A, 0.035);
+    const sw = osc(A, 'sine', 0.07); const sg = gain(A, 0.02); sw.connect(sg).connect(tg.gain);
+    n.connect(f).connect(g).connect(dest); t1.connect(tg).connect(g);
+    n.start(); lfo.start(); t1.start(); sw.start();
+    return { stop() { n.stop(); lfo.stop(); t1.stop(); sw.stop(); }, set(k, v) { if (k === 'level') g.gain.setTargetAtTime(v * 0.9, A.now, 0.4); } };
+  },
   machineLoop(A, dest, o) {
     const base = o.freq || 48;
     const o1 = osc(A, 'sawtooth', base); const o2 = osc(A, 'square', base * 2.01);

@@ -237,7 +237,9 @@ export function buildChunkMesh(level, c, lib) {
 
   // ---- decals
   for (const dcl of c.decals) {
-    const [u0, v0, u1, v1] = decalUV(dcl.name);
+    // the EXIT arrow has a pre-mirrored twin so its lettering never reads backwards
+    const twin = dcl.flip && dcl.name === 'arrow';
+    const [u0, v0, u1, v1] = decalUV(twin ? 'arrowL' : dcl.name);
     const s = dcl.size || 1;
     const h = s / 2;
     const nx = dcl.nx || 0, ny = dcl.ny || 0, nz = dcl.nz || 0;
@@ -245,7 +247,7 @@ export function buildChunkMesh(level, c, lib) {
     // tangent u in the decal plane, v = n x u (so u x v = n)
     let ux, uy, uz;
     if (Math.abs(ny) > 0.5) { ux = 1; uy = 0; uz = 0; }
-    else { ux = nz; uy = 0; uz = -nx; if (dcl.flip) { ux = -ux; uz = -uz; } }
+    else { ux = nz; uy = 0; uz = -nx; if (dcl.flip && !twin) { ux = -ux; uz = -uz; } }
     let vx = ny * uz - nz * uy, vy = nz * ux - nx * uz, vz = nx * uy - ny * ux;
     const r = dcl.rot || 0;
     if (r) {

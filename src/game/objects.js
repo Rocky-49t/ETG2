@@ -95,6 +95,49 @@ export const OBJECT_KINDS = {
   },
 };
 
+// Secondary exit hatch (see levels/common.js addHatchExit).
+OBJECT_KINDS.hatch = {
+  build(o, game) {
+    const g = new THREE.Group();
+    const dark = game.lib.dyn('darkMetal');
+    const hole = new THREE.Mesh(new THREE.PlaneGeometry(1.36, 1.36), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+    hole.rotation.x = -Math.PI / 2; hole.position.y = 0.006;
+    g.add(hole);
+    for (const [x, z, w, d] of [[0, -0.74, 1.6, 0.12], [0, 0.74, 1.6, 0.12], [-0.74, 0, 0.12, 1.36], [0.74, 0, 0.12, 1.36]]) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), dark);
+      b.position.set(x, 0.02, z); b.receiveShadow = true; g.add(b);
+    }
+    // ladder rungs disappearing into the dark
+    for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, 0.03), dark); r.position.set(0, -0.05 - k * 0.3, -0.6); g.add(r); }
+    const pivot = new THREE.Group();
+    pivot.position.set(-0.68, 0.05, 0);
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.05, 1.36), game.lib.dyn(o.mat || 'paintedMetal'));
+    lid.position.set(0.68, 0, 0); lid.castShadow = true; lid.receiveShadow = true;
+    pivot.add(lid);
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.36), game.lib.dyn('chrome'));
+    handle.position.set(1.2, 0.045, 0); pivot.add(handle);
+    for (const [x, z] of [[0.12, -0.56], [0.12, 0.56], [1.24, -0.56], [1.24, 0.56]]) {
+      const rv = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 6), dark);
+      rv.position.set(x, 0.03, z); pivot.add(rv);
+    }
+    g.add(pivot);
+    g.userData.pivot = pivot;
+    return g;
+  },
+  prompt(o, s, game) {
+    if (s?.open) return `Climb down the ${o.label}`;
+    if (game.inventory.has('crowbar')) return `Pry open the ${o.label}`;
+    return `Force the ${o.label} (loud)${s?.prog ? ` — ${Math.round(s.prog * 100)}%` : ''}`;
+  },
+  radius: 1.0,
+  centerY: 0.1,
+  animate(mesh, o, s, dt) {
+    const want = s?.open ? 1.95 : (s?.prog || 0) * 0.18;
+    mesh.userData.k = (mesh.userData.k ?? 0) + (want - (mesh.userData.k ?? 0)) * Math.min(1, dt * 4);
+    mesh.userData.pivot.rotation.z = mesh.userData.k;
+  },
+};
+
 export function registerObjectKind(kind, def) { OBJECT_KINDS[kind] = def; }
 
 const tmp = new THREE.Vector3();

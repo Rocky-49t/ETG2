@@ -6,7 +6,7 @@ import { TILE, CS, T_SOLID, T_FLOOR, F_ROOM, F_DARK, F_RESERVED, F_LANDMARK, OPE
 import { openPorts, ensureConnected, carveRect, fillRect, openTile, carveL, portTiles } from '../gen.js';
 import { placeLandmark } from '../level.js';
 import { addProp, registerProps } from '../props.js';
-import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding } from './common.js';
+import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette } from './common.js';
 import { hash01 } from '../../core/rng.js';
 import { registerObjectKind } from '../../game/objects.js';
 import { ITEMS } from '../../game/items.js';
@@ -395,6 +395,7 @@ export default {
     if (rng.chance(0.4)) { const s = take(allSpots); if (s) { const p = wallPos(c, s, 0.3); addContainer(c, rng, 'toolbox', CRATE_LOOT, p.x, 0, p.z, yawFor(s.nx, s.nz), [1, 2]); } }
     if (rng.chance(0.25)) { const s = take(allSpots); if (s) { const p = wallPos(c, s, 0.34); addLocker(c, p.x, 0, p.z, yawFor(s.nx, s.nz)); } }
     if (rng.chance(0.18)) { const s = take(allSpots); if (s) { const p = wallPos(c, s, 0.5); addProp(c, 'crate', p.x, 0, p.z, 0, { s: 0.8 }); addNote(c, rng.pick(this.notes), p.x, 0.81, p.z, 0.5); } }
+    if (rng.chance(0.08)) addVignette(c, rng, addProp, this.notes);
     // decals & wayfinding (hazard arrows toward the exit)
     const wspots = wallSpots(c);
     if (rng.chance(0.55)) addWayfinding(c, rng, wspots, exitW, { name: 'arrow' });

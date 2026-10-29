@@ -8,7 +8,7 @@ import { ITEMS } from './items.js';
 import { NOTES } from './notes.js';
 import { CHUNK } from '../world/chunk.js';
 
-const CTYPE_NAMES = { cardboard: 'box', cabinet: 'filing cabinet', crate: 'crate', toolbox: 'toolbox', locker: 'locker' };
+const CTYPE_NAMES = { cardboard: 'box', cabinet: 'filing cabinet', crate: 'crate', toolbox: 'toolbox', locker: 'locker', backpack: 'old backpack' };
 
 // Kind registry: build visuals, prompt text, and interaction request.
 export const OBJECT_KINDS = {

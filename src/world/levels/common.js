@@ -102,3 +102,30 @@ export function addWayfinding(c, rng, spots, target, opts = {}) {
 }
 
 export function tileCenter(c, lx, lz) { return { x: c.tx(lx), z: c.tz(lz) }; }
+
+// Environmental storytelling vignette: the remains of a wanderer (with their
+// backpack) or an abandoned camp, placed on a free tile.
+const PACK_LOOT = [['almondWater', 20], ['battery', 18, [1, 3]], ['bandage', 14], ['snackBar', 12], ['flare', 8], ['glowstick', 10, [1, 3]], ['ammo9', 8, [5, 10]], ['painkillers', 8], ['knife', 3], ['lighter', 4]];
+export function addVignette(c, rng, addPropFn, noteIds, floorY = 0) {
+  for (let k = 0; k < 12; k++) {
+    const lx = rng.int(2, CS - 3), lz = rng.int(2, CS - 3), i = lz * CS + lx;
+    if (!freeTile(c, i) || c.floor[i] !== floorY) continue;
+    const x = c.tx(lx), z = c.tz(lz), ry = rng.float(0, Math.PI * 2);
+    // prop-local (u,v) -> world, matching the mesher's Y rotation
+    const at = (u, v) => [x + u * Math.cos(ry) + v * Math.sin(ry), z - u * Math.sin(ry) + v * Math.cos(ry)];
+    if (rng.chance(0.55)) {
+      addPropFn(c, 'remains', x, floorY, z, ry);
+      const [bx, bz] = at(-0.7, 0.45);
+      addContainer(c, rng, 'backpack', PACK_LOOT, bx, floorY, bz, ry + 1, [1, 3]);
+      addDecal(c, { name: 'blood2', x, y: floorY + 0.004, z, nx: 0, ny: 1, nz: 0, size: 1.4, rot: ry });
+    } else {
+      addPropFn(c, 'camp', x, floorY, z, ry);
+      const [bx, bz] = at(0.8, -0.75);
+      addContainer(c, rng, 'backpack', PACK_LOOT, bx, floorY, bz, ry + 0.4, [1, 2]);
+      addDecal(c, { name: 'tally', x: x + 0.1, y: floorY + 0.004, z: z + 0.1, nx: 0, ny: 1, nz: 0, size: 1.0, rot: ry });
+    }
+    if (noteIds && rng.chance(0.6)) addNote(c, rng.pick(noteIds), x + rng.float(-0.8, 0.8), floorY + 0.005, z + rng.float(-0.8, 0.8), rng.float(0, 6));
+    return true;
+  }
+  return false;
+}

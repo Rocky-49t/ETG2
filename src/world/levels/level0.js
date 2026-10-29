@@ -5,7 +5,7 @@ import { TILE, CS, T_SOLID, T_FLOOR, F_ROOM, F_DARK, F_RESERVED, F_LANDMARK } fr
 import { openPorts, ensureConnected, carveRect, fillRect, openTile } from '../gen.js';
 import { placeLandmark } from '../level.js';
 import { addProp } from '../props.js';
-import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding } from './common.js';
+import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette } from './common.js';
 import { hash01, makeNoise2D, RNG } from '../../core/rng.js';
 
 const darkNoise = makeNoise2D(404);
@@ -285,6 +285,7 @@ export default {
         addNote(c, (c.cx === 0 && c.cz === 0) ? 'l0_start' : rng.pick(this.notes), p.x, 0.79, p.z, yawFor(s.nx, s.nz));
       }
     }
+    if (Math.abs(c.cx) + Math.abs(c.cz) > 1 && rng.chance(0.07)) addVignette(c, rng, addProp, this.notes);
     // entity spawn hints: dark quiet spots far from spawn
     if (Math.abs(c.cx) + Math.abs(c.cz) > 1 && rng.chance(0.5)) {
       for (let k = 0; k < 10; k++) {

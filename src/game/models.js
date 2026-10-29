@@ -284,6 +284,11 @@ export function containerModel(ctype) {
     g.add(mesh(box(0.5, 0.2, 0.22), m, 0, 0.1, 0));
     const lid = new THREE.Group(); lid.position.set(0, 0.2, -0.11); lid.add(mesh(box(0.5, 0.06, 0.22), m, 0, 0.03, 0.11)); lid.add(mesh(box(0.25, 0.03, 0.03), M('darkMetal'), 0, 0.075, 0.11)); g.add(lid);
     g.userData.lid = lid;
+  } else if (ctype === 'backpack') {
+    const m = C(0x77804f, 0.9);
+    g.add(mesh(box(0.38, 0.45, 0.22), m, 0, 0.22, 0, -0.25));
+    g.add(mesh(box(0.3, 0.18, 0.08), m, 0, 0.15, 0.13, -0.25));
+    g.add(mesh(box(0.36, 0.08, 0.2), C(0x5a6238, 0.9), 0, 0.44, -0.03, -0.25));
   } else { // first aid wall cabinet etc.
     g.add(mesh(box(0.5, 0.5, 0.5), LIB.dyn('woodCrate'), 0, 0.25, 0));
   }

@@ -141,7 +141,7 @@ export class UI {
     this.game = game;
     this.containerObj = o;
     $('containerBox').classList.remove('hidden');
-    $('containerTitle').textContent = o.ctype === 'cabinet' ? 'Filing cabinet' : o.ctype === 'crate' ? 'Crate' : o.ctype === 'toolbox' ? 'Toolbox' : 'Box';
+    $('containerTitle').textContent = { cabinet: 'Filing cabinet', crate: 'Crate', toolbox: 'Toolbox', backpack: 'Old backpack' }[o.ctype] || 'Box';
     if (!this.open.has('inventory')) this.openModal('inventory');
     this.renderInventory();
   }

@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 // Prop library. Each prop kind defines collision boxes (local space, before
 // yaw) and a build function that emits geometry through a GeoBuilder.
 // Generators call addProp() which records the prop and its colliders.
@@ -366,6 +368,35 @@ registerProps({
     build(p, B) {
       box(B, 'trim', 0, -0.3, 0.02, 0.62, 0.48, 0.03, 0.4);
       box(B, p.mat || 'paper', 0, -0.27, 0.04, 0.52, 0.38, 0.005, 0.5);
+    },
+  },
+  remains: {
+    // a long-dead wanderer: skull, ribs and scattered bones
+    colliders: null,
+    build(p, B, rng) {
+      const r = () => (rng ? rng.next() : 0.5);
+      const skull = new THREE.SphereGeometry(0.11, 10, 8);
+      skull.scale(1, 0.9, 1.15);
+      B.geometry('bone', skull, new THREE.Matrix4().makeTranslation(0.35, 0.09, 0.1));
+      B.box('black', 0.32, 0.1, 0.21, 0.035, 0.03, 0.01, 0.2);
+      B.box('black', 0.38, 0.1, 0.21, 0.035, 0.03, 0.01, 0.2);
+      for (let i = 0; i < 6; i++) B.tube('bone', -0.15 + i * 0.07, 0.02, -0.18, -0.12 + i * 0.07, 0.06, 0.18, 0.012, 4);
+      B.tube('bone', -0.3, 0.02, 0, 0.2, 0.02, 0, 0.022, 5);
+      for (let i = 0; i < 4; i++) { const a = r() * 6.28, d = 0.4 + r() * 0.4; B.tube('bone', Math.cos(a) * d, 0.02, Math.sin(a) * d, Math.cos(a) * d + Math.cos(a + 1.5) * 0.35, 0.02, Math.sin(a) * d + Math.sin(a + 1.5) * 0.35, 0.02, 5); }
+    },
+  },
+  camp: {
+    // an abandoned wanderer camp: bedroll, crate table, bucket, candle stubs
+    colliders: [[-0.6, 0, -1.2, 0.6, 0.5, 1.2]],
+    navBlock: false,
+    build(p, B, rng) {
+      B.box('fabric', 0, 0.06, 0, 0.8, 0.12, 1.9, 1);
+      B.box('fabric', 0, 0.16, -0.75, 0.6, 0.12, 0.3, 0.5);
+      B.box('woodCrate', 0.95, 0.25, 0.3, 0.5, 0.5, 0.5, 0.5);
+      B.cyl('paper', 0.9, 0.5, 0.2, 0.025, 0.08, 6, true);
+      B.cyl('paper', 1.05, 0.5, 0.38, 0.025, 0.05, 6, true);
+      B.cyl('plastic', -0.85, 0, 0.6, 0.14, 0.3, 10, true, 0.17);
+      B.box('cardboard', -0.9, 0.12, -0.5, 0.4, 0.25, 0.3, 0.5);
     },
   },
   hangingWires: {

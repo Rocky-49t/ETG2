@@ -219,7 +219,7 @@ export default {
         const o = rooms[i];
         if (r.x < o.x + o.w + 1 && r.x + r.w + 1 > o.x && r.z < o.z + o.h + 1 && r.z + r.h + 1 > o.z) { fillRect(c, o.x, o.z, o.x + o.w - 1, o.z + o.h - 1, 0); rooms.splice(i, 1); }
       }
-      carveRect(c, r.x, r.z, r.x + r.w - 1, r.z + r.h - 1, { floor: 0, ceil: 3.3, fmat: 0, cmat: 0, flags: F_ROOM | F_RESERVED });
+      carveRect(c, r.x, r.z, r.x + r.w - 1, r.z + r.h - 1, { floor: 0, ceil: 3.3, fmat: 0, cmat: 0, flags: F_ROOM });
       rooms.push(r);
     }
     // corridors: chain rooms, then ports to nearest room

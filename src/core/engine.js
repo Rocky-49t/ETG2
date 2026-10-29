@@ -12,7 +12,8 @@ export class Engine {
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.info.autoReset = true;
+    this.renderer.info.autoReset = false; // reset once per frame so stats cover all passes
+    this.stats = { calls: 0, tris: 0 };
     container.appendChild(this.renderer.domElement);
     this.canvas = this.renderer.domElement;
 
@@ -74,7 +75,10 @@ export class Engine {
         this._fpsFrames = 0;
       }
       this.update?.(dt);
+      this.renderer.info.reset();
       this.post.render(dt);
+      this.stats.calls = this.renderer.info.render.calls;
+      this.stats.tris = this.renderer.info.render.triangles;
     };
     requestAnimationFrame(loop);
   }

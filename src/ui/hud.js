@@ -206,7 +206,7 @@ export class HUD {
     if (settings.get('showFps')) {
       this.fps.classList.remove('hidden');
       const info = game.engine.renderer.info;
-      this.fps.textContent = `${game.engine.fps.toFixed(0)} fps · ${game.renderer.meshes.size} chunks`;
+      this.fps.textContent = `${game.engine.fps.toFixed(0)} fps · ${game.engine.stats.calls} calls · ${(game.engine.stats.tris / 1000).toFixed(0)}k tris · ${game.renderer.meshes.size} chunks`;
     } else this.fps.classList.add('hidden');
   }
 

@@ -1,0 +1,22 @@
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  const logs = [];
+  page.on('pageerror', e => logs.push(`[pageerror] ${e.message}`));
+  page.on('console', m => { if (m.type() === 'error') logs.push(`[error] ${m.text()}`); });
+  await page.goto('http://localhost:8080/index.html');
+  await page.waitForFunction(() => document.getElementById('menu').classList.contains('show'), null, { timeout: 120000 });
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: 'tools/out/menu.png' });
+  await page.click('#btnCustomize'); await page.waitForTimeout(2500);
+  await page.screenshot({ path: 'tools/out/customize.png' });
+  await page.click('#btnCustomDone'); await page.click('#btnSettings'); await page.waitForTimeout(500);
+  await page.screenshot({ path: 'tools/out/settings.png' });
+  await page.click('#btnSettingsDone'); await page.click('#btnHelp'); await page.waitForTimeout(500);
+  await page.screenshot({ path: 'tools/out/help.png' });
+  await page.click('#btnHelpDone'); await page.click('#btnHost'); await page.waitForTimeout(500);
+  await page.screenshot({ path: 'tools/out/lobby.png' });
+  console.log(logs.join('\n'));
+  await browser.close();
+})();

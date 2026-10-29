@@ -112,8 +112,11 @@ export class PlayerLights {
     const warm = ch < 15 ? 0.75 : 1;
     const cam = g.engine.camera;
     // spot from the lens, aimed along view direction
+    // origin: the lens when a flashlight is visible in hand, otherwise a point
+    // just ahead of the viewmodel (a weapon-mounted light) so held items
+    // don't catch the beam point-blank
     if (g.viewmodel.flashModel.visible || g.viewmodel.itemId === 'flashlight') g.viewmodel.flashWorldPos(this._p);
-    else this._p.copy(cam.position).add(new THREE.Vector3(0.12, -0.15, 0).applyQuaternion(cam.quaternion));
+    else this._p.copy(cam.position).add(new THREE.Vector3(0.04, -0.06, -0.62).applyQuaternion(cam.quaternion));
     this.spot.position.copy(this._p);
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
     this.spot.target.position.copy(cam.position).addScaledVector(fwd, 10);

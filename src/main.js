@@ -200,7 +200,7 @@ class App {
         if (this.ui.open.has('chat')) return;
         if (this.ui.open.has('settings')) { this.closeSettings(); return; }
         if (this.ui.open.has('help')) { this.ui.open.delete('help'); this.ui.screen('help', false); this.ui.pause(g); return; }
-        if (this.ui.open.has('pause')) { this.ui.resume(); return; }
+        if (this.ui.open.has('pause')) { if (performance.now() - (this.pausedAt || 0) > 350) this.ui.resume(); return; }
         if (this.ui.modalOpen) { for (const n of [...this.ui.open]) this.ui.closeModal(n); return; }
         if (!g.dead && !g.won) this.ui.pause(g);
       } else if ((e.code === 'Tab' || e.code === 'KeyI') && !g.dead) {
@@ -226,7 +226,7 @@ class App {
   onLockChange(locked) {
     const g = this.game;
     // losing pointer lock (e.g. browser Esc) pauses the game menu
-    if (!locked && g && !this.ui.modalOpen && !g.dead && !g.won && !g.transitioning) this.ui.pause(g);
+    if (!locked && g && !this.ui.modalOpen && !g.dead && !g.won && !g.transitioning) { this.pausedAt = performance.now(); this.ui.pause(g); }
   }
 
   update(dt) {

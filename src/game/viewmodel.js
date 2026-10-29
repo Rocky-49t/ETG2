@@ -12,9 +12,9 @@ const SCALE = 0.5;
 // Per-item hold poses: pos/rot of the holder, grip point for the right hand,
 // optional left-hand support point (two-handed) and ADS position.
 const POSES = {
-  pistol: { pos: [0.15, -0.16, -0.36], rot: [0, 0.04, 0], grip: [0, -0.04, 0.02], ads: [0, -0.06, -0.3], one: true },
-  smg: { pos: [0.15, -0.17, -0.36], rot: [0, 0.03, 0], grip: [0, -0.05, 0.03], left: [-0.0, -0.06, -0.24], ads: [0, -0.07, -0.26] },
-  shotgun: { pos: [0.16, -0.18, -0.34], rot: [0, 0.04, 0], grip: [0, -0.05, 0.09], left: [0, -0.01, -0.3], ads: [0, -0.085, -0.22] },
+  pistol: { pos: [0.13, -0.125, -0.34], rot: [0, 0.05, 0], grip: [0, -0.04, 0.02], ads: [0, -0.06, -0.3], one: true },
+  smg: { pos: [0.13, -0.14, -0.34], rot: [0, 0.04, 0], grip: [0, -0.05, 0.03], left: [-0.0, -0.06, -0.24], ads: [0, -0.07, -0.26] },
+  shotgun: { pos: [0.14, -0.15, -0.32], rot: [0, 0.05, 0], grip: [0, -0.05, 0.09], left: [0, -0.01, -0.3], ads: [0, -0.085, -0.22] },
   crowbar: { pos: [0.2, -0.24, -0.38], rot: [-0.3, -0.2, 0.25], grip: [0, -0.12, 0], one: true },
   knife: { pos: [0.18, -0.2, -0.34], rot: [0.1, -0.15, 0.1], grip: [0, 0.01, 0.06], one: true, bladeUp: true },
   flashlight: { pos: [0.17, -0.2, -0.42], rot: [0.02, 0.06, 0], grip: [0, -0.02, 0.03], one: true },

@@ -278,11 +278,16 @@ export class WorldObjects {
     return { e: best, o: best.o, label, state: s };
   }
 
-  // Note glints so notes are findable in the dark.
+  // Glints on notes and items so they're findable in the dark (only nearby).
   glints(dt) {
+    const cam = this.game.engine.camera.position;
     for (const e of this.all.values()) {
-      if (!e.kind?.glint || !e.mesh?.visible) continue;
-      if (Math.random() < dt * 0.6) this.game.effects.burst('glint', { x: e.o.x + (Math.random() - 0.5) * 0.15, y: e.o.y + 0.02, z: e.o.z + (Math.random() - 0.5) * 0.15 });
+      if (!e.mesh?.visible) continue;
+      const k = e.kind?.glint ? 0.6 : (e.o.kind === 'pickup' || e.o.kind === 'drop') ? 0.25 : 0;
+      if (!k) continue;
+      const d2 = (e.o.x - cam.x) ** 2 + (e.o.z - cam.z) ** 2;
+      if (d2 > 144) continue;
+      if (Math.random() < dt * k) this.game.effects.burst('glint', { x: e.o.x + (Math.random() - 0.5) * 0.15, y: e.o.y + 0.05, z: e.o.z + (Math.random() - 0.5) * 0.15 });
     }
   }
 }

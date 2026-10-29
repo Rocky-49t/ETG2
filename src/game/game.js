@@ -185,6 +185,19 @@ export class Game {
     this.transitioning = false;
     this.levelEnterTime = this.time;
     def.onEnter?.(this);
+    if (first && id === 'L0') this.scheduleTutorial();
+  }
+
+  // A few gentle, timed hints for first-time players (no tutorial level).
+  scheduleTutorial() {
+    const hints = [
+      [4, 'Click to look around · WASD to move · Shift to sprint'],
+      [11, 'F toggles your flashlight. Batteries don\'t last forever.'],
+      [19, 'C to crouch. Crouching is silent — something here hunts by sound.'],
+      [28, 'E to interact · Tab for inventory · J for your journal'],
+      [40, 'Painted arrows on the walls point the way out.'],
+    ];
+    this.tutorial = hints.map(([t, text]) => ({ t: this.time + t, text }));
   }
 
   applyLevelVisuals(def) {
@@ -322,6 +335,7 @@ export class Game {
     }
     this.held.update(dt);
     this.updateInteraction(dt);
+    if (this.tutorial?.length && this.time >= this.tutorial[0].t && !this.ui.modalOpen) this.subtitle(this.tutorial.shift().text, 5);
     this.def.localUpdate?.(this, dt, level);
     this.checkExits(level);
     // void fall

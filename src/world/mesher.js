@@ -199,7 +199,7 @@ export function buildChunkMesh(level, c, lib) {
       // water surface
       if (c.water[i] > NO_WATER + 1 && c.water[i] > f - 0.01 && def.waterMat) {
         const w = c.water[i];
-        B.quad(def.waterMat, [x0, w, z1], [x1, w, z1], [x1, w, z0], [x0, w, z0], [0, 1, 0], [[x0 / 4, z1 / 4], [x1 / 4, z1 / 4], [x1 / 4, z0 / 4], [x0 / 4, z0 / 4]]);
+        B.quad(def.waterMat, [x0, w, z1], [x1, w, z1], [x1, w, z0], [x0, w, z0], [0, 1, 0], [[x0 / 2.5, z1 / 2.5], [x1 / 2.5, z1 / 2.5], [x1 / 2.5, z0 / 2.5], [x0 / 2.5, z0 / 2.5]]);
       }
     }
   }

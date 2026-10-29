@@ -187,7 +187,7 @@ export default {
 
   setupScene(game) {
     const env = makeEnvMap(game.engine.renderer, 0xe8f6ff, 0xb0d8e0, 0x2a7a88, [[0, 9, 0, 0xffffff, 6]]);
-    const water = makeWaterMaterial(game.lib, { color: 0x3fb8c8, opacity: 0.55, envMap: env, envIntensity: 1.2, normalScale: 0.3, flow: 0.7 });
+    const water = makeWaterMaterial(game.lib, { color: 0x167f8f, opacity: 0.42, envMap: env, envIntensity: 0.75, normalScale: 0.55, flow: 0.7 });
     game.lib.register('water', water);
     game.lib.register('skyGlow', new THREE.MeshBasicMaterial({ color: new THREE.Color(0xd8f0ff).multiplyScalar(2.2) }));
     // caustics on submerged tiles
@@ -215,8 +215,8 @@ export default {
           .replace('irradiance += vBaked * bakedTint * (bakedScale * 3.14159);', `irradiance += vBaked * bakedTint * (bakedScale * 3.14159);
             if (vWPos.y < ${(WL - 0.05).toFixed(2)}) {
               float depthK = clamp(1.0 - (${WL.toFixed(2)} - vWPos.y) / 9.0, 0.15, 1.0);
-              float cs = etgCaustic(vWPos.xz * 0.11 + vec2(0.0, 0.0), cTime * 0.55);
-              irradiance += vec3(0.55, 0.9, 1.0) * cs * 2.2 * depthK;
+              float cs = etgCaustic(vWPos.xz * 0.3, cTime * 0.6);
+              irradiance += vec3(0.55, 0.9, 1.0) * cs * 3.0 * depthK;
               irradiance *= vec3(0.75, 0.95, 1.0);
             }`);
       };

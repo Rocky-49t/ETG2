@@ -85,7 +85,8 @@ Host-authoritative, star topology. The host simulates entities, the director, wo
 - **Post-processing:** GTAO (High), bloom, ACES tone mapping and a custom grade pass (lift/gamma/gain, vignette, film grain, chromatic aberration, sanity warping and ghosting, underwater tint, damage and downed effects).
 - **Water:** dual-scrolling normals, fresnel, environment reflections, caustics on submerged tiles and underwater fog.
 - **Also:** particles (dust motes, sparks, blood/ichor/bone, splashes, steam, embers, debris, shockwaves), tracers, bullet holes, decals (graffiti, arrows, stains, handprints), procedurally modelled props, weapons, viewmodel hands, avatars and creatures, all with procedural animation.
-- **Presets:** Low, Medium and High (resolution scale, texture size, shadows, dynamic light count, bloom, AO, view distance, particle density).
+- **Presets:** Low, Medium and High (resolution scale, texture size, shadows, dynamic light count, bloom, AO, view distance, particle density). Settings also cover brightness, field of view, head bob, an "intense visual effects" toggle and an FPS/draw-call meter.
+- **Set dressing:** besides furniture and machinery, levels scatter environmental storytelling: the remains of earlier wanderers and abandoned camps, each with a backpack to search and sometimes a note.
 
 ## Audio
 Everything is synthesized with the Web Audio API: per-level ambience beds (mains hum, machinery drones, HVAC and sewer water, lapping pools, wind), HRTF-spatialized one-shots with wall occlusion, a reverb bus per level, footsteps per surface, weapons, reloads, impacts, creature vocalisations (clicks, shrieks, growls, howls, gurgles, the Goaner's roar and bleat, wing buzz), a tension drone driven by threat, horror stingers, whispers and heartbeat. Underwater and hiding apply a muffle filter.

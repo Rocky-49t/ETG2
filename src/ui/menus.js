@@ -40,6 +40,7 @@ export function buildSettings(container, onChange) {
   slider('musicVolume', 'Ambience volume', 0, 1, 0.01, pct);
   slider('sensitivity', 'Mouse sensitivity', 0.2, 3, 0.05, v => v.toFixed(2));
   slider('fov', 'Field of view', 60, 100, 1, v => v + '°');
+  slider('brightness', 'Brightness', 0.6, 1.6, 0.05, pct);
   const toggle = (key, label) => {
     const c = document.createElement('input'); c.type = 'checkbox'; c.checked = !!settings.get(key);
     c.onchange = () => settings.set(key, c.checked);

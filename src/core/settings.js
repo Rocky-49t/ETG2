@@ -56,6 +56,7 @@ const DEFAULTS = {
   sfxVolume: 0.9,
   sensitivity: 1.0,
   fov: 75,
+  brightness: 1.0,
   invertY: false,
   flashing: true,
   headBob: true,

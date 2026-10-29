@@ -119,6 +119,8 @@ export class Game {
       this.lightMgr.setCount(settings.preset.dynamicLights);
     };
     settings.on('change:quality', this.onQuality);
+    this.onBrightness = () => this.applyExposure();
+    settings.on('change:brightness', this.onBrightness);
     this.onResize = () => this.effects.setViewport(this.engine.height * this.engine.renderer.getPixelRatio());
     window.addEventListener('resize', this.onResize);
   }
@@ -146,6 +148,10 @@ export class Game {
   }
   get level() { return this.getLevel(this.levelId); }
   get def() { return LEVELS[this.levelId]; }
+
+  applyExposure() {
+    this.engine.renderer.toneMappingExposure = (this.sceneDef?.exposure ?? 1) * settings.get('brightness');
+  }
 
   // Face the longest clear sightline from a spawn point, so arrivals don't stare at a wall.
   openYaw(level, sp) {
@@ -227,7 +233,7 @@ export class Game {
     this.hemi.color.set(def.hemi?.sky ?? 0x888888);
     this.hemi.groundColor.set(def.hemi?.ground ?? 0x222222);
     this.hemi.intensity = def.hemi?.intensity ?? 0.2;
-    this.engine.renderer.toneMappingExposure = def.exposure ?? 1;
+    this.applyExposure();
     this.engine.post.setGrade(def.grade || {});
     this.effects.setDustColor(def.dust?.color ?? 0xfff4d6, def.dust?.opacity ?? 0.35);
     this.lightMgr.levelGain = def.dynGain ?? 1;
@@ -1241,6 +1247,7 @@ export class Game {
     this.running = false;
     this.sceneDef?.teardownScene?.(this);
     settings.off('change:quality', this.onQuality);
+    settings.off('change:brightness', this.onBrightness);
     window.removeEventListener('resize', this.onResize);
     for (const r of this.remotes.values()) r.dispose();
     this.remotes.clear();

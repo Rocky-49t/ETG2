@@ -398,7 +398,12 @@ export default {
       const beamGeo = new THREE.ConeGeometry(Math.tan(0.4) * bl, bl, 20, 1, true);
       beamGeo.translate(0, -bl / 2, 0);
       beamGeo.rotateX(-Math.PI / 2);
-      const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: 0xfff0d0, transparent: true, opacity: 0.05, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: true }));
+      const beam = new THREE.Mesh(beamGeo, new THREE.ShaderMaterial({
+        uniforms: { color: { value: new THREE.Color(0xfff0d0) }, len: { value: bl } },
+        vertexShader: 'varying float vD; varying vec3 vN; varying vec3 vV; void main(){ vD = -position.z; vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }',
+        fragmentShader: 'uniform vec3 color; uniform float len; varying float vD; varying vec3 vN; varying vec3 vV; void main(){ float edge = pow(abs(dot(vN, vV)), 2.0); float a = 0.11 * (1.0 - clamp(vD / len, 0.0, 1.0)) * edge; gl_FragColor = vec4(color * a, a); }',
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      }));
       beam.position.copy(spot.position);
       beam.lookAt(spot.target.position);
       beam.visible = false;

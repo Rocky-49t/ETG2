@@ -289,7 +289,7 @@ export class Game {
     // survival
     const flags = level.flagsAt(P.pos.x, P.pos.z);
     const ambient = this.ambientLightAt(P.pos);
-    const lit = this.lights.on || this.held.lighterLit || ambient > 0.35;
+    const lit = this.lights.on || this.held.lighterLit || ambient > 0.3;
     let threat = 0;
     for (const v of this.views.views.values()) {
       if (v.st.s === 'dead') continue;
@@ -300,7 +300,7 @@ export class Game {
     for (const r of this.remotes.values()) if (r.levelId === this.levelId && Math.hypot(r.st.x - P.pos.x, r.st.z - P.pos.z) < 8) teammates = true;
     this.stats.update(dt, {
       sprinting: P.sprinting, swimming: P.swimming, swimFast: P.swimming && input.isDown('ShiftLeft'), underwater: P.underwater,
-      darkness: lit ? 0 : (flags & F_DARK ? 1 : 0.55), nearbyThreat: threat, inBrightLight: ambient > 0.6, teammatesNear: teammates,
+      darkness: lit ? 0 : (flags & F_DARK || ambient < 0.08 ? 1 : 0.35), nearbyThreat: threat, inBrightLight: ambient > 0.55, teammatesNear: teammates,
       sanityDrain: this.def.sanityDrain || 0,
     });
     this.threat = threat;
@@ -619,9 +619,32 @@ export class Game {
     return SURFACES[mat] || lvl.def.surface || 'concrete';
   }
 
+  // How lit a point is (0..1): nearby working fixtures with line of sight,
+  // thrown light sources, scaled down during blackouts. Cached briefly.
   ambientLightAt(p) {
-    // dynamic lights near the player as a proxy for how lit we are
-    return Math.min(1, this.lightMgr.lightLevelAt(p.x, p.y + 1.2, p.z) * 0.12 + (this.blackoutT > 0 ? 0 : 0.1));
+    const now = this.time;
+    if (this._amb && now - this._amb.t < 0.25 && Math.abs(this._amb.x - p.x) + Math.abs(this._amb.z - p.z) < 1) return this._amb.v;
+    const lvl = this.level;
+    let sum = 0;
+    const cx = Math.floor(p.x / CHUNK), cz = Math.floor(p.z / CHUNK);
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const ch = lvl.chunks.get((cx + dx) + ',' + (cz + dz));
+      if (!ch) continue;
+      for (const l of ch.lights) {
+        const d2 = (l.x - p.x) ** 2 + (l.z - p.z) ** 2;
+        const R = l.range || 8;
+        if (d2 > R * R) continue;
+        const fv = l.broken ? (l._fv ?? 0) : l.flicker ? (l._fv ?? 0.8) : 1;
+        if (fv <= 0.05) continue;
+        if (d2 > 4 && !lvl.tileLOS(p.x, p.z, l.x, l.z)) continue;
+        sum += l.intensity * fv * (1 - d2 / (R * R)) / (1 + d2 * 0.12);
+      }
+    }
+    for (const t of this.objects.thrown) if (t.light) { const d2 = t.pos.distanceToSquared(p); if (d2 < 40) sum += t.light.intensity / (1 + d2); }
+    sum *= 1 - this.lightMgr.blackout * 0.9;
+    const v = Math.min(1, sum * 0.12 + (this.def.ambientLit ?? 0));
+    this._amb = { t: now, x: p.x, z: p.z, v };
+    return v;
   }
 
   sfx(name, pos, opts = {}) {

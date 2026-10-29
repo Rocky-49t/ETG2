@@ -14,6 +14,7 @@ import { setState, faceToward } from '../brain.js';
 import { joint, limb, ball, boxm } from './rig.js';
 
 const PHASE_NAMES = ['', 'I — PRESENCE', 'II — RAGE', 'III — COLLAPSE'];
+const dormantY = st => (st.s === 'dormant' ? 0.9 : 1.6);
 
 export default {
   type: 'goaner',
@@ -27,10 +28,10 @@ export default {
   resist: { bullet: 1, melee: 1, fire: 1.3 },
   headMult: 1.3,
   hit: v => {
-    const y = v.rig.bodyY ?? 2;
+    const y = v.rig.bodyY ?? 2.5;
     return [
-      { part: 'body', y, r: 1.6 }, { part: 'body', y: y + 0.1, r: 1.2, z: -1.8 },
-      { part: 'head', y: y + 0.6, r: 0.9, z: 2.3 }, { part: 'sac', y: y + 1.1, r: 0.75, z: -0.6 },
+      { part: 'body', y, r: 1.9 }, { part: 'body', y: y + 0.1, r: 1.5, z: -2.3 },
+      { part: 'head', y: y + 0.8, r: 1.0, z: 3.4 }, { part: 'sac', y: y + 1.4, r: 0.9, z: -0.6 },
     ];
   },
 
@@ -340,7 +341,7 @@ export default {
     const sacMat = new THREE.MeshStandardMaterial({ color: 0x501808, emissive: 0xff6a20, emissiveIntensity: 0, roughness: 0.4 });
     const g = new THREE.Group();
     const R = {};
-    const S = 1.25; // overall scale
+    const S = 1.55; // overall scale
     const root = joint(g, 0, 0, 0); root.scale.setScalar(S); R.root = root;
     const body = joint(root, 0, 1.6, 0); R.body = body;
     // thorax
@@ -361,7 +362,11 @@ export default {
     const sting = new THREE.Mesh(new THREE.ConeGeometry(0.22, 1.5, 10), black);
     sting.rotation.x = -Math.PI / 2; sting.position.set(0, -0.55, -3.9); R.abdomen.add(sting);
     R.sting = sting;
-    // back plates + glowing sac
+    // dorsal spines
+    for (let i = 0; i < 7; i++) {
+      const sp = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.55 - Math.abs(i - 3) * 0.06, 6), black);
+      sp.position.set(0, 1.12 - Math.abs(i - 3) * 0.03, 1.2 - i * 0.32); sp.rotation.x = -0.35; body.add(sp);
+    }
     R.sac = ball(sacMat, 0.55, 1.1, 0.6, 1.2, 12); R.sac.position.set(0, 0.95, -0.4); body.add(R.sac);
     R.plates = [];
     for (const s of [-1, 1]) {
@@ -397,11 +402,13 @@ export default {
     beard.rotation.x = Math.PI; beard.position.set(0, -0.3, 0.45); R.jaw.add(beard);
     R.eyes = [];
     for (const s of [-1, 1]) {
-      const eye = ball(new THREE.MeshStandardMaterial({ color: 0x050505, emissive: 0x000000, roughness: 0.1 }), 0.14, 1.1, 0.8, 0.6); eye.position.set(s * 0.42, 0.12, 0.55); R.head.add(eye); R.eyes.push(eye);
+      const eye = ball(new THREE.MeshStandardMaterial({ color: 0x050505, emissive: 0x000000, roughness: 0.1 }), 0.17, 1.1, 0.8, 0.6); eye.position.set(s * 0.42, 0.12, 0.55); R.head.add(eye); R.eyes.push(eye);
+      const mand = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.045, 5, 10, Math.PI * 0.8), bone);
+      mand.position.set(s * 0.32, -0.42, 0.75); mand.rotation.set(Math.PI / 2, 0, s > 0 ? Math.PI * 0.1 : Math.PI * 1.1); R.head.add(mand);
       // long goat ears
       const ear = ball(yellow, 0.18, 0.5, 0.25, 1.4); ear.position.set(s * 0.68, 0.1, -0.15); ear.rotation.set(0.3, s * 0.9, s * 0.5); R.head.add(ear);
       // curled horns from torus arcs
-      const horn = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.11, 8, 16, Math.PI * 1.4), bone);
+      const horn = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.13, 8, 18, Math.PI * 1.5), bone);
       horn.position.set(s * 0.38, 0.55, -0.25); horn.rotation.set(0, s * 1.2, s > 0 ? 0.5 : Math.PI - 0.5);
       R.head.add(horn);
     }
@@ -438,14 +445,14 @@ export default {
     const flying = st.y > 0.6 || ['circle', 'swoop', 'swoopWind', 'slamRise', 'intro', 'chargeLand', 'stalkLand', 'smashGo'].includes(st.s) && st.y > 0.2;
     const sp = st.v || 0;
     v.walk = (v.walk || 0) + dt * (1.2 + sp * 0.8);
-    R.bodyY = 2.0 * 1.25 + (flying ? 0 : 0);
+    R.bodyY = (dormantY(st) ) * 1.55;
     // body pose
     const dormant = st.s === 'dormant';
     R.body.position.y = dormant ? 0.9 : 1.6 + Math.sin(t * (flying ? 3 : 1.2)) * (flying ? 0.15 : 0.04);
     R.body.rotation.x = st.s === 'swoop' ? 0.35 : st.s === 'charge' ? 0.15 : st.s === 'slam' ? 0.5 : st.s === 'dying' ? Math.min(1.4, v.stateT * 0.4) : 0;
     R.body.rotation.z = flying ? Math.sin(t * 0.8) * 0.08 : 0;
     // abdomen sway, stinger curls during slam
-    R.abdomen.rotation.x = (st.s === 'slamRise' ? 0.9 : st.s === 'stuck' ? 1.2 : 0.1) + Math.sin(t * 1.5) * 0.05;
+    R.abdomen.rotation.x = (st.s === 'slamRise' || st.s === 'slam' ? -1.0 : st.s === 'stuck' ? -0.75 : 0.1) + Math.sin(t * 1.5) * 0.05;
     // wings buzz when flying, fold when grounded
     for (const W of R.wings) {
       const buzz = flying ? Math.sin(t * 70 + W.k * 1.5) * 0.6 : 0;
@@ -473,7 +480,7 @@ export default {
     R.head.rotation.y = Math.sin(t * 0.6) * 0.15;
     // eyes glow red in rage
     const rage = (a.ph || 1) >= 2;
-    for (const e of R.eyes) { e.material.emissive.set(rage ? 0xff1a00 : 0x200000); e.material.emissiveIntensity = rage ? 2.5 : 0.6; }
+    for (const e of R.eyes) { e.material.emissive.set(rage ? 0xff1a00 : 0x8a0a00); e.material.emissiveIntensity = rage ? 3 : 1.2 + Math.sin(t * 2) * 0.3; }
     // plates open + sac glows when exposed or stuck
     const open = Math.max(a.ex || 0, st.s === 'stuck' ? 1 : 0);
     R.openK = (R.openK || 0) + (open - (R.openK || 0)) * Math.min(1, dt * 5);

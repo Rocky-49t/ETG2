@@ -76,8 +76,8 @@ export class Stats extends Emitter {
 
     // sanity
     let ds = 0;
-    ds -= env.darkness * 0.55;
-    ds -= env.nearbyThreat * 2.2;
+    ds -= env.darkness * 0.3;
+    ds -= env.nearbyThreat * 1.8;
     if (env.inBrightLight) ds += 0.25;
     if (env.teammatesNear) ds += 0.2;
     if (env.sanityDrain) ds -= env.sanityDrain;

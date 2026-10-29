@@ -14,7 +14,9 @@ const fs = require('fs');
   page.on('pageerror', e => logs.push(`[pageerror] ${e.message}\n${(e.stack || '').split('\n').slice(0, 6).join('\n')}`));
   await page.goto(`http://localhost:8080/index.html?${q}`);
   await page.waitForTimeout(secs * 1000);
-  if (script) { try { const r = await page.evaluate(script); if (r !== undefined) console.log('script:', JSON.stringify(r)); } catch (e) { logs.push('[script error] ' + e.message); } await page.waitForTimeout(1500); }
+  const after = Number(process.argv[6] || 1.5);
+  if (script) { try { const r = await page.evaluate(script); if (r !== undefined) console.log('script:', JSON.stringify(r)); } catch (e) { logs.push('[script error] ' + e.message); } await page.waitForTimeout(after * 1000); }
+  try { const r2 = await page.evaluate(() => window.__probe ? window.__probe() : undefined); if (r2 !== undefined) console.log('probe:', JSON.stringify(r2)); } catch (e) { logs.push('[probe error] ' + e.message); }
   await page.screenshot({ path: out });
   console.log(logs.slice(0, 60).join('\n'));
   await browser.close();

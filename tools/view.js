@@ -1,0 +1,57 @@
+// Dev harness: renders a level from a fixed viewpoint for screenshots.
+import * as THREE from 'three';
+import { Engine } from '../src/core/engine.js';
+import { settings } from '../src/core/settings.js';
+import { MaterialLib, buildDecalAtlas, worldUniforms, patchBaked } from '../src/gfx/materials.js';
+import { LevelInstance } from '../src/world/level.js';
+import { WorldRenderer } from '../src/world/renderer.js';
+import { LightManager } from '../src/gfx/lights.js';
+import { LEVELS } from '../src/world/levels/index.js';
+import { PlayerController } from '../src/game/player.js';
+import { input } from '../src/core/input.js';
+
+const q = new URLSearchParams(location.search);
+if (q.get('quality')) settings.data.quality = q.get('quality');
+const engine = new Engine(document.getElementById('c'));
+const lib = new MaterialLib(engine);
+const atlas = buildDecalAtlas();
+const def = LEVELS[q.get('level') || 'L0'];
+const t0 = performance.now();
+await lib.warm(def.materials);
+const decalMat = new THREE.MeshStandardMaterial({ map: atlas, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, roughness: 0.9 });
+lib.register('decals', patchBaked(decalMat));
+const tTex = performance.now() - t0;
+const level = new LevelInstance(def, Number(q.get('seed') || 1234));
+const wr = new WorldRenderer(engine.scene, lib);
+wr.radius = settings.preset.renderRadius;
+wr.setLevel(level);
+engine.scene.fog = new THREE.FogExp2(def.fog.color, def.fog.density);
+engine.scene.background = new THREE.Color(def.background);
+const hemi = new THREE.HemisphereLight(def.hemi.sky, def.hemi.ground, def.hemi.intensity);
+engine.scene.add(hemi);
+engine.post.setGrade(def.grade);
+engine.renderer.toneMappingExposure = def.exposure;
+const lm = new LightManager(engine.scene, settings.preset.dynamicLights);
+const player = new PlayerController(engine.camera);
+const sp = level.spawnPoint();
+player.teleport(Number(q.get('x') ?? sp.x), sp.y, Number(q.get('z') ?? sp.z), Number(q.get('yaw') || 0));
+player.pitch = Number(q.get('pitch') || 0);
+const t1 = performance.now();
+wr.buildAll(player.pos.x, player.pos.z);
+const tBuild = performance.now() - t1;
+const fl = new THREE.SpotLight(0xfff2dd, q.get('flash') ? 30 : 0, 30, 0.5, 0.5, 2);
+engine.camera.add(fl); fl.position.set(0.2, -0.2, 0); fl.target.position.set(0, 0, -1); engine.camera.add(fl.target);
+input.attach(engine.canvas);
+engine.canvas.addEventListener('click', () => input.lock());
+let frames = 0;
+engine.start(dt => {
+  player.update(dt, level, null);
+  wr.update(player.pos.x, player.pos.z);
+  if (wr.dirty) { const s = wr.collectLights(); lm.setSources(s.lights, s.fixtures); }
+  lm.update(dt, engine.camera, level);
+  input.endFrame();
+  frames++;
+  if (frames % 20 === 0) document.getElementById('info').textContent = `fps ${engine.fps.toFixed(0)} calls ${engine.renderer.info.render.calls} tris ${engine.renderer.info.render.triangles} tex ${tTex.toFixed(0)}ms build ${tBuild.toFixed(0)}ms chunks ${wr.meshes.size} pos ${player.pos.x.toFixed(1)},${player.pos.z.toFixed(1)}`;
+  if (frames === 30) window.__ready = true;
+});
+window.__game = { engine, level, wr, player, lm };

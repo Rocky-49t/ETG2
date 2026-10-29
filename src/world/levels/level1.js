@@ -168,9 +168,10 @@ export default {
     soffit: { mat: 'brick', scaleU: 2.4, scaleV: 2.4 },
   },
   materials: ['industrialFloor', 'grate', 'brick', 'concrete', 'rustMetal', 'darkMetal', 'paintedMetal', 'hazard', 'woodCrate', 'cardboard', 'pillarPaint', 'black', 'glowAmber', 'glowRed', 'glowGreen', 'bulbWarm', 'glowWhite', 'monitorOff', 'laminate', 'plastic', 'chrome', 'paper', 'rubber', 'bone', 'plasticDark', 'fabric'],
-  ambient: [0.028, 0.017, 0.01],
-  bakeGain: 0.1,
-  exposure: 1.05,
+  ambient: [0.036, 0.023, 0.014],
+  bakeGain: 0.16,
+  dynGain: 2.2,
+  exposure: 1.12,
   fog: { color: 0x150c06, density: 0.06 },
   background: 0x080503,
   grade: { lift: [0.02, 0.01, 0.0], gamma: [1.0, 1.0, 1.05], gain: [1.12, 0.98, 0.82], saturation: 0.95, tint: [1, 0.96, 0.9], vignette: 0.55, grain: 0.055, bloomStrength: 0.7, bloomThreshold: 0.78 },
@@ -276,7 +277,7 @@ export default {
         if (sides.length) {
           const [dx, dz] = sides[0];
           const dead = rng.chance(0.12);
-          addLight(c, { kind: 'cage', x: x + dx * 0.88, y: 2.3, z: z + dz * 0.88, nx: -dx, nz: -dz, color: ORANGE, intensity: 3.6, range: 8, flicker: !dead && rng.chance(0.15) ? rng.float(0.3, 0.8) : 0, broken: dead });
+          addLight(c, { kind: 'cage', x: x + dx * 0.88, y: 2.3, z: z + dz * 0.88, nx: -dx, nz: -dz, color: ORANGE, intensity: 5.2, range: 9, flicker: !dead && rng.chance(0.15) ? rng.float(0.3, 0.8) : 0, broken: dead });
         }
       }
       // steam vents in some corridor walls
@@ -302,7 +303,7 @@ export default {
       // lights: hanging bulbs on a grid
       for (let gz = r.z + 1; gz < r.z + r.h; gz += 3) for (let gx = r.x + 1; gx < r.x + r.w; gx += 3) {
         const broken = rng.chance(0.1);
-        addLight(c, { kind: r.type === 'machine' ? 'bulb' : 'bulb', shade: r.type === 'machine' || r.type === 'storage', cord: r.type === 'machine' ? 1.6 : 0.5, x: c.tx(gx), y: ceil - (r.type === 'machine' ? 1.7 : 0.6), z: c.tz(gz), color: ORANGE, intensity: r.type === 'machine' ? 6 : 4, range: r.type === 'machine' ? 11 : 8, flicker: !broken && rng.chance(0.15) ? rng.float(0.2, 0.7) : 0, broken });
+        addLight(c, { kind: r.type === 'machine' ? 'bulb' : 'bulb', shade: r.type === 'machine' || r.type === 'storage', cord: r.type === 'machine' ? 1.6 : 0.5, x: c.tx(gx), y: ceil - (r.type === 'machine' ? 1.7 : 0.6), z: c.tz(gz), color: ORANGE, intensity: r.type === 'machine' ? 9 : 6, range: r.type === 'machine' ? 12 : 9, flicker: !broken && rng.chance(0.15) ? rng.float(0.2, 0.7) : 0, broken });
       }
       if (r.type === 'machine') {
         for (let k = 0; k < 3; k++) {

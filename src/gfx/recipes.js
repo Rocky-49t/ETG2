@@ -215,8 +215,8 @@ export const RECIPES = {
       const n = f(N1, u, v, 8, 4);
       let r = 0.36, g = 0.42, b = 0.38;
       r += (n - 0.5) * 0.06; g += (n - 0.5) * 0.06; b += (n - 0.5) * 0.05;
-      const chip = f(N2, u, v, 10, 5);
-      const rust = smoothstep(0.62, 0.72, chip);
+      const chip = f(N2, u, v, 14, 5);
+      const rust = smoothstep(0.68, 0.76, chip) * 0.8;
       const streak = smoothstep(0.7, 0.9, f(N3, u * 6, v * 0.5, 6, 3)) * (1 - v);
       const rr = Math.max(rust, streak * 0.7);
       r += (0.45 - r) * rr; g += (0.22 - g) * rr; b += (0.10 - b) * rr;
@@ -281,9 +281,9 @@ export const RECIPES = {
   rustMetal(s) {
     s.each((u, v, i) => {
       const n = f(N1, u, v, 6, 5);
-      const rustN = f(N2, u, v, 8, 5);
-      const rust = smoothstep(0.42, 0.62, rustN);
-      let r = 0.34, g = 0.33, b = 0.31;
+      const rustN = f(N2, u, v, 12, 5) * 0.7 + f(N3, u, v, 40, 3) * 0.3;
+      const rust = smoothstep(0.46, 0.66, rustN) * 0.85;
+      let r = 0.36, g = 0.34, b = 0.31;
       r += (n - 0.5) * 0.08; g += (n - 0.5) * 0.08; b += (n - 0.5) * 0.08;
       const rr = 0.40 + (f(N3, u, v, 30, 3) - 0.5) * 0.2;
       r += (rr - r) * rust; g += (rr * 0.48 - g) * rust; b += (rr * 0.22 - b) * rust;

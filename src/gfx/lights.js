@@ -35,6 +35,7 @@ export class LightManager {
     this.time = 0;
     this.blackout = 0; // 0..1
     this.intensityScale = 1;
+    this.levelGain = 1; // per-level multiplier for dynamic fixture lights
     this.setCount(count);
     this._frame = 0;
   }
@@ -115,7 +116,7 @@ export class LightManager {
       }
       const fv = flickerValue(l, t, this.gameTime);
       l._fv = fv;
-      slot.light.intensity = l.intensity * (l.dynGain ?? 1) * fv * slot.fade * globalK;
+      slot.light.intensity = l.intensity * (l.dynGain ?? 1) * this.levelGain * fv * slot.fade * globalK;
     }
 
     // fixture emissives

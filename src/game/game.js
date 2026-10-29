@@ -218,6 +218,7 @@ export class Game {
     this.engine.renderer.toneMappingExposure = def.exposure ?? 1;
     this.engine.post.setGrade(def.grade || {});
     this.effects.setDustColor(def.dust?.color ?? 0xfff4d6, def.dust?.opacity ?? 0.35);
+    this.lightMgr.levelGain = def.dynGain ?? 1;
     this.engine.camera.far = def.far ?? 120;
     this.engine.camera.updateProjectionMatrix();
     def.setupScene?.(this);

@@ -222,7 +222,7 @@ export function buildChunkMesh(level, c, lib) {
       const FB = new GeoBuilder();
       FB.bake = B.bake;
       FB.setAnchor(l.x, l.y - 0.3, l.z);
-      const emissiveKey = l.kind === 'panel' ? 'lightPanel' : (l.kind === 'tube' || l.kind === 'flood') ? 'glowWhite' : 'bulbWarm';
+      const emissiveKey = l.kind === 'panel' ? 'lightPanel' : (l.kind === 'tube' || l.kind === 'flood' || l.kind === 'strip') ? 'glowWhite' : 'bulbWarm';
       const mat = lib.dyn(emissiveKey).clone();
       mat.userData.baseIntensity = mat.emissiveIntensity;
       vis(l, FB, '__fixture');

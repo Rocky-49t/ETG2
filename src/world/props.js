@@ -409,6 +409,14 @@ export const LIGHT_VISUALS = {
     B.cyl(mat, l.x, l.y - 0.06, l.z, 0.045, 0.1, 8, true, 0.03);
     if (l.shade) B.cyl('darkMetal', l.x, l.y - 0.02, l.z, 0.24, 0.1, 14, false, 0.05);
   },
+  lantern(l, B, mat = 'bulbWarm') {
+    // iron lantern: glowing core inside a dark frame with a little roof
+    B.cyl(mat, l.x, l.y - 0.16, l.z, 0.07, 0.26, 8, true);
+    B.box('darkMetal', l.x, l.y - 0.31, l.z, 0.26, 0.04, 0.26, 0.3);
+    B.box('darkMetal', l.x, l.y + 0.12, l.z, 0.3, 0.05, 0.3, 0.3);
+    B.cyl('darkMetal', l.x, l.y + 0.14, l.z, 0.2, 0.12, 4, true, 0.02);
+    for (const [ox, oz] of [[-0.12, -0.12], [0.12, -0.12], [-0.12, 0.12], [0.12, 0.12]]) B.box('darkMetal', l.x + ox, l.y - 0.1, l.z + oz, 0.02, 0.42, 0.02, 0.2);
+  },
   flood(l, B, mat = 'glowWhite') {
     B.box('darkMetal', l.x, l.y, l.z, 0.5, 0.35, 0.3, 0.3);
     B.box(mat, l.x, l.y, l.z + 0.16, 0.42, 0.27, 0.02, 0.3);

@@ -221,7 +221,7 @@ export default {
         if (!gap) addProp(c, 'railing', x + dx * 0.95, 0, z + dz * 0.95, dz !== 0 ? 0 : Math.PI / 2, { len: 2.0, mat: 'rustMetal' });
         if ((tx % 6 === 0 && dz !== 0) || (tz % 6 === 0 && dx !== 0)) {
           addProp(c, 'lanternPost', x + dx * 0.75, 0, z + dz * 0.75, 0);
-          if (rng.chance(0.85)) addLight(c, { kind: 'bulb', cord: 0.12, shade: true, x: x + dx * 0.75, y: 2.85, z: z + dz * 0.75, color: LANTERN, intensity: 5, range: 11, flicker: rng.chance(0.12) ? 0.5 : 0 });
+          if (rng.chance(0.85)) addLight(c, { kind: 'lantern', x: x + dx * 0.75, y: 3.18, z: z + dz * 0.75, color: LANTERN, intensity: 9, range: 12, flicker: rng.chance(0.12) ? 0.5 : 0 });
         }
       }
       // under-bridge trusses on the main span
@@ -363,8 +363,18 @@ export default {
       group.add(b);
     }
     for (let i = 0; i < 14; i++) {
-      const f = new THREE.Mesh(new THREE.ConeGeometry(rng.float(4, 14), rng.float(10, 30), 7), stone);
-      f.rotation.x = Math.PI;
+      // floating rock islands: jittered dodecahedra, flattened on top
+      const geo = new THREE.DodecahedronGeometry(1, 1);
+      const pa = geo.attributes.position;
+      for (let k = 0; k < pa.count; k++) {
+        const y = pa.getY(k);
+        const j = 0.75 + Math.random() * 0.5;
+        pa.setXYZ(k, pa.getX(k) * j, y > 0.3 ? 0.3 + (y - 0.3) * 0.2 : y * (1.6 + Math.random() * 0.8), pa.getZ(k) * j);
+      }
+      geo.computeVertexNormals();
+      const f = new THREE.Mesh(geo, stone);
+      const sc = rng.float(5, 16);
+      f.scale.set(sc, sc * rng.float(0.8, 1.4), sc);
       const a = rng.float(0, Math.PI * 2), d = rng.float(90, 420);
       f.position.set(ARENA.x * 0.5 + Math.cos(a) * d, rng.float(-20, 60), 17 + Math.sin(a) * d);
       group.add(f);

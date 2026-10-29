@@ -299,13 +299,15 @@ function dressSewer(c, ctx, def, isKey) {
     const i = lz * CS + lx;
     if (c.type[i] !== T_FLOOR || c.floor[i] !== SEWER_F) continue;
     const tx = c.cx * CS + lx, tz = c.cz * CS + lz;
-    if ((tx * 7 + tz * 3) % 9 !== 0) continue;
+    if ((tx * 7 + tz * 3) % 5 !== 0) continue;
     const sides = [[0, -1], [0, 1], [-1, 0], [1, 0]].filter(([dx, dz]) => { const x = lx + dx, z = lz + dz; return x >= 0 && z >= 0 && x < CS && z < CS && c.type[z * CS + x] === T_SOLID; });
     if (!sides.length) continue;
     const [dx, dz] = sides[0];
-    addLight(c, { kind: 'cage', x: c.tx(lx) + dx * 0.88, y: SEWER_F + 2.2, z: c.tz(lz) + dz * 0.88, nx: -dx, nz: -dz, color: SEWER_LAMP, intensity: 3.2, range: 9, flicker: rng.chance(0.2) ? rng.float(0.3, 0.8) : 0, broken: rng.chance(0.1) });
+    addLight(c, { kind: 'cage', x: c.tx(lx) + dx * 0.88, y: SEWER_F + 2.2, z: c.tz(lz) + dz * 0.88, nx: -dx, nz: -dz, color: SEWER_LAMP, intensity: 6, range: 10, flicker: rng.chance(0.2) ? rng.float(0.3, 0.8) : 0, broken: rng.chance(0.1) });
     if (rng.chance(0.5)) addProp(c, 'sewerPipe', c.tx(lx) + dx * 0.75, SEWER_C - 0.3, c.tz(lz) + dz * 0.75, dx ? Math.PI / 2 : 0, { len: 2.05 });
   }
+  // the hub junction gets a hanging work lamp
+  addLight(c, { kind: 'bulb', cord: 0.5, shade: true, x: c.x0 + 8 * TILE, y: 0.6 - 0.6, z: c.z0 + 8 * TILE, color: [0.9, 1, 0.7], intensity: 5, range: 11, flicker: rng.chance(0.4) ? 0.35 : 0 });
   // stair landings get a light
   for (const st of c.meta.stairs || []) addLight(c, { kind: 'cage', x: st.x, y: 1.9, z: st.z, nx: 0, nz: 0, color: SEWER_LAMP, intensity: 2.5, range: 6 });
   c.meta.drips = [];
@@ -359,7 +361,7 @@ export default {
   materials: ['officeCarpet', 'drywall', 'trim', 'ceilingTile', 'lightPanel', 'sewerFloor', 'sewerBrick', 'concrete', 'fabric', 'laminate', 'plastic', 'plasticDark', 'monitorOff', 'paper', 'darkMetal', 'paintedMetal', 'chrome', 'cardboard', 'woodCrate', 'rustMetal', 'glass', 'glowWhite', 'glowRed', 'glowAmber', 'glowGreen', 'bulbWarm', 'hazard', 'black', 'rubber', 'pillarPaint'],
   ambient: [0.022, 0.026, 0.03],
   bakeGain: 0.085,
-  exposure: 1.0,
+  exposure: 1.15,
   fog: { color: 0x0b0f12, density: 0.05 },
   background: 0x05070a,
   grade: { lift: [0.0, 0.01, 0.02], gamma: [1.02, 1.0, 0.98], gain: [0.95, 1.0, 1.06], saturation: 0.78, tint: [0.95, 1, 1.04], vignette: 0.55, grain: 0.05, bloomStrength: 0.5, bloomThreshold: 0.82 },

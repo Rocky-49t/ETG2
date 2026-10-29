@@ -428,7 +428,7 @@ export const RECIPES = {
       let r, g, b, h;
       if (isMortar) { r = 0.16; g = 0.17; b = 0.14; h = 0.1; }
       else {
-        r = 0.30 + c.id * 0.08; g = 0.26 + c.id * 0.07; b = 0.20 + c.id * 0.05;
+        r = 0.40 + c.id * 0.1; g = 0.35 + c.id * 0.08; b = 0.27 + c.id * 0.06;
         h = 0.5 + smoothstep(0.011, 0.02, c.d) * 0.3 + (n - 0.5) * 0.2;
       }
       // slime toward the bottom and drips
@@ -448,7 +448,7 @@ export const RECIPES = {
       const n = f(N1, u, v, 6, 5);
       const w = W2(u * 8, v * 8, 8);
       const cobble = smoothstep(0.0, 0.12, w.f2 - w.f1);
-      let c = 0.22 + (n - 0.5) * 0.1 + hash01(w.id) * 0.06;
+      let c = 0.34 + (n - 0.5) * 0.12 + hash01(w.id) * 0.08;
       c *= 0.6 + cobble * 0.4;
       const slime = smoothstep(0.5, 0.7, f(N2, u, v, 4, 4));
       s.set(i, c - slime * 0.05, c + slime * 0.03, c - slime * 0.08);

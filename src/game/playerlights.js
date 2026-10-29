@@ -121,13 +121,13 @@ export class PlayerLights {
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
     this.spot.target.position.copy(cam.position).addScaledVector(fwd, 10);
     const on = this.on && !g.hidden;
-    this.spot.intensity = on ? (this.focus ? 140 : 48) * f * warm : 0;
+    this.spot.intensity = on ? (this.focus ? 230 : 85) * f * warm : 0;
     this.spot.angle = this.focus ? 0.24 : 0.52;
     this.spot.penumbra = this.focus ? 0.35 : 0.6;
     this.spot.distance = this.focus ? 40 : 30;
     this.spot.color.setRGB(1, 0.95 * warm + 0.02, 0.86 * warm * warm);
     this.fill.position.copy(cam.position).addScaledVector(fwd, 1.2);
-    this.fill.intensity = on ? 0.5 * f : 0;
+    this.fill.intensity = on ? 0.9 * f : 0;
 
     this.muzzleT = Math.max(0, this.muzzleT - dt);
     this.muzzleLight.intensity = this.muzzleT > 0 ? 25 * (this.muzzleT / 0.06) : 0;

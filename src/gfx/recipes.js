@@ -155,7 +155,7 @@ export const RECIPES = {
       const n = f(N1, u, v, 5, 4), chip = f(N2, u, v, 12, 4);
       let r = 0.83, g = 0.76, b = 0.55;
       r += (n - 0.5) * 0.1; g += (n - 0.5) * 0.1; b += (n - 0.5) * 0.08;
-      const chipped = chip > 0.7;
+      const chipped = chip > 0.79;
       if (chipped) { r = g = b = 0.5 + (n - 0.5) * 0.2; }
       const grime = smoothstep(0.2, 0.0, v) * 0.25;
       r -= grime; g -= grime; b -= grime * 0.8;
@@ -472,7 +472,7 @@ export const RECIPES = {
         if (c.id2 > 0.93) { r -= 0.12; g -= 0.02; b += 0.0; } // occasional cyan tile
         h = 0.6 + smoothstep(0.0045, 0.008, c.d) * 0.3;
       }
-      const grime = smoothstep(0.6, 0.75, f(N1, u, v, 3, 4)) * 0.12;
+      const grime = smoothstep(0.7, 0.84, f(N1, u, v, 3, 4)) * 0.08;
       r -= grime; g -= grime * 0.8; b -= grime;
       s.set(i, r, g, b);
       s.h[i] = h;

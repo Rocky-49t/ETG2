@@ -5,6 +5,10 @@ import * as THREE from 'three';
 import { Avatar } from './avatar.js';
 import { itemModel } from './models.js';
 import { angleDiff } from '../core/rng.js';
+import { CLASSES } from './classes.js';
+import { input } from '../core/input.js';
+
+const TWO_HANDED = new Set(['shotgun', 'smg', 'rifle']);
 
 function beamMaterial() {
   return new THREE.ShaderMaterial({
@@ -44,7 +48,8 @@ export class RemotePlayer {
   }
 
   updatePlate() {
-    this.plate.innerHTML = `<span style="color:${this.skin?.shirtColor || '#fff'}">●</span> ${escapeHtml(this.name)}` + (this.st.downed ? '<span class="np-down">DOWNED — hold E to revive</span>' : '');
+    const C = CLASSES[this.classId];
+    this.plate.innerHTML = `<span style="color:${this.skin?.shirtColor || '#fff'}">●</span> ${escapeHtml(this.name)}` + (C ? `<span class="np-class" style="color:${C.color}">${C.icon} ${C.name}</span>` : '') + (this.st.downed ? `<span class="np-down">DOWNED — hold ${input.label('interact')} to revive</span>` : '');
   }
 
   setInfo(info) {
@@ -65,7 +70,7 @@ export class RemotePlayer {
     const wasDown = this.st.downed;
     this.levelId = s.lvl;
     this.st.downed = s.dn; this.st.dead = s.dd; this.st.hidden = s.hd;
-    if (wasDown !== s.dn) this.updatePlate();
+    if (wasDown !== s.dn || s.cl !== this.classId) { this.classId = s.cl; this.updatePlate(); }
   }
 
   update(dt, now) {
@@ -91,7 +96,8 @@ export class RemotePlayer {
       this.heldId = L.hi;
       this.avatar.setHeld(L.hi ? itemModel(L.hi) : null);
     }
-    this.avatar.animate(dt, { speed, crouch: L.cr, swim: L.sw, downed: L.dn, holding: !!L.hi, twoHanded: L.hi === 'shotgun' || L.hi === 'smg', pitch: st.pitch });
+    this.crouch = !!L.cr;
+    this.avatar.animate(dt, { speed, crouch: L.cr, swim: L.sw, downed: L.dn, holding: !!L.hi, twoHanded: TWO_HANDED.has(L.hi), pitch: st.pitch, using: L.us || null, swingT: L.sw2 });
     // footsteps
     if (speed > 0.5 && !L.sw && !L.dn) {
       this.stepT = (this.stepT ?? 0) - dt * speed / 1.7;

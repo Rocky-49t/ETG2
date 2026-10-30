@@ -183,6 +183,7 @@
     <div id="vitals">
       <div class="bar-row"><span class="ic">✚</span><div class="bar health"><div id="hpFill"></div><div id="hpLag"></div></div></div>
       <div class="bar-row thin"><span class="ic">≫</span><div class="bar stamina"><div id="stFill"></div></div></div>
+      <div class="bar-row thin hidden" id="armorRow"><span class="ic">⛨</span><div class="bar armor"><div id="armorFill"></div></div></div>
       <div class="bar-row thin hidden" id="o2Row"><span class="ic">○</span><div class="bar oxygen"><div id="o2Fill"></div></div></div>
       <div class="gauges">
         <div class="gauge" id="gThirst" title="Thirst"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" class="bg"/><circle cx="18" cy="18" r="15" class="fg"/></svg><span>💧</span></div>
@@ -191,9 +192,10 @@
       </div>
     </div>
     <div id="hotbar"></div>
+    <div id="statusFx"></div>
+    <div id="transmitterPanel" class="hidden"></div>
     <div id="heldInfo"><div id="heldName"></div><div id="heldAmmo"></div></div>
     <div id="lightInfo" class="hidden"><span class="ic">🔦</span><div class="bar battery"><div id="batFill"></div></div></div>
-    <div id="chat"><div id="chatLog" class="chat-log"></div><input id="chatInput" class="hidden" maxlength="200" autocomplete="off" placeholder="Say something…" /></div>
     <div id="teamList"></div>
     <div id="damageDirs"></div>
     <div id="fpsMeter" class="hidden"></div>
@@ -203,6 +205,15 @@
   <!-- ============================== HIDING OVERLAY -->
   <div id="hideOverlay" class="hidden"><div class="slats"></div><div class="hide-hint">Hidden · hold breath with <b>Shift</b> · <b>E</b> to leave</div></div>
 
+  <!-- ============================== ROLE SELECT -->
+  <div id="roleSelect" class="screen modal-screen">
+    <section class="panel wide role-panel">
+      <h2>Choose your role</h2>
+      <p class="muted">US Expedition Team · scouting mission into the Goanrooms. Each role carries a different kit.</p>
+      <div id="roleCards" class="role-cards"></div>
+    </section>
+  </div>
+
   <!-- ============================== INVENTORY -->
   <div id="inventory" class="screen modal-screen">
     <section class="panel inv-panel">
@@ -210,8 +221,9 @@
         <div class="inv-main">
           <h2>Backpack</h2>
           <div id="invGrid" class="inv-grid"></div>
-          <h3>Hotbar</h3>
+          <h3>Hotbar <span class="muted small-note">click an item, then click an empty slot to move it · drag also works · right-click to use</span></h3>
           <div id="invHotbar" class="inv-grid hot"></div>
+          <div id="wornBox" class="worn-box hidden"></div>
         </div>
         <div class="inv-side">
           <div id="containerBox" class="hidden">
@@ -229,9 +241,13 @@
               <button id="btnSplitItem" class="small">Split</button>
             </div>
           </div>
+          <div id="craftBox" class="craft-box">
+            <h3>Crafting</h3>
+            <div id="craftList" class="craft-list"></div>
+          </div>
         </div>
       </div>
-      <div class="inv-help">Click to select · drag to move · right-click to use · shift-click to quick-move · Tab to close</div>
+      <div class="inv-help">Click to select, click an empty slot to move · drag also works · right-click to use · shift-click to quick-move · Tab / E to close</div>
     </section>
   </div>
 
@@ -268,7 +284,7 @@
     <section class="panel center">
       <h2 class="blood" id="deathTitle">YOU WERE LOST</h2>
       <p id="deathText" class="muted"></p>
-      <div class="row center"><button id="btnRespawn" class="primary">Wake up again</button><button id="btnSpectate">Spectate</button><button id="btnDeathQuit">Quit</button></div>
+      <div class="row center"><button id="btnRespawn" class="primary">Wake up again</button><button id="btnDeathQuit">Quit</button></div>
     </section>
   </div>
   <div id="spectate" class="hidden"><div>Spectating <b id="specName"></b></div><div class="muted">Click to switch · you return when the team reaches the next level</div></div>
@@ -284,6 +300,9 @@
   <div id="fade"></div>
 
   <script type="module" src="src/main.js"></script>
+  <!-- chat lives outside the HUD so it can sit above loading screens -->
+  <div id="chat" class="hidden"><div id="chatLog" class="chat-log"></div><input id="chatInput" class="hidden" maxlength="200" autocomplete="off" placeholder="Say something…" /></div>
+
   <!-- ============================== CHEAT CONSOLE (` key) -->
   <div id="console" class="hidden">
     <div id="consoleLog"></div>

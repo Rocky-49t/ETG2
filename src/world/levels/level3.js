@@ -17,7 +17,7 @@ const WL = -0.25; // water level everywhere in this level
 const WHITE = [0.9, 0.97, 1.0];
 
 const LOOT = [
-  ['almondWater', 22], ['waterBottle', 10], ['snackBar', 12], ['cannedBeans', 6], ['battery', 14, [1, 2]], ['bandage', 12], ['medkit', 3], ['painkillers', 8],
+  ['cleanWater', 14], ['dirtyWater', 10], ['blueberryFireSalts', 12], ['purifier', 4, [1, 2]], ['cloth', 5], ['snackBar', 12], ['cannedBeans', 6], ['battery', 14, [1, 2]], ['bandage', 12], ['medkit', 3], ['painkillers', 8],
   ['glowstick', 10, [1, 3]], ['ammo9', 8, [6, 12]], ['shells', 6, [2, 5]], ['decoy', 5], ['energyDrink', 6], [null, 14],
 ];
 

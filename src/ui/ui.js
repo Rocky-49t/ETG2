@@ -6,13 +6,16 @@ import { ITEMS, iconInto } from '../game/items.js';
 import { NOTES } from '../game/notes.js';
 import { input } from '../core/input.js';
 import { audio } from '../audio/audio.js';
-import { HOTBAR } from '../game/inventory.js';
+import { HOTBAR, HOLSTER0, HOLSTERS } from '../game/inventory.js';
 import { WEAPONS } from '../game/weapons.js';
+import { RECIPES, canCraft, craft } from '../game/crafting.js';
+import { CLASSES, CLASS_ORDER } from '../game/classes.js';
 
 const $ = id => document.getElementById(id);
 const TIPS = [
   'Crouching makes no sound. Sprinting can be heard through walls.',
-  'Almond water restores thirst and calms your nerves.',
+  'Water restores thirst and calms your nerves. Clean water works best; purify dirty water when you can.',
+  'A GPS board, an antenna and a battery make a Location Transmitter. Open the inventory to craft.',
   'Lockers hide you — unless something watched you climb in.',
   'Hounds made of bone will not cross fire.',
   'A focused flashlight beam on the skull stuns what walks in ink.',
@@ -62,6 +65,7 @@ export class UI {
   // ------------------------------------------------------------------ loading / transitions
   loading(on, title, sub) {
     this.screen('loading', on);
+    document.body.classList.toggle('is-loading', on);
     if (title) $('loadTitle').textContent = title;
     if (sub) $('loadSub').textContent = sub;
     if (on) { $('loadFill').style.width = '0%'; $('loadTip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)]; }
@@ -86,7 +90,9 @@ export class UI {
     const mk = (parent, idx) => {
       const s = document.createElement('div');
       s.className = 'slot';
-      s.innerHTML = `${idx < HOTBAR ? `<span class="key">${idx + 1}</span>` : ''}<div class="ic"></div><span class="qty"></span><div class="dur hidden"><div></div></div>`;
+      const key = idx < HOTBAR ? idx + 1 : idx >= HOLSTER0 ? HOTBAR + 1 + idx - HOLSTER0 : null;
+      s.innerHTML = `${key ? `<span class="key">${key}</span>` : ''}<div class="ic"></div><span class="qty"></span><div class="dur hidden"><div></div></div>`;
+      if (idx >= HOLSTER0) s.classList.add('holster', 'off');
       s.draggable = true;
       s.dataset.idx = idx;
       s.addEventListener('click', e => this.slotClick(idx, e));
@@ -97,7 +103,7 @@ export class UI {
       s.addEventListener('drop', e => {
         e.preventDefault(); s.classList.remove('drag-over');
         const src = e.dataTransfer.getData('text/plain');
-        if (src.startsWith('inv:')) { this.game.inventory.move(+src.slice(4), idx); this.selSlot = idx; this.renderInventory(); }
+        if (src.startsWith('inv:')) { if (this.game.inventory.move(+src.slice(4), idx)) this.selSlot = idx; else this.denyHolster(); this.renderInventory(); }
         else if (src.startsWith('cont:')) this.takeFromContainer(+src.slice(5));
       });
       parent.appendChild(s);
@@ -105,6 +111,7 @@ export class UI {
     };
     for (let i = HOTBAR; i < HOTBAR + 20; i++) mk(grid, i);
     for (let i = 0; i < HOTBAR; i++) mk(hot, i);
+    for (let i = HOLSTER0; i < HOLSTER0 + HOLSTERS; i++) mk(hot, i);
     // dropping into the container panel
     cont.addEventListener('dragover', e => e.preventDefault());
     cont.addEventListener('drop', e => {
@@ -163,20 +170,34 @@ export class UI {
     this.renderInventory();
   }
 
+  denyHolster() { this.game?.subtitle('Holster slots only take guns.', 1.4); }
+
   slotClick(idx, e) {
     const g = this.game;
+    const inv = g.inventory;
     if (e.shiftKey) {
-      // quick move: backpack <-> hotbar, or into an open container
+      // quick move: into an open container, or hotbar <-> backpack
       if (this.containerObj) { this.putInContainer(idx); return; }
-      const inv = g.inventory;
-      const target = idx < HOTBAR ? inv.slots.findIndex((s, i) => i >= HOTBAR && !s) : inv.slots.findIndex((s, i) => i < HOTBAR && !s);
+      const it = inv.slots[idx];
+      if (!it) return;
+      const target = inv.isHot(idx) ? inv.slots.findIndex((s, i) => i >= HOTBAR && i < HOLSTER0 && !s) : inv.freeHotSlot(it.id);
       if (target >= 0) inv.move(idx, target);
+      this.selSlot = target >= 0 ? target : idx;
       this.renderInventory();
       return;
     }
-    if (this.selSlot >= 0 && this.selSlot !== idx && g.inventory.slots[this.selSlot] && e.altKey) { g.inventory.move(this.selSlot, idx); }
+    // click-to-move: with an item picked, clicking an empty slot moves it there
+    // (clicking another item just selects that one instead)
+    const picked = this.selSlot >= 0 && inv.slots[this.selSlot] && this.selSlot !== idx;
+    if (picked && (!inv.slots[idx] || e.altKey)) {
+      if (inv.move(this.selSlot, idx)) this.selSlot = idx;
+      else this.denyHolster();
+      if (inv.isHot(this.selSlot)) inv.selectSlot(this.selSlot);
+      this.renderInventory();
+      return;
+    }
     this.selSlot = idx;
-    if (idx < HOTBAR) g.inventory.select(idx);
+    if (inv.isHot(idx)) inv.selectSlot(idx);
     this.renderInventory();
   }
 
@@ -185,22 +206,27 @@ export class UI {
     const it = g?.inventory.slots[idx];
     if (!it) return;
     const def = ITEMS[it.id];
+    const inv = g.inventory;
+    const withSel = fn => { const prev = inv.selected; inv.selected = idx; fn(); inv.selected = prev; };
     if (def.type === 'consumable') {
+      if (def.effects.revive && !g.downed) { g.subtitle('Save it for when you\'re down.', 1.4); return; }
       if (!g.held.canConsume(def)) { g.subtitle('You don\'t need that right now.', 1.2); return; }
-      g.stats.applyEffects(def.effects);
-      g.inventory.takeFrom(idx, 1);
-      g.sfx(def.sound || 'pickup', null, {});
-    } else if (def.type === 'battery') {
-      const prev = g.inventory.selected;
-      g.inventory.selected = idx; g.held.useBattery(); g.inventory.selected = prev;
-    } else if (def.type === 'repair') {
-      const prev = g.inventory.selected;
-      g.inventory.selected = idx; g.held.useRepair(); g.inventory.selected = prev;
-    } else {
-      // equip: move into hotbar and select
+      g.consumeNow(def, idx);
+    } else if (def.type === 'battery') withSel(() => g.held.useBattery());
+    else if (def.type === 'repair') withSel(() => g.held.useRepair());
+    else if (def.type === 'armor') g.wearArmor(idx);
+    else if (def.type === 'transmitter') g.toggleTransmitter(it);
+    else if (def.type === 'part' || def.type === 'ammo' || def.type === 'key') g.subtitle(def.type === 'part' ? 'A crafting part — see the recipes on the right.' : def.type === 'ammo' ? 'Ammo loads when you reload.' : 'Use it at the right door.', 1.8);
+    else {
+      // equip: move into the hotbar and select
       let target = idx;
-      if (idx >= HOTBAR) { target = g.inventory.selected; g.inventory.move(idx, target); }
-      g.inventory.select(target);
+      if (!inv.isHot(idx)) {
+        target = inv.freeHotSlot(it.id);
+        if (target < 0) target = inv.canPlace(inv.selected, it.id) ? inv.selected : 0;
+        inv.move(idx, target);
+      }
+      inv.selectSlot(target);
+      this.selSlot = target;
     }
     this.renderInventory();
   }
@@ -211,8 +237,11 @@ export class UI {
     const inv = g.inventory;
     for (let i = 0; i < inv.slots.length; i++) {
       const el = this.invSlots[i];
+      if (!el) continue;
       const s = inv.slots[i];
+      if (i >= HOLSTER0) el.classList.toggle('off', !inv.canPlace(i));
       el.classList.toggle('sel', i === this.selSlot);
+      el.classList.toggle('picked', i === this.selSlot && !!s);
       iconInto(el.querySelector('.ic'), s?.id, 48);
       el.querySelector('.qty').textContent = s && s.qty > 1 ? s.qty : '';
       const dur = el.querySelector('.dur');
@@ -231,9 +260,13 @@ export class UI {
       extra = W.kind === 'gun' ? `\nLoaded: ${s.data.ammo}/${W.mag} · Reserve: ${inv.count(W.ammo)}` : `\nCondition: ${Math.round(s.data.dur)}%`;
     } else if (def?.type === 'flashlight') extra = `\nBattery: ${Math.round(s.data.charge)}%`;
     else if (def?.type === 'tool') extra = `\nFuel: ${Math.round(s.data.fuel)}%`;
+    else if (def?.type === 'transmitter') extra = `\nBattery: ${Math.round(s.data.charge)}% · ${s.data.on ? 'ON' : 'off'}`;
+    else if (def?.type === 'armor') extra = `\nCondition: ${Math.round(s.data.dur)}%`;
     $('detailDesc').textContent = def ? def.desc + extra : 'Select an item.';
     $('btnUseItem').disabled = !def;
-    $('btnUseItem').textContent = def && (def.type === 'consumable' || def.type === 'battery' || def.type === 'repair') ? 'Use' : 'Equip';
+    $('btnUseItem').textContent = !def ? 'Use' : def.type === 'armor' ? 'Wear' : def.type === 'transmitter' ? (s.data.on ? 'Switch off' : 'Switch on') : (def.type === 'consumable' || def.type === 'battery' || def.type === 'repair') ? 'Use' : 'Equip';
+    this.renderWorn();
+    this.renderCrafting();
     $('btnDropItem').disabled = !def;
     $('btnDropItem').textContent = this.containerObj ? 'Store' : 'Drop';
     $('btnSplitItem').disabled = !def || s.qty < 2;
@@ -261,6 +294,65 @@ export class UI {
       }
       $('btnTakeAll').disabled = !loot.length;
     }
+  }
+
+  renderWorn() {
+    const g = this.game, box = $('wornBox');
+    const a = g.armor;
+    box.classList.toggle('hidden', !a);
+    if (!a) return;
+    box.innerHTML = `<div class="ic"></div><div><b>Wearing: ${ITEMS[a.id].name}</b><div class="muted">${Math.round(ITEMS[a.id].armor.absorb * 100)}% damage absorbed · ${Math.round(a.data.dur)}% left</div></div><div class="bar"><div style="width:${a.data.dur}%"></div></div><button class="small" id="btnTakeOff">Take off</button>`;
+    iconInto(box.querySelector('.ic'), a.id, 36);
+    box.querySelector('#btnTakeOff').onclick = () => { g.removeArmor(); this.renderInventory(); };
+  }
+
+  renderCrafting() {
+    const g = this.game, list = $('craftList');
+    const inv = g.inventory;
+    const sig = RECIPES.map(r => r.in.map(([id]) => inv.count(id)).join(',')).join('|');
+    if (sig === this._craftSig && list.children.length) return;
+    this._craftSig = sig;
+    list.innerHTML = '';
+    const sorted = [...RECIPES].sort((a, b) => canCraft(inv, b) - canCraft(inv, a));
+    for (const r of sorted) {
+      const ok = canCraft(inv, r);
+      const el = document.createElement('div');
+      el.className = 'recipe' + (ok ? ' ok' : '');
+      el.title = r.note;
+      el.innerHTML = `<div class="out"></div><div><div class="name">${ITEMS[r.out[0]].name}${r.out[1] > 1 ? ' ×' + r.out[1] : ''}</div><div class="needs"></div></div><button class="small"${ok ? '' : ' disabled'}>Craft</button>`;
+      iconInto(el.querySelector('.out'), r.out[0], 34);
+      const needs = el.querySelector('.needs');
+      for (const [id, n] of r.in) {
+        const have = inv.count(id);
+        const nd = document.createElement('span');
+        nd.className = 'need' + (have >= n ? '' : ' miss');
+        nd.title = ITEMS[id].name;
+        nd.innerHTML = `<span class="ic"></span>${Math.min(have, n)}/${n} ${ITEMS[id].name}`;
+        iconInto(nd.querySelector('.ic'), id, 18);
+        needs.appendChild(nd);
+      }
+      el.querySelector('button').onclick = () => { if (craft(g, r)) { this._craftSig = null; this.renderInventory(); } };
+      list.appendChild(el);
+    }
+  }
+
+  // ------------------------------------------------------------------ role select
+  openRolePicker(game, onPick) {
+    this.game = game;
+    const box = $('roleCards');
+    box.innerHTML = '';
+    for (const id of CLASS_ORDER) {
+      const C = CLASSES[id];
+      const b = document.createElement('button');
+      b.className = 'role-card';
+      b.style.setProperty('--rc', C.color);
+      b.innerHTML = `<span class="rc-ic">${C.icon}</span><span class="rc-name">${C.name}</span><span class="rc-role">${C.role}</span><span class="muted">${C.blurb}</span><ul>${C.perks.map(p => `<li>${p}</li>`).join('')}</ul><div class="rc-kit"></div>`;
+      const kit = b.querySelector('.rc-kit');
+      for (const [item, qty] of C.kit) { const sp = document.createElement('span'); sp.title = `${ITEMS[item].name}${qty > 1 ? ' ×' + qty : ''}`; iconInto(sp, item, 26); kit.appendChild(sp); }
+      b.onclick = () => { this.closeModal('roleSelect'); onPick(id); };
+      box.appendChild(b);
+    }
+    this.openModal('roleSelect');
   }
 
   // ------------------------------------------------------------------ notes & journal
@@ -356,13 +448,13 @@ export class UI {
       hush: 'It found you by the sound of your heart.', hound: 'The hounds picked you clean.', ink: 'The Inkwalker never stops. You did.',
       tide: 'The water was deeper than it looked.', goaner: 'The Goaner bleats in triumph.', thirst: 'You dried out like the carpet.',
       hunger: 'You starved in the endless rooms.', bleed: 'You bled out on the floor.', drown: 'You ran out of air.', fall: 'The fall was too far.',
-      'bled out': 'Nobody reached you in time.', lookalike: 'It wore your face as it ended you.',
+      'bled out': 'Nobody reached you in time.', lookalike: 'It wore your face as it ended you.', 'gave up': 'You let go. The rooms let you start over.',
+      spider: 'Too many red eyes. Too many legs.', snake: 'Platinum coils, tightening.', pale: 'It stopped singing when it reached you.', armor: 'Even armor gives out.',
     };
     $('deathText').textContent = lines[cause] || 'The Goanrooms keep what they take.';
-    $('btnRespawn').classList.toggle('hidden', !solo);
-    $('btnSpectate').classList.toggle('hidden', solo);
+    $('btnRespawn').classList.remove('hidden');
+    $('btnRespawn').textContent = game.online ? 'Respawn at level entrance' : 'Respawn';
     $('btnRespawn').onclick = () => game.respawn();
-    $('btnSpectate').onclick = () => game.startSpectate();
     $('btnDeathQuit').onclick = () => this.onQuit?.();
     this.closeAll();
     this.screen('death', true);
@@ -385,7 +477,6 @@ export class UI {
     $('deathTitle').textContent = 'DISCONNECTED';
     $('deathText').textContent = msg;
     $('btnRespawn').classList.add('hidden');
-    $('btnSpectate').classList.add('hidden');
     $('btnDeathQuit').onclick = () => { $('deathTitle').textContent = 'YOU WERE LOST'; this.onQuit?.(); };
     this.screen('death', true);
     input.unlock();

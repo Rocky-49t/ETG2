@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { stepToward, goTo, setState, lightOn } from '../brain.js';
 import { Avatar } from '../../game/avatar.js';
+import { attackPose } from './rig.js';
 
 function observedBy(e, p, level) {
   if (p.dead || !p.dir) return false;
@@ -94,7 +95,12 @@ export default {
     av.animate(dt, { speed: 0, crouch: false });
     // twitch the head when moving / when looked at
     if (v.st.s === 'still') av.head.rotation.z = Math.sin(v.time * 23) * 0.04 * (Math.random() < 0.1 ? 4 : 1);
-    if (v.st.s === 'attack') { av.head.rotation.x = -0.5; av.arms.forEach(a => { a.sh.rotation.x = -1.7; }); }
+    if (v.st.s === 'attack') {
+      const a = attackPose(v.stateT, 0.35);
+      av.head.rotation.x = -0.5 + a.s * 0.4;
+      av.arms.forEach(A => { A.sh.rotation.x = -2.8 * a.w - 1.4 * a.s; A.elbow.rotation.x = -1.2 * a.w; });
+      av.spine.rotation.x = a.s * 0.5 - a.w * 0.2;
+    }
     if (v.st.s === 'gone') v.group.scale.setScalar(Math.max(0.01, 1 - v.stateT * 1.3));
   },
 

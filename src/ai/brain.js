@@ -6,7 +6,7 @@ import { TILE } from '../world/chunk.js';
 
 export const NOISE = {
   crouch: 0, walk: 6, sprint: 15, land: 10, jump: 5, swim: 7, splash: 12,
-  door: 12, locker: 7, melee: 6, pistol: 42, smg: 40, shotgun: 50, reload: 4,
+  door: 12, locker: 7, melee: 6, pistol: 42, smg: 40, shotgun: 50, rifle: 48, reload: 4,
   decoy: 32, scream: 25, glass: 14, throw: 3,
 };
 

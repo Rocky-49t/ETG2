@@ -41,3 +41,12 @@ export function leg(parent, mat, x, y, z, upper, lower, r = 0.05) {
 }
 
 export const glowMat = (color, intensity = 3) => new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity) });
+
+// Attack timing curve shared by creatures: wind-up (0..1) rising toward the
+// hit moment, then a fast strike (0..1) that decays during recovery.
+const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+export function attackPose(t, hitAt) {
+  const w = ss(0, hitAt * 0.8, t) * (1 - ss(hitAt * 0.8, hitAt + 0.04, t));
+  const s = ss(hitAt * 0.75, hitAt + 0.05, t) * (1 - ss(hitAt + 0.22, hitAt + 0.7, t));
+  return { w, s };
+}

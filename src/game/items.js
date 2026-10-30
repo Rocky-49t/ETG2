@@ -5,18 +5,35 @@
 //  tool        - held utility (lighter)
 //  throwable   - thrown with LMB (glowstick, flare, decoy)
 //  weapon      - see weapons.js (data.ammo / data.dur)
-//  ammo, key, repair, misc
+//  transmitter - shows player coordinates while switched on (data.charge, data.on)
+//  armor       - worn with use; absorbs damage (data.dur)
+//  ammo, key, repair, part (crafting), misc
 
 export const ITEMS = {
-  almondWater: { name: 'Almond Water', desc: 'Faintly sweet and cold no matter how long it sat. Restores thirst and steadies the mind.', type: 'consumable', stack: 4, effects: { thirst: 38, sanity: 16 }, useTime: 1.1, sound: 'drink', icon: 'bottle', color: '#e9e3c6' },
-  waterBottle: { name: 'Bottled Water', desc: 'A dusty plastic bottle. The seal is intact. Probably.', type: 'consumable', stack: 4, effects: { thirst: 30 }, useTime: 1.0, sound: 'drink', icon: 'bottle', color: '#8fc6e8' },
+  cleanWater: { name: 'Clean Water', desc: 'Sealed and clear. Restores thirst and settles the nerves better than anything else down here.', type: 'consumable', stack: 4, effects: { thirst: 42, sanity: 14 }, useTime: 1.1, sound: 'drink', icon: 'bottle', color: '#9fd3ef' },
+  dirtyWater: { name: 'Dirty Water', desc: 'Cloudy, with a taste of rust. Quenches thirst and calms you a little, but it sits badly. Purify it if you can.', type: 'consumable', stack: 4, effects: { thirst: 28, sanity: 5, health: -3 }, useTime: 1.1, sound: 'drink', icon: 'bottle', color: '#9a9168' },
+  fireSalts: { name: 'Fire Salts', desc: 'Coarse red crystals in a foil pouch. Very filling, very salty. They burn on the way down and leave you thirsty.', type: 'consumable', stack: 4, effects: { hunger: 46, thirst: -12 }, useTime: 1.4, sound: 'eat', icon: 'salts', color: '#d9452b' },
+  blueberryFireSalts: { name: 'Blueberry Fire Salts', desc: 'The rare blue batch. Sweet first, then the burn. Filling, and oddly comforting.', type: 'consumable', stack: 4, effects: { hunger: 42, thirst: -8, sanity: 8 }, useTime: 1.4, sound: 'eat', icon: 'salts', color: '#4a6fe0' },
+  goanJuice: { name: 'Goan Juice', desc: 'Thick amber juice in an unlabeled bottle. Restores thirst and mends you a little.', type: 'consumable', stack: 4, effects: { thirst: 34, health: 18 }, useTime: 1.3, sound: 'drink', icon: 'bottle', color: '#e2a23a' },
+  vigorTonic: { name: 'Vigor Tonic', desc: 'A Tufflandian field tonic. Restores some health, and for two minutes your stamina drains three times slower.', type: 'consumable', stack: 3, effects: { health: 12, thirst: 8, status: ['vigor', 120] }, useTime: 1.2, sound: 'drink', icon: 'tonic', color: '#62e0b8' },
+  paleDraught: { name: 'Pale Draught', desc: 'A milky bottle from an office vending machine. It tastes of nothing at all. For a while, things that walk in ink seem not to notice you.', type: 'consumable', stack: 2, effects: { thirst: 10, status: ['inkward', 600] }, useTime: 1.5, sound: 'drink', icon: 'bottle', color: '#e8e4dc' },
   snackBar: { name: 'Snack Bar', desc: 'Expired years ago. Still crunchy.', type: 'consumable', stack: 6, effects: { hunger: 22 }, useTime: 1.0, sound: 'eat', icon: 'bar', color: '#c9822f' },
   cannedBeans: { name: 'Canned Beans', desc: 'Heavy, filling and almost warm.', type: 'consumable', stack: 3, effects: { hunger: 48, health: 6 }, useTime: 2.0, sound: 'eat', icon: 'can', color: '#b54a32' },
   energyDrink: { name: 'Energy Drink', desc: 'Neon green. Grants a burst of stamina regeneration.', type: 'consumable', stack: 3, effects: { thirst: 14, staminaBoost: 40 }, useTime: 1.0, sound: 'drink', icon: 'can', color: '#5bd14f' },
   bandage: { name: 'Bandage', desc: 'Stops bleeding and slowly restores health.', type: 'consumable', stack: 5, effects: { regen: 28, stopBleed: true }, useTime: 2.2, sound: 'bandage', icon: 'bandage', color: '#e8e1d3' },
   medkit: { name: 'First Aid Kit', desc: 'A proper kit. Restores a large amount of health.', type: 'consumable', stack: 2, effects: { health: 55, stopBleed: true }, useTime: 4.0, sound: 'bandage', icon: 'medkit', color: '#d33b2e' },
   painkillers: { name: 'Painkillers', desc: 'Takes the edge off. Restores sanity and a little health.', type: 'consumable', stack: 4, effects: { sanity: 32, health: 6 }, useTime: 1.2, sound: 'pills', icon: 'pills', color: '#e0e0e0' },
-  battery: { name: 'Battery', desc: 'Use to recharge your flashlight.', type: 'battery', stack: 6, icon: 'battery', color: '#d6b13a' },
+  adrenaline: { name: 'Adrenaline Shot', desc: 'Medical auto-injector. Use it while downed to get back on your feet.', type: 'consumable', stack: 2, effects: { revive: true, health: 30 }, useTime: 0.6, sound: 'pills', icon: 'syringe', color: '#e04a6a' },
+  purifier: { name: 'Purification Tablets', desc: 'Crafting: turns dirty water into clean water.', type: 'part', stack: 8, icon: 'tablets', color: '#e8eef2' },
+  battery: { name: 'Battery', desc: 'Use to recharge a flashlight or transmitter. Also a crafting part.', type: 'battery', stack: 6, icon: 'battery', color: '#d6b13a' },
+  gpsBoard: { name: 'GPS Board', desc: 'A green circuit board pulled from expedition gear. Crafting part for a Location Transmitter.', type: 'part', stack: 3, icon: 'board', color: '#2f8a4a' },
+  antenna: { name: 'Antenna', desc: 'A telescoping antenna with a cracked base. Crafting part for a Location Transmitter.', type: 'part', stack: 3, icon: 'antenna', color: '#b9bec4' },
+  cloth: { name: 'Rags', desc: 'Torn fabric. Crafting part for bandages and armor.', type: 'part', stack: 8, icon: 'cloth', color: '#a89476' },
+  scrap: { name: 'Scrap Metal', desc: 'Bent plates and brackets. Crafting part.', type: 'part', stack: 8, icon: 'scrap', color: '#8a8f94' },
+  wire: { name: 'Copper Wire', desc: 'A coil of salvaged wire. Crafting part.', type: 'part', stack: 8, icon: 'wire', color: '#c8783a' },
+  transmitter: { name: 'Location Transmitter', desc: 'Use to switch it on: shows your coordinates and every teammate\'s, updating every few seconds. Runs on battery.', type: 'transmitter', stack: 1, data: { charge: 100 }, icon: 'transmitter', color: '#3a4a3c' },
+  vest: { name: 'Ballistic Vest', desc: 'Use to wear or remove. Absorbs 40% of damage until worn through, but slows you down and tires you faster.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { absorb: 0.4, slow: 0.12, stamina: 1.25 }, icon: 'vest', color: '#4f5a3c' },
+  scrapVest: { name: 'Scrap Armor', desc: 'Use to wear or remove. Rags and plates lashed together: absorbs 25% of damage, slows you a little.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { absorb: 0.25, slow: 0.06, stamina: 1.1 }, icon: 'vest', color: '#7a6a52' },
 
   flashlight: { name: 'Flashlight', desc: 'Press F to toggle. Hold RMB (empty hands) to focus the beam — it stuns things that hate light.', type: 'flashlight', stack: 1, data: { charge: 100 }, icon: 'flashlight', color: '#3c3f44' },
   lighter: { name: 'Lighter', desc: 'A small flame. Hold it out to keep hounds at bay. Uses fuel.', type: 'tool', tool: 'lighter', stack: 1, data: { fuel: 100 }, icon: 'lighter', color: '#c0392b', hands: 'one' },
@@ -24,9 +41,11 @@ export const ITEMS = {
   flare: { name: 'Road Flare', desc: 'Throw to light a fierce red fire for 45 seconds. Hounds will not cross it.', type: 'throwable', throw: 'flare', stack: 4, icon: 'flare', color: '#ff4a2a' },
   decoy: { name: 'Wind-up Music Box', desc: 'Throw it. It plays loudly for 15 seconds and draws things that listen.', type: 'throwable', throw: 'decoy', stack: 3, icon: 'decoy', color: '#a77bd8' },
 
-  pistol: { name: 'Pistol', desc: '9mm semi-automatic. Reliable.', type: 'weapon', weapon: 'pistol', stack: 1, data: { ammo: 12 }, icon: 'pistol', color: '#2b2d30' },
-  shotgun: { name: 'Pump Shotgun', desc: 'Devastating up close. Six shells.', type: 'weapon', weapon: 'shotgun', stack: 1, data: { ammo: 6 }, icon: 'shotgun', color: '#5a3b22' },
-  smg: { name: 'SMG', desc: 'Fast and hungry for 9mm.', type: 'weapon', weapon: 'smg', stack: 1, data: { ammo: 30 }, icon: 'smg', color: '#26282a' },
+  rifle: { name: 'Service Rifle', desc: 'Expedition-issue 5.56 carbine. Accurate and hard-hitting. Thirty rounds a magazine — and not many magazines.', type: 'weapon', weapon: 'rifle', gun: true, stack: 1, data: { ammo: 30 }, icon: 'rifle', color: '#2e3228' },
+  rifleAmmo: { name: '5.56 Rounds', desc: 'For the service rifle.', type: 'ammo', stack: 60, icon: 'ammo', color: '#9aa04a' },
+  pistol: { name: 'Pistol', desc: '9mm semi-automatic. Reliable.', type: 'weapon', weapon: 'pistol', gun: true, stack: 1, data: { ammo: 12 }, icon: 'pistol', color: '#2b2d30' },
+  shotgun: { name: 'Pump Shotgun', desc: 'Devastating up close. Six shells.', type: 'weapon', weapon: 'shotgun', gun: true, stack: 1, data: { ammo: 6 }, icon: 'shotgun', color: '#5a3b22' },
+  smg: { name: 'SMG', desc: 'Fast and hungry for 9mm.', type: 'weapon', weapon: 'smg', gun: true, stack: 1, data: { ammo: 30 }, icon: 'smg', color: '#26282a' },
   crowbar: { name: 'Crowbar', desc: 'Heavy melee. Pries open what keys cannot.', type: 'weapon', weapon: 'crowbar', stack: 1, data: { dur: 100 }, icon: 'crowbar', color: '#b33a2a' },
   knife: { name: 'Knife', desc: 'Fast, quiet melee.', type: 'weapon', weapon: 'knife', stack: 1, data: { dur: 100 }, icon: 'knife', color: '#9aa0a6' },
   ammo9: { name: '9mm Rounds', desc: 'For the pistol and SMG.', type: 'ammo', stack: 90, icon: 'ammo', color: '#c9a640' },
@@ -35,6 +54,7 @@ export const ITEMS = {
 
   keycard: { name: 'Service Keycard', desc: 'A grimy maintenance keycard: "SERVICE ACCESS — TUNNEL EXIT". Opens the service door.', type: 'key', stack: 1, icon: 'keycard', color: '#e0a33a' },
   fuse: { name: 'Industrial Fuse', desc: 'A heavy ceramic fuse. Something in the stairwell needs power.', type: 'key', stack: 1, icon: 'fuse', color: '#5a8fd0' },
+  level5Key: { name: 'Bridge Key', desc: 'A cold, heavy key stamped "5". Opens a bridge door on Level 4.', type: 'key', stack: 3, icon: 'tkey', color: '#d9d3a0' },
   drainKey: { name: 'Drain Valve Key', desc: 'A T-shaped key stamped "MAIN DRAIN". Opens the drainage grate.', type: 'key', stack: 1, icon: 'tkey', color: '#7fb8c9' },
 };
 
@@ -218,6 +238,77 @@ function drawIcon(g, icon, col) {
     case 'tkey':
       g.lineWidth = 8; g.strokeStyle = out; g.beginPath(); g.moveTo(14, 14); g.lineTo(50, 14); g.moveTo(32, 14); g.lineTo(32, 56); g.stroke();
       g.lineWidth = 4.5; g.strokeStyle = col; g.beginPath(); g.moveTo(14, 14); g.lineTo(50, 14); g.moveTo(32, 14); g.lineTo(32, 56); g.stroke();
+      break;
+    case 'salts':
+      g.beginPath(); g.moveTo(14, 18); g.lineTo(50, 18); g.lineTo(46, 56); g.lineTo(18, 56); g.closePath(); fillStroke('#c8c2b0');
+      g.fillStyle = col; for (let i = 0; i < 14; i++) { const x = 20 + (i * 37 % 24), y = 28 + (i * 23 % 24); g.fillRect(x, y, 4, 4); }
+      rr(14, 12, 36, 8, 2); fillStroke(shade(col, 0.8));
+      g.fillStyle = '#fff'; g.font = 'bold 8px sans-serif'; g.textAlign = 'center'; g.fillText('FIRE', 32, 26);
+      break;
+    case 'tonic':
+      rr(26, 6, 12, 8, 2); fillStroke('#444');
+      g.beginPath(); g.moveTo(28, 14); g.lineTo(36, 14); g.lineTo(36, 22); g.lineTo(46, 34); g.lineTo(46, 56); g.lineTo(18, 56); g.lineTo(18, 34); g.lineTo(28, 22); g.closePath(); fillStroke(col);
+      g.fillStyle = 'rgba(255,255,255,0.75)'; g.fillRect(20, 38, 24, 9);
+      g.fillStyle = '#1b6b55'; g.font = 'bold 7px sans-serif'; g.textAlign = 'center'; g.fillText('VIGOR', 32, 45);
+      break;
+    case 'syringe':
+      g.translate(32, 32); g.rotate(-0.7);
+      rr(-18, -6, 30, 12, 3); fillStroke(col);
+      g.fillStyle = 'rgba(255,255,255,0.6)'; g.fillRect(-14, -3, 20, 3);
+      rr(12, -3, 10, 6, 1); fillStroke('#ccc');
+      g.lineWidth = 2; g.strokeStyle = '#ddd'; g.beginPath(); g.moveTo(22, 0); g.lineTo(30, 0); g.stroke();
+      rr(-26, -8, 8, 16, 2); fillStroke('#666');
+      break;
+    case 'tablets':
+      rr(14, 14, 36, 36, 5); fillStroke('#6aa7c8');
+      g.fillStyle = col; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { g.beginPath(); g.arc(22 + i * 10, 22 + j * 10, 3.6, 0, 7); g.fill(); }
+      break;
+    case 'board':
+      rr(10, 14, 44, 36, 3); fillStroke(col);
+      g.fillStyle = '#222'; g.fillRect(22, 24, 14, 14);
+      g.fillStyle = '#d4b04a'; for (let i = 0; i < 6; i++) { g.fillRect(12 + i * 7, 46, 3, 4); g.fillRect(40, 18 + i * 4, 10, 1.5); }
+      g.strokeStyle = '#9fd38a'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(14, 20); g.lineTo(22, 28); g.moveTo(36, 31); g.lineTo(48, 31); g.stroke();
+      g.fillStyle = '#e33'; g.beginPath(); g.arc(48, 20, 2.2, 0, 7); g.fill();
+      break;
+    case 'antenna':
+      g.lineWidth = 6; g.strokeStyle = out; g.beginPath(); g.moveTo(32, 54); g.lineTo(40, 8); g.stroke();
+      g.lineWidth = 3.2; g.strokeStyle = col; g.beginPath(); g.moveTo(32, 54); g.lineTo(40, 8); g.stroke();
+      g.beginPath(); g.arc(40, 8, 3, 0, 7); fillStroke('#ddd');
+      rr(22, 50, 20, 8, 2); fillStroke('#333');
+      break;
+    case 'cloth':
+      g.beginPath(); g.moveTo(12, 20); g.quadraticCurveTo(30, 10, 52, 18); g.lineTo(48, 50); g.quadraticCurveTo(30, 58, 14, 48); g.closePath(); fillStroke(col);
+      g.strokeStyle = shade(col, 0.7); g.lineWidth = 1.5; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(16, 24 + i * 7); g.lineTo(48, 22 + i * 7); g.stroke(); }
+      break;
+    case 'scrap':
+      g.beginPath(); g.moveTo(10, 30); g.lineTo(30, 14); g.lineTo(54, 22); g.lineTo(46, 40); g.lineTo(24, 52); g.closePath(); fillStroke(col);
+      g.fillStyle = '#5a5f63'; g.beginPath(); g.arc(28, 32, 3, 0, 7); g.arc(42, 28, 3, 0, 7); g.fill();
+      g.fillStyle = '#a0522d'; g.fillRect(34, 40, 8, 4);
+      break;
+    case 'wire':
+      g.lineWidth = 3; g.strokeStyle = out;
+      for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse(32, 32, 20 - i * 2, 14 - i * 1.5, 0.4, 0, 7); g.stroke(); }
+      g.lineWidth = 2; g.strokeStyle = col;
+      for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse(32, 32, 20 - i * 2, 14 - i * 1.5, 0.4, 0, 7); g.stroke(); }
+      break;
+    case 'transmitter':
+      rr(16, 16, 32, 42, 4); fillStroke(col);
+      g.fillStyle = '#7dffa0'; g.fillRect(21, 22, 22, 14);
+      g.fillStyle = '#123'; g.font = 'bold 6px monospace'; g.fillText('X 12', 23, 28); g.fillText('Z -4', 23, 34);
+      g.fillStyle = '#222'; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(24 + i * 8, 46, 2.5, 0, 7); g.fill(); }
+      g.lineWidth = 4; g.strokeStyle = out; g.beginPath(); g.moveTo(42, 16); g.lineTo(46, 2); g.stroke();
+      g.lineWidth = 2; g.strokeStyle = '#ccc'; g.beginPath(); g.moveTo(42, 16); g.lineTo(46, 2); g.stroke();
+      break;
+    case 'vest':
+      g.beginPath(); g.moveTo(18, 10); g.lineTo(26, 10); g.quadraticCurveTo(32, 18, 38, 10); g.lineTo(46, 10); g.lineTo(52, 22); g.lineTo(48, 56); g.lineTo(16, 56); g.lineTo(12, 22); g.closePath(); fillStroke(col);
+      g.fillStyle = shade(col, 0.75); g.fillRect(18, 30, 12, 10); g.fillRect(34, 30, 12, 10);
+      g.strokeStyle = shade(col, 0.6); g.lineWidth = 2; g.beginPath(); g.moveTo(32, 20); g.lineTo(32, 56); g.stroke();
+      break;
+    case 'rifle':
+      g.translate(32, 32); g.rotate(-0.25);
+      g.beginPath(); g.moveTo(-30, -4); g.lineTo(18, -4); g.lineTo(18, 2); g.lineTo(-2, 2); g.lineTo(-6, 12); g.lineTo(-12, 12); g.lineTo(-12, 4); g.lineTo(-30, 6); g.closePath(); fillStroke(col);
+      rr(-2, 2, 6, 12, 1); fillStroke('#222');
+      g.fillStyle = '#222'; g.fillRect(18, -3, 12, 3); g.fillRect(-6, -9, 12, 4);
       break;
     default:
       g.fillStyle = col; g.fillRect(16, 16, 32, 32);

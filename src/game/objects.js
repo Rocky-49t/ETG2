@@ -216,8 +216,11 @@ export class WorldObjects {
     const e = this.all.get(id);
     if (!e || !e.mesh) return;
     const s = this.game.world.get(this.game.levelId, id);
-    e.mesh.visible = !(e.kind?.hidden?.(e.o, s));
+    // bonus loot only exists in sessions with enough players (see lootPlayers)
+    e.mesh.visible = !(e.o.mp > this.game.lootPlayers) && !(e.kind?.hidden?.(e.o, s));
   }
+
+  refreshAll() { for (const id of this.all.keys()) this.refresh(id); }
 
   // ------------------------------------------------------------- thrown items
   addThrown(d) {

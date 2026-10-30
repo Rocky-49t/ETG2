@@ -25,7 +25,9 @@ const HELP = [
   ['ammo', 'refill weapon magazines and flashlight battery'],
   ['sanity <0-100>', 'set sanity'],
   ['level <L0|L1|L2|L3|L5>', 'travel to a level (also `level next`)'],
-  ['tp <x> <z> | exit | key | <player>', 'teleport'],
+  ['tp <x> <z> | exit | key | <player>', 'teleport (to a player on any level)'],
+  ['bring <player|all>', 'pull players to you, from any level'],
+  ['send <player|all> <level>', 'send players to a level'],
   ['pos', 'print your position'],
   ['spawn <entity> [n]', 'spawn creatures in front of you (see `entities`)'],
   ['entities', 'list entity types'],
@@ -195,11 +197,13 @@ export class CheatConsole {
         if (!LEVELS[id]) { say(`Levels: ${LEVEL_ORDER.join(' ')}`, 'warn'); return; }
         say(`Travelling to ${LEVELS[id].name} — ${LEVELS[id].title}.`, 'ok');
         this.close();
-        g.request({ t: 'exitUsed', from: g.levelId, to: id });
-        g.enterLevel(id);
+        g.travelTo(id);
         break;
       }
       case 'tp': return this.teleport(args);
+      case 'bring': case 'send':
+        if (!g.online) { say('Nobody else is here.', 'sys'); return; }
+        return this.movePlayers(cmd, args);
       case 'spawn': {
         const type = this.resolve(args[0], Object.keys(ENTITY_TYPES));
         if (!type) { say('Unknown entity. Try `entities`.', 'warn'); return; }
@@ -230,14 +234,24 @@ export class CheatConsole {
     return pool.find(p => p.toLowerCase() === n) || pool.find(p => p.toLowerCase().startsWith(n)) || null;
   }
 
+  // where a player is: {l, x, y, z} (self, or the last known state of a remote)
+  whereIs(pid) {
+    const g = this.game;
+    if (pid === g.myId) return { l: g.levelId, x: g.player.pos.x, y: g.player.pos.y, z: g.player.pos.z };
+    const r = g.remotes.get(pid);
+    const s = r?.buf[r.buf.length - 1]?.s;
+    return s ? { l: r.levelId, x: s.x, y: s.y, z: s.z } : null;
+  }
+
   teleport(args) {
     const g = this.game, say = (t, c) => this.print(t, c);
     const P = g.player, L = g.level;
     const go = (x, z, y) => {
-      let fy = y ?? L.floorAt(x, z);
-      if (!isFinite(fy)) { const p = L.randomWalkableNear(x, z, 6); if (!p) { say('No floor there.', 'warn'); return; } x = p.x; z = p.z; fy = L.floorAt(x, z); }
-      P.teleport(x, fy + 0.05, z);
-      say(`Teleported to ${x.toFixed(1)}, ${z.toFixed(1)}.`, 'ok');
+      const spot = safeSpot(L, x, z, y);
+      if (!spot) { say('No floor there.', 'warn'); return; }
+      P.teleport(spot.x, spot.y + 0.05, spot.z);
+      P.vel.set(0, 0, 0);
+      say(`Teleported to ${spot.x.toFixed(1)}, ${spot.z.toFixed(1)}.`, 'ok');
     };
     const a = (args[0] || '').toLowerCase();
     if (a === 'exit') {
@@ -256,13 +270,38 @@ export class CheatConsole {
     }
     if (a) {
       const pid = this.findPlayer(a);
-      const r = pid && g.remotes.get(pid);
-      const s = r?.buf[r.buf.length - 1]?.s;
-      if (s && r.levelId === g.levelId) return go(s.x, s.z, s.y);
-      say(pid ? 'That player is on another level.' : 'No such player.', 'warn');
+      if (!pid) { say('No such player. Try `players`.', 'warn'); return; }
+      if (pid === g.myId) { say('That\'s you.', 'sys'); return; }
+      const w = this.whereIs(pid);
+      if (!w?.l) { say('That player\'s position is unknown.', 'warn'); return; }
+      if (w.l === g.levelId) return go(w.x + 1.0, w.z + 0.6, w.y);
+      say(`Travelling to ${g.nameOf(pid)} on ${LEVELS[w.l]?.name || w.l}.`, 'ok');
+      this.close();
+      g.travelTo(w.l, { x: w.x + 1.0, y: w.y, z: w.z + 0.6 });
       return;
     }
     say('Usage: tp <x> <z> | tp exit | tp key | tp <player>', 'warn');
+  }
+
+  // bring <player|all>: pull players to you; send <player|all> <level>
+  movePlayers(cmd, args) {
+    const g = this.game, say = (t, c) => this.print(t, c);
+    const who = (args[0] || '').toLowerCase();
+    if (!who) { say(cmd === 'bring' ? 'Usage: bring <player|all>' : 'Usage: send <player|all> <level>', 'warn'); return; }
+    const ids = who === 'all' ? this.allIds().filter(id => id !== g.myId) : [this.findPlayer(who)].filter(id => id && id !== g.myId);
+    if (!ids.length) { say('No such player. Try `players`.', 'warn'); return; }
+    let to;
+    if (cmd === 'bring') {
+      const P = g.player.pos;
+      to = { l: g.levelId, x: P.x, y: P.y, z: P.z };
+    } else {
+      let lid = (args[1] || '').toUpperCase();
+      if (lid === 'NEXT') lid = g.def?.next || '';
+      if (!LEVELS[lid]) { say(`Levels: ${LEVEL_ORDER.join(' ')}`, 'warn'); return; }
+      to = { l: lid };
+    }
+    for (const id of ids) g.request({ t: 'cheat', c: 'tpPlayer', target: id, to });
+    say(`${cmd === 'bring' ? 'Bringing' : 'Sending'} ${ids.map(id => g.nameOf(id)).join(', ')}${cmd === 'send' ? ' to ' + to.l : ''}.`, 'ok');
   }
 
   allIds() { const g = this.game; return [...new Set([g.myId, ...g.roster.keys()])]; }
@@ -307,4 +346,22 @@ export class CheatConsole {
     g.hostSyncCheats(cmd === 'grant' ? `${names} can now use the cheat console.` : `${names} lost cheat access.`);
     say(`${cmd === 'grant' ? 'Granted' : 'Revoked'}: ${names || 'nobody'}.`, 'ok');
   }
+}
+
+// nearest standable point to (x, z): finite floor, not inside a wall or prop
+export function safeSpot(L, x, z, y) {
+  const ok = (px, pz) => {
+    const f = L.floorAt(px, pz);
+    if (!isFinite(f)) return null;
+    const fy = y !== undefined && isFinite(y) && Math.abs(y - f) < 2.5 ? Math.max(f, L.groundAt({ x: px, y: y + 0.3, z: pz, r: 0.3, step: 0.6 })) : f;
+    return { x: px, y: fy, z: pz };
+  };
+  const first = ok(x, z);
+  if (first) return first;
+  for (let r = 0.8; r < 6; r += 0.8) for (let a = 0; a < 8; a++) {
+    const p = ok(x + Math.cos(a * 0.785) * r, z + Math.sin(a * 0.785) * r);
+    if (p) return p;
+  }
+  const w = L.randomWalkableNear(x, z, 10);
+  return w ? { x: w.x, y: L.floorAt(w.x, w.z), z: w.z } : null;
 }

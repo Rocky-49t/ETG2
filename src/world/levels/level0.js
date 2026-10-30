@@ -11,11 +11,11 @@ import { hash01, makeNoise2D, RNG } from '../../core/rng.js';
 const darkNoise = makeNoise2D(404);
 
 const LOOT = [
-  ['almondWater', 30, [1, 1]], ['snackBar', 22], ['battery', 18, [1, 2]], ['bandage', 14],
+  ['cleanWater', 12], ['dirtyWater', 18], ['snackBar', 22], ['cloth', 7], ['wire', 3], ['battery', 18, [1, 2]], ['bandage', 14],
   ['glowstick', 10, [1, 3]], ['cannedBeans', 8], ['flashlight', 3], ['lighter', 3], ['knife', 2], ['painkillers', 5], [null, 25],
 ];
 const BOX_LOOT = [
-  ['almondWater', 25], ['snackBar', 20], ['battery', 18, [1, 3]], ['bandage', 12], ['glowstick', 12, [1, 3]],
+  ['cleanWater', 12], ['dirtyWater', 12], ['snackBar', 20], ['cloth', 8], ['wire', 4], ['antenna', 1.5], ['gpsBoard', 1], ['purifier', 3, [1, 2]], ['battery', 18, [1, 3]], ['bandage', 12], ['glowstick', 12, [1, 3]],
   ['decoy', 4], ['flashlight', 4], ['lighter', 4], ['crowbar', 2], ['ammo9', 3, [4, 8]], [null, 20],
 ];
 

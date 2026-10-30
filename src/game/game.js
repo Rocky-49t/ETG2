@@ -16,7 +16,7 @@ import { LightManager } from '../gfx/lights.js';
 import { LevelInstance } from '../world/level.js';
 import { WorldRenderer } from '../world/renderer.js';
 import { TILE, CHUNK, F_DARK } from '../world/chunk.js';
-import { LEVELS, FIRST_LEVEL } from '../world/levels/index.js';
+import { LEVELS, FIRST_LEVEL, LEVEL_ORDER } from '../world/levels/index.js';
 import { PlayerController } from './player.js';
 import { Stats } from './stats.js';
 import { Inventory } from './inventory.js';
@@ -32,6 +32,8 @@ import { SanityFX } from './sanity.js';
 import { RemotePlayer } from './remote.js';
 import { initModels } from './models.js';
 import { normalizeSkin } from './avatar.js';
+import { escapeHtml } from './remote.js';
+import { CLASSES, applyClass, classPerk } from './classes.js';
 import { EntityManager } from '../ai/manager.js';
 import { EntityViews } from '../ai/views.js';
 import { Director } from '../ai/director.js';
@@ -42,7 +44,8 @@ import { audio } from '../audio/audio.js';
 const SURFACES = { carpet: 'carpet', officeCarpet: 'carpet', fabric: 'carpet', poolTile: 'tile', poolTileBlue: 'tile', grate: 'metal', rustMetal: 'metal', darkMetal: 'metal' };
 const SNAP_RATE = 1 / 15, SEND_RATE = 1 / 20;
 
-const KEY_ITEMS = new Set(['keycard', 'fuse', 'drainKey']);
+const KEY_ITEMS = new Set(['keycard', 'fuse', 'drainKey', 'level5Key', 'gpsBoard', 'antenna']);
+const ENV_CAUSES = new Set(['thirst', 'hunger', 'bleed', 'drown', 'fall', 'void', 'steam']);
 
 export class Game {
   constructor(opts) {
@@ -108,7 +111,8 @@ export class Game {
     this.settingsFlashing = settings.get('flashing');
     this.boss = null;     // client-side boss HUD info
     this.flags = {};      // local per-run flags (seen tutorial etc.)
-    this.cheats = { on: false, granted: new Set() };   // co-op cheat permissions (host-owned)
+    this.cheats = { on: false, granted: new Set() };
+    this._lootPlayers = Math.max(1, this.roster.size || 1);   // co-op cheat permissions (host-owned)
     this.cheatGod = false; this.notarget = false;
 
     this.world.on('obj', (l, id) => { if (l === this.levelId) this.objects.refresh(id); this.onObjState?.(l, id); });
@@ -116,10 +120,25 @@ export class Game {
     this.world.on('dyn-', (l, id) => { if (l === this.levelId) this.objects.removeDyn(id); });
 
     const baseDamage = this.stats.damage.bind(this.stats);
-    this.stats.damage = (...a) => { if (!this.cheatGod) baseDamage(...a); };
+    this.stats.damage = (amount, cause, silent) => {
+      if (this.cheatGod) return;
+      // worn armor soaks up blows (not hunger, thirst, bleeding, drowning or falls)
+      if (this.armor && amount > 0 && !ENV_CAUSES.has(cause)) {
+        const A = ITEMS[this.armor.id].armor;
+        const soaked = amount * A.absorb;
+        amount -= soaked;
+        this.armor.data.dur -= soaked * 1.6;
+        if (this.armor.data.dur <= 0) { this.subtitle(`Your ${ITEMS[this.armor.id].name.toLowerCase()} falls apart.`, 2.2, 'warn'); this.armor = null; this.applyArmorMods(); }
+        this.hud.armorChanged(this);
+      }
+      baseDamage(amount, cause, silent);
+    };
     this.stats.on('damage', (a, cause) => this.onDamaged(a, cause));
     this.stats.on('zero', cause => this.onZero(cause));
-    this.inventory.on('change', () => this.hud.inventoryChanged(this));
+    this.inventory.on('change', () => {
+      this.hud.inventoryChanged(this);
+      if (this.ui.open.has('inventory') && !this._invRendering) { this._invRendering = true; try { this.ui.renderInventory(); } finally { this._invRendering = false; } }
+    });
     this.onQuality = () => {
       this.renderer.radius = this.def?.renderRadius ?? settings.preset.renderRadius;
       this.lightMgr.setCount(settings.preset.dynamicLights);
@@ -153,6 +172,12 @@ export class Game {
     LEVELS[id].applyRuntime?.(this, level, c);
   }
   get level() { return this.getLevel(this.levelId); }
+  // most players this session has had at once (loot never shrinks when someone leaves)
+  get lootPlayers() { return this._lootPlayers; }
+  noteLootPlayers() {
+    const n = new Set([this.myId, ...this.roster.keys(), ...this.remotes.keys()]).size;
+    if (n > this._lootPlayers) { this._lootPlayers = n; this.objects?.refreshAll(); }
+  }
   get def() { return LEVELS[this.levelId]; }
 
   applyExposure() {
@@ -193,7 +218,12 @@ export class Game {
     this.objects.clear();
     this.views.clear();
     this.effects.clearTransient();
-    const sp = opts.spawn || level.spawnPoint();
+    let sp = opts.spawn || level.spawnPoint();
+    if (opts.spawn) {
+      let f = level.floorAt(sp.x, sp.z);
+      if (!isFinite(f)) { const p = level.randomWalkableNear(sp.x, sp.z, 6); if (p) sp = { x: p.x, y: level.floorAt(p.x, p.z), z: p.z }; }
+      else sp = { x: sp.x, y: (sp.y !== undefined && Math.abs(sp.y - f) < 2.5) ? Math.max(f, sp.y) : f, z: sp.z };
+    }
     this.player.teleport(sp.x, sp.y, sp.z, opts.yaw ?? sp.yaw ?? this.openYaw(level, sp));
     this.player.pitch = 0;
     this.renderer.buildAll(sp.x, sp.z);
@@ -275,7 +305,7 @@ export class Game {
     this.effects.update(dt, cam.position);
     this.viewmodel.update(dt, this.player, {
       ads: this.held.ads, flashlightOn: this.lights.on, focus: this.lights.focus ? 1 : 0, flashFlicker: this.lights.flicker,
-      lighterLit: this.held.lighterLit, hidden: this.hidden || this.dead || this.spectating || this.downed,
+      lighterLit: this.held.lighterLit, hidden: this.hidden || this.dead || this.downed,
     });
     this.lights.update(dt, this.held);
     audio.updateListener(cam);
@@ -292,28 +322,26 @@ export class Game {
   }
 
   canAct() {
-    return !this.ui.modalOpen && input.locked && !this.hidden && !this.dead && !this.downed && !this.spectating && !this.transitioning;
+    return !this.ui.modalOpen && input.locked && !this.hidden && !this.dead && !this.downed && !this.transitioning;
   }
 
   updateLocal(dt, level) {
     const P = this.player;
-    if (this.dead || this.spectating) {
-      this.updateSpectate(dt);
-      return;
-    }
+    if (this.dead) return;
     P.frozen = this.ui.modalOpen || this.hidden;
     P.frozenLook = this.ui.modalOpen;
     P.downed = this.downed;
     P.staminaOk = !this.stats.exhausted && this.stats.stamina > 0;
     P.update(dt, level, { canJump: () => this.stats.stamina > 8, onJump: () => { this.stats.stamina -= 6; this.stats.sinceSprint = 0; } });
     if (this.hidden) this.placeInLocker();
+    else if (!P.noclip) this.pushOutOfEntities(level);
 
     // events -> sound + AI noise
     for (const ev of P.events) {
       const surf = this.surfaceAt(P.pos);
       if (ev.type === 'step') {
         this.sfx('step', null, { surface: ev.wet ? 'water' : surf, volume: ev.crouch ? 0.22 : ev.sprint ? 0.85 : 0.5, reverb: 0.3 });
-        this.emitNoise(ev.crouch ? NOISE.crouch : ev.sprint ? NOISE.sprint : NOISE.walk);
+        this.emitNoise((ev.crouch ? NOISE.crouch : ev.sprint ? NOISE.sprint : NOISE.walk) * classPerk(this, 'stepNoise', 1));
       } else if (ev.type === 'land') {
         this.sfx('land', null, { volume: Math.min(1, ev.impact / 9) });
         this.emitNoise(NOISE.land);
@@ -343,26 +371,34 @@ export class Game {
     let teammates = false;
     for (const r of this.remotes.values()) if (r.levelId === this.levelId && Math.hypot(r.st.x - P.pos.x, r.st.z - P.pos.z) < 8) teammates = true;
     this.stats.update(dt, {
-      sprinting: P.sprinting, swimming: P.swimming, swimFast: P.swimming && input.isDown('ShiftLeft'), underwater: P.underwater,
+      sprinting: P.sprinting, swimming: P.swimming, swimFast: P.swimming && input.act('sprint'), underwater: P.underwater,
       darkness: lit ? 0 : (flags & F_DARK || ambient < 0.08 ? 1 : 0.35), nearbyThreat: threat, inBrightLight: ambient > 0.55, teammatesNear: teammates,
-      sanityDrain: this.def.sanityDrain || 0,
+      sanityDrain: this.def.sanityDrain || 0, armorStamina: this.armorStamina || 1,
     });
     this.threat = threat;
     audio.setUnderwater(P.underwater);
     if (P.underwater && Math.random() < dt * 0.7) this.sfx('bubbles', null, { volume: 0.5 });
 
-    // downed: bleed out
+    // downed: bleed out, or hold the give-up key to respawn at the checkpoint
     if (this.downed) {
       this.bleedout -= dt;
+      const held = this.inventory.held;
+      if (held && ITEMS[held.id].effects?.revive && input.actPressed('use') && !this.ui.modalOpen) { this.consumeNow(ITEMS[held.id], this.inventory.selected); return; }
+      if (input.act('respawn') && !this.ui.modalOpen) {
+        this.giveUpT = (this.giveUpT || 0) + dt;
+        this.hud.progress(this.giveUpT / 1.5, 'Giving up…');
+        if (this.giveUpT >= 1.5) { this.giveUpT = 0; this.hud.progress(-1); this.die('gave up'); this.respawn(); return; }
+      } else if (this.giveUpT) { this.giveUpT = 0; this.hud.progress(-1); }
+      this.hud.prompt(`Downed — ${Math.ceil(this.bleedout)}s · hold <kbd>${input.label('respawn')}</kbd> to give up and respawn`, null);
       if (this.bleedout <= 0) this.die('bled out');
     }
 
     // input
     if (!this.ui.modalOpen) {
-      if (input.pressed('KeyF') && !this.dead && !this.downed) this.lights.toggle();
-      for (let i = 0; i < 6; i++) if (input.pressed('Digit' + (i + 1))) this.inventory.select(i);
+      if (input.actPressed('flashlight') && !this.dead && !this.downed) this.lights.toggle();
+      for (let i = 0; i < this.inventory.hotbarSize; i++) if (input.actPressed('hotbar' + (i + 1))) this.inventory.select(i);
       if (input.wheel) this.inventory.select(this.inventory.selected + input.wheel);
-      if (input.pressed('KeyG') && this.canAct()) this.dropSelected();
+      if (input.actPressed('drop') && this.canAct()) this.dropSelected();
     }
     this.held.update(dt);
     this.updateInteraction(dt);
@@ -373,8 +409,30 @@ export class Game {
     if (P.pos.y < (this.def.killY ?? -60)) this.fellIntoVoid();
   }
 
+  // Players can't walk through creatures: slide around their bodies.
+  pushOutOfEntities(level) {
+    const P = this.player;
+    for (const v of this.views.views.values()) {
+      const st = v.st;
+      if (st.s === 'dead' || st.s === 'gone' || st.s === 'collapsed' || v.def.flying || v.def.noPush) continue;
+      if (Math.abs(st.y - P.pos.y) > 1.7) continue;
+      const r = (v.def.radius ?? 0.4) + 0.34;
+      const dx = P.pos.x - st.x, dz = P.pos.z - st.z, d = Math.hypot(dx, dz);
+      if (d >= r) continue;
+      const nx = d > 1e-3 ? dx / d : 1, nz = d > 1e-3 ? dz / d : 0;
+      const b = P.body;
+      b.x = P.pos.x; b.y = P.pos.y; b.z = P.pos.z;
+      level.move(b, nx * (r - d), nz * (r - d));
+      P.pos.x = b.x; P.pos.z = b.z;
+      // kill velocity into the creature
+      const into = P.vel.x * -nx + P.vel.z * -nz;
+      if (into > 0) { P.vel.x += nx * into; P.vel.z += nz * into; }
+    }
+  }
+
   // ------------------------------------------------------------------ interaction
   updateInteraction(dt) {
+    if (this.downed) { this.interactTarget = null; return; }
     const cam = this.engine.camera;
     let tgt = null;
     let label = null, sub = null;
@@ -387,11 +445,12 @@ export class Game {
       }
     }
     if (reviveCand) {
-      label = `Hold <kbd>E</kbd> to revive ${reviveCand.name}`;
-      if (input.isDown('KeyE') && this.canAct()) {
+      label = `Hold <kbd>${input.label('interact')}</kbd> to revive ${reviveCand.name}`;
+      if (input.act('interact') && this.canAct()) {
         this.reviveT += dt;
-        this.hud.progress(this.reviveT / 3.5, 'Reviving ' + reviveCand.name);
-        if (this.reviveT >= 3.5) {
+        const need = 3.5 / classPerk(this, 'reviveMul', 1);
+        this.hud.progress(this.reviveT / need, 'Reviving ' + reviveCand.name);
+        if (this.reviveT >= need) {
           this.reviveT = 0;
           this.hud.progress(-1);
           this.request({ t: 'revive', target: reviveCand.id });
@@ -401,13 +460,13 @@ export class Game {
     } else {
       if (this.reviveT > 0) { this.reviveT = 0; this.hud.progress(-1); }
       if (this.hidden) {
-        label = '<kbd>E</kbd> Leave hiding spot';
-        if (input.pressed('KeyE') && !this.ui.modalOpen) this.leaveHiding();
+        label = `<kbd>${input.label('interact')}</kbd> Leave hiding spot`;
+        if (input.actPressed('interact') && !this.ui.modalOpen) this.leaveHiding();
       } else if (!this.dead && !this.ui.modalOpen) {
         tgt = this.objects.target(cam);
         if (tgt) {
-          label = `<kbd>E</kbd> ${tgt.label}`;
-          if (input.pressed('KeyE') && this.canAct() && !this.downed) this.interact(tgt);
+          label = `<kbd>${input.label('interact')}</kbd> ${tgt.label}`;
+          if (input.actPressed('interact') && this.canAct() && !this.downed) this.interact(tgt);
         }
       }
     }
@@ -465,7 +524,7 @@ export class Game {
   readNote(id) {
     const n = NOTES[id];
     if (!n) return;
-    if (!this.journal.includes(id)) { this.journal.push(id); this.stats0.notes++; this.stats.scare(-3); }
+    if (!this.journal.includes(id)) { this.journal.push(id); this.stats0.notes++; this.stats.scare(classPerk(this, 'notesBonus', false) ? -9 : -3); }
     this.sfx('paper', null, {});
     this.ui.showNote(n);
   }
@@ -519,7 +578,7 @@ export class Game {
     const idx = this.inventory.selected;
     const it = this.inventory.slots[idx];
     if (!it) return;
-    const qty = input.isDown('ShiftLeft') ? it.qty : 1;
+    const qty = input.act('sprint') ? it.qty : 1;
     this.dropItem(this.inventory.takeFrom(idx, qty));
   }
 
@@ -548,6 +607,22 @@ export class Game {
         return;
       }
     }
+  }
+
+  // Teleport anywhere: same level moves you, another level loads it first.
+  travelTo(levelId, pos) {
+    if (levelId === this.levelId && pos) {
+      const L = this.level;
+      let f = L.floorAt(pos.x, pos.z);
+      let x = pos.x, z = pos.z;
+      if (!isFinite(f)) { const p = L.randomWalkableNear(pos.x, pos.z, 6); if (p) { x = p.x; z = p.z; f = L.floorAt(x, z); } }
+      if (!isFinite(f)) f = pos.y ?? 0;
+      this.player.teleport(x, f + 0.05, z);
+      return;
+    }
+    if (levelId === this.levelId && !pos) { const sp = this.level.spawnPoint(); this.player.teleport(sp.x, sp.y + 0.05, sp.z); return; }
+    this.request({ t: 'exitUsed', from: this.levelId, to: levelId, tp: true });
+    this.enterLevel(levelId, pos ? { spawn: pos } : {});
   }
 
   useExit(to) {
@@ -596,6 +671,16 @@ export class Game {
     if (m.fx !== undefined) {
       const ang = Math.atan2(m.fx - this.player.pos.x, m.fz - this.player.pos.z) - (this.player.yaw + Math.PI);
       this.hud.damageDir(ang);
+      // the blow jerks your view toward the attacker and shoves you back
+      const toward = Math.atan2(-(m.fx - this.player.pos.x), -(m.fz - this.player.pos.z));
+      let dy = toward - this.player.yaw; while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
+      const k = Math.min(1, m.a / 30);
+      this.player.addRecoil(0.06 * k, dy * 0.12 * k);
+      if (!m.push) {
+        const d = Math.hypot(this.player.pos.x - m.fx, this.player.pos.z - m.fz) || 1;
+        this.player.vel.x += (this.player.pos.x - m.fx) / d * 3 * k; this.player.vel.z += (this.player.pos.z - m.fz) / d * 3 * k;
+      }
+      this.player.staggerT = 0.35 * k;
     }
     if (m.push) { this.player.vel.x += m.push.x; this.player.vel.z += m.push.z; this.player.vel.y += m.push.y || 0; }
   }
@@ -625,41 +710,123 @@ export class Game {
     if (this.hidden) this.leaveHiding(true);
     this.lights.on = false;
     this.sfx('stinger', null, { intensity: 1.3 });
-    const solo = !this.online || ![...this.remotes.values()].some(r => !r.st.dead);
-    this.ui.showDeath(cause, solo, this);
+    this.ui.showDeath(cause, true, this);
   }
 
   respawn(atLevel) {
+    if (!this.dead && !this.downed) return;
     this.dead = false; this.downed = false; this.spectating = false;
+    this.stats.dead = false;
     this.stats.reset(true);
     this.ui.hideDeath();
     if (atLevel && atLevel !== this.levelId) { this.enterLevel(atLevel); return; }
     const cp = this.checkpoint;
     this.player.teleport(cp.x, cp.y + 0.05, cp.z);
-    this.subtitle('You wake up, gasping, somewhere you have been before.', 3);
+    this.subtitle(this.online ? 'You wake up, gasping, back where you entered this level. Your team is somewhere ahead.' : 'You wake up, gasping, somewhere you have been before.', 3.5);
+    if (this.online) this.request({ t: 'respawned' });
   }
 
-  startSpectate() {
-    this.spectating = true;
-    this.ui.hideDeath();
-    this.ui.spectate(true);
+  // Pick a role (if none yet) through the role screen.
+  chooseRole(id) {
+    applyClass(this, id);
+    this.applyArmorMods();
+    this.subtitle(`${CLASSES[id].name}: ${CLASSES[id].perks[0]}.`, 3.5);
+    if (this.online) this.request({ t: 'role', c: id });
+  }
+  promptRole() {
+    if (this.classId) return;
+    this.ui.openRolePicker(this, id => { this.chooseRole(id); input.lock(); });
   }
 
-  updateSpectate(dt) {
-    if (!this.spectating) return;
-    const list = [...this.remotes.values()].filter(r => r.levelId === this.levelId && !r.st.dead);
-    if (!list.length) { this.ui.spectateName('—'); return; }
-    if (input.pressed('Mouse0')) this.spectateIdx++;
-    const r = list[this.spectateIdx % list.length];
-    this.ui.spectateName(r.name);
-    const cam = this.engine.camera;
-    const yaw = r.st.yaw;
-    const tx = r.st.x + Math.sin(yaw) * 2.6, tz = r.st.z + Math.cos(yaw) * 2.6;
-    cam.position.x = damp(cam.position.x, tx, 6, dt);
-    cam.position.z = damp(cam.position.z, tz, 6, dt);
-    cam.position.y = damp(cam.position.y, r.st.y + 2.0, 6, dt);
-    cam.lookAt(r.st.x, r.st.y + 1.4, r.st.z);
-    this.player.pos.set(r.st.x, r.st.y, r.st.z);
+  // ------------------------------------------------------------------ items: consume, armor, transmitter
+  consumeNow(def, idx) {
+    this.stats.applyEffects(def.effects);
+    if (def.effects.revive && this.downed) this.selfRevive();
+    this.inventory.takeFrom(idx, 1);
+    this.sfx(def.sound || 'pickup', null, {});
+    if (def.effects.status) this.subtitle(def.effects.status[0] === 'inkward' ? 'It tastes of nothing. The air feels thinner around you.' : 'A clean, cold rush. Your legs feel tireless.', 2.5);
+  }
+
+  selfRevive() {
+    if (!this.downed) return;
+    this.downed = false;
+    this.stats.health = Math.max(this.stats.health, 30);
+    this.stats.bleeding = 0;
+    this.subtitle('The adrenaline hits. You drag yourself up.', 2.5);
+    this.sfx('revive', null, {});
+  }
+
+  wearArmor(idx) {
+    const it = this.inventory.slots[idx];
+    if (!it || ITEMS[it.id].type !== 'armor') return;
+    const taken = this.inventory.takeFrom(idx, 1);
+    if (this.armor) this.inventory.add(this.armor);
+    this.armor = taken;
+    this.applyArmorMods();
+    this.sfx('rummage', null, { volume: 0.7 });
+    this.subtitle(`You strap on the ${ITEMS[taken.id].name.toLowerCase()}.`, 1.8);
+  }
+
+  removeArmor() {
+    if (!this.armor) return;
+    const left = this.inventory.add(this.armor);
+    if (left > 0) this.dropItem(this.armor);
+    this.armor = null;
+    this.applyArmorMods();
+  }
+
+  applyArmorMods() {
+    const A = this.armor ? ITEMS[this.armor.id].armor : null;
+    this.player.armorSlow = A ? 1 - A.slow : 1;
+    this.armorStamina = A ? A.stamina : 1;
+    this.hud.armorChanged(this);
+  }
+
+  activeTransmitter() {
+    for (const s of this.inventory.slots) if (s && s.id === 'transmitter' && s.data.on && s.data.charge > 0) return s;
+    return null;
+  }
+
+  toggleTransmitter(it) {
+    if (!it) return;
+    if (!it.data.on && it.data.charge <= 0) { this.subtitle('The transmitter is dead. Use a battery on it.', 2); this.sfx('click', null, {}); return; }
+    // only one runs at a time
+    for (const s of this.inventory.slots) if (s && s.id === 'transmitter' && s !== it) s.data.on = false;
+    it.data.on = !it.data.on;
+    this.sfx('click', null, {});
+    if (it.data.on) { this.sfx('keyChirp', null, {}); this.transT = 0; }
+    this.inventory.changed();
+  }
+
+  // HUD panel: your coordinates and every teammate's, refreshed every 3 s
+  updateTransmitterHud(dt) {
+    const el = this._tpEl || (this._tpEl = document.getElementById('transmitterPanel'));
+    const tr = this.levelId && !this.dead ? this.activeTransmitter() : null;
+    if (!tr) { if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    tr.data.charge = Math.max(0, tr.data.charge - dt * 0.05);
+    if (tr.data.charge <= 0) { tr.data.on = false; this.subtitle('The transmitter beeps once and dies.', 2); this.inventory.changed(); return; }
+    this.transT = (this.transT || 0) - dt;
+    if (this.transT > 0) return;
+    this.transT = 3;
+    const P = this.player.pos, yaw = this.player.yaw;
+    const fmt = v => (v >= 0 ? ' ' : '') + Math.round(v);
+    const rows = [`<div class="tp-row me"><span>You (${LEVELS[this.levelId].name})</span><span>X${fmt(P.x)}</span><span>Z${fmt(P.z)}</span></div>`];
+    const arrows = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
+    for (const r of this.remotes.values()) {
+      const b = r.buf[r.buf.length - 1]?.s;
+      if (!b) continue;
+      const same = r.levelId === this.levelId;
+      let extra = '';
+      if (same) {
+        const dx = b.x - P.x, dz = b.z - P.z, d = Math.hypot(dx, dz);
+        let a = Math.atan2(-dx, -dz) - yaw; a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        extra = ` <span class="arr">${arrows[Math.round((Math.PI * 2 - a) / (Math.PI / 4)) % 8]}</span>${Math.round(d)}m`;
+      }
+      rows.push(`<div class="tp-row ${same ? '' : 'far'}"><span>${escapeHtml(r.name)} (${LEVELS[r.levelId]?.name || '?'})${extra}</span><span>X${fmt(b.x)}</span><span>Z${fmt(b.z)}</span></div>`);
+    }
+    if (!this.online) rows.push('<div class="tp-row far"><span>No other signals.</span></div>');
+    el.innerHTML = `<div class="tp-h"><span>◉ LOCATION TRANSMITTER</span><span>${Math.round(tr.data.charge)}%</span></div>${rows.join('')}`;
   }
 
   // ------------------------------------------------------------------ helpers
@@ -806,7 +973,8 @@ export class Game {
     if (this.exitScanT <= 0) {
       this.exitScanT = 0.5;
       const P = this.player.pos, level = this.level;
-      let best = null, bd = 42;
+      const sense = classPerk(this, 'senseMul', 1);
+      let best = null, bd = 42 * sense;
       if (level && !this.transitioning) {
         const cx = Math.floor(P.x / CHUNK), cz = Math.floor(P.z / CHUNK);
         for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
@@ -828,7 +996,7 @@ export class Game {
           if (!level.hasChunk(cx + dx, cz + dz)) continue;
           for (const o of level.chunk(cx + dx, cz + dz).objects) {
             if (o.kind !== 'pickup' || !KEY_ITEMS.has(o.item) || this.world.get(this.levelId, o.id)?.taken) continue;
-            if (Math.hypot(o.x - P.x, o.z - P.z) > 22) continue;
+            if (Math.hypot(o.x - P.x, o.z - P.z) > 22 * sense) continue;
             this.sfx('keyChirp', { x: o.x, y: (o.y || 0) + 0.5, z: o.z }, { ref: 3 });
             this.chirpT = 2.5;
             break outer;
@@ -844,7 +1012,7 @@ export class Game {
     if (n) {
       const pos = { x: n.o.x, y: (n.o.kind === 'hatch' ? 0.2 : 0), z: n.o.z };
       if (!this.draft) this.draft = audio.loop('draftLoop', { pos, volume: 1, ref: 3, rolloff: 1.1 });
-      if (this.draft) { this.draft.setPos(pos); this.draft.set('level', Math.min(1, (1 - n.d / 42) * 1.4)); }
+      if (this.draft) { this.draft.setPos(pos); this.draft.set('level', Math.min(1, (1 - n.d / (42 * classPerk(this, 'senseMul', 1))) * 1.4)); }
     } else if (this.draft) { this.draft.set('level', 0); }
   }
 
@@ -857,7 +1025,7 @@ export class Game {
   }
 
   updateRemoteLights() {
-    // remote flashlights only use fake volumetric beams (cheap)
+    this.lights.updateRemote(this.remotes.values(), this.levelId, this.engine.camera.position);
   }
 
   // ------------------------------------------------------------------ host simulation
@@ -869,7 +1037,7 @@ export class Game {
       const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
       out.push({
         id: this.myId, levelId: this.levelId, x: P.pos.x, y: P.pos.y, z: P.pos.z, crouch: P.crouching, sprint: P.sprinting,
-        hidden: this.hidden || this.notarget, downed: this.downed, dead: this.dead || this.spectating || this.downed, light: this.lights.on, focus: this.lights.focus,
+        hidden: this.hidden || this.notarget, downed: this.downed, dead: this.dead || this.downed, light: this.lights.on, focus: this.lights.focus,
         dir: { x: dir.x, y: dir.y, z: dir.z }, lighter: this.held.lighterLit, sanity: this.stats.sanity, swim: P.swimming,
         inWater: this.level.waterAt(P.pos.x, P.pos.z) > P.pos.y + 0.4, ambientLight: this.ambientLightAt(P.pos),
       });
@@ -984,9 +1152,10 @@ export class Game {
     const it = this.inventory.held;
     return {
       x: +P.pos.x.toFixed(2), y: +P.pos.y.toFixed(2), z: +P.pos.z.toFixed(2), yw: +P.yaw.toFixed(3), pt: +P.pitch.toFixed(3),
-      lvl: this.levelId, cr: P.crouching, sp: P.sprinting, sw: P.swimming, dn: this.downed, dd: this.dead || this.spectating, hd: this.hidden, nt: this.notarget || undefined,
+      lvl: this.levelId, cr: P.crouching, sp: P.sprinting, sw: P.swimming, dn: this.downed, dd: this.dead, hd: this.hidden, nt: this.notarget || undefined,
       hi: it ? it.id : null, fl: this.lights.on, fo: this.lights.focus, lt: this.held.lighterLit, hp: Math.round(this.stats.health),
       sn: Math.round(this.stats.sanity), iw: this.level ? this.level.waterAt(P.pos.x, P.pos.z) > P.pos.y + 0.4 : false,
+      us: this.held.useT > 0 ? useAnim(it) : undefined, cl: this.classId || undefined,
     };
   }
 
@@ -1094,11 +1263,14 @@ export class Game {
         break;
       }
       case 'revive': this.hostSend(m.target, { t: 'revived', by: this.nameOf(pid) }); break;
+      case 'role': {
+        const r = this.roster.get(pid);
+        if (r && CLASSES[m.c]) { r.classId = m.c; this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} is the team's ${CLASSES[m.c].name.toLowerCase()}.` }, true); }
+        break;
+      }
+      case 'respawned': this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} respawned at the level entrance.` }, true, pid); break;
       case 'exitUsed': {
-        // first one through an exit brings dead teammates along
-        for (const [id, s] of this.pstate) if (id !== pid && s.dd) this.hostSend(id, { t: 'respawn', lvl: m.to });
-        if (pid !== this.myId && this.dead) this.clientHandle({ t: 'respawn', lvl: m.to });
-        this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} went deeper — ${LEVELS[m.to]?.name || ''}.` }, true);
+        if (!m.tp) this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} went ${LEVEL_ORDER.indexOf(m.to) < LEVEL_ORDER.indexOf(m.from) ? 'back up' : 'deeper'} — ${LEVELS[m.to]?.name || ''}.` }, true);
         break;
       }
       case 'victory': this.hostBroadcast({ t: 'victory', by: this.nameOf(pid) }); break;
@@ -1139,6 +1311,8 @@ export class Game {
         const r = this.entities.damage(e.id, 1e9, 'cheat', pid);
         if (!r?.killed) { e.hp = 0; e.state = 'dead'; e.stateT = 0; e.stateChanged = true; }
       }
+    } else if (m.c === 'tpPlayer' && m.to && LEVELS[m.to.l]) {
+      this.hostSend(m.target, { t: 'tpTo', to: m.to, by: this.nameOf(pid) });
     } else if (m.c === 'flag' && typeof m.k === 'string') {
       this.hostBroadcast({ t: 'flag', l: m.l, k: m.k.slice(0, 32), v: !!m.v });
     }
@@ -1149,6 +1323,7 @@ export class Game {
   hostWelcome(pid, m) {
     const name = String(m.name || 'Wanderer').slice(0, 20);
     this.roster.set(pid, { name, skin: normalizeSkin(m.skin) });
+    this.noteLootPlayers();
     const hostState = this.localState();
     this.session.sendTo(pid, {
       t: 'welcome', id: pid, seed: this.seed, difficulty: this.difficulty, friendlyFire: this.friendlyFire,
@@ -1184,7 +1359,7 @@ export class Game {
     const set = ns => this.hostBroadcast({ t: 'os', l: m.l, id: m.id, s: ns });
     switch (o.kind) {
       case 'pickup':
-        if (s.taken) return;
+        if (s.taken || o.mp > this.lootPlayers) return;
         set({ taken: true });
         this.hostSend(pid, { t: 'give', item: { id: o.item, qty: o.qty || 1 } });
         break;
@@ -1194,7 +1369,8 @@ export class Game {
         this.hostSend(pid, { t: 'give', item: { id: o.item, qty: o.qty || 1, data: o.data } });
         break;
       case 'container': {
-        const loot = s.opened ? [...(s.loot || [])] : o.loot.map(x => ({ ...x, data: ITEMS[x.item]?.data ? { ...ITEMS[x.item].data } : undefined }));
+        const base = s.opened ? null : [...o.loot, ...(o.lootMp || []).filter(x => x.mp <= this.lootPlayers)];
+        const loot = s.opened ? [...(s.loot || [])] : base.map(x => ({ item: x.item, qty: x.qty, data: ITEMS[x.item]?.data ? { ...ITEMS[x.item].data } : undefined }));
         if (m.a === 'open') set({ opened: true, loot });
         else if (m.a === 'take') {
           const it = loot[m.i];
@@ -1251,6 +1427,7 @@ export class Game {
             const info = this.roster.get(s.id) || { name: 'Wanderer' };
             r = new RemotePlayer(this, s.id, { ...info, lvl: s.lvl });
             this.remotes.set(s.id, r);
+            this.noteLootPlayers();
           }
           r.push(s, this.time);
         }
@@ -1297,6 +1474,7 @@ export class Game {
       case 'sys': this.hud.chat(null, m.text); break;
       case 'pinfo':
         this.roster.set(m.id, { name: m.name, skin: m.skin });
+        this.noteLootPlayers();
         this.remotes.get(m.id)?.setInfo(m);
         break;
       case 'leave': {
@@ -1315,9 +1493,14 @@ export class Game {
         }
         break;
       case 'respawn':
-        if (this.dead || this.spectating) this.respawn(m.lvl);
+        if (this.dead) this.respawn(m.lvl);
         break;
       case 'victory': this.victory(m.by); break;
+      case 'tpTo':
+        if (this.dead) this.respawn();
+        this.subtitle(`${m.by} moved you.`, 2);
+        this.travelTo(m.to.l, m.to.x !== undefined ? { x: m.to.x + 0.8, y: m.to.y, z: m.to.z + 0.8 } : null);
+        break;
       case 'kicked': case 'hostLeft': this.ui.disconnected(m.t === 'kicked' ? 'You were removed from the room.' : 'The host left the game.'); break;
       default:
         this.def?.clientMessage?.(this, m);
@@ -1346,10 +1529,26 @@ export class Game {
   clientFx(m) {
     if (m.l !== this.levelId) return;
     if (m.k === 'shot') {
-      const p = { x: m.x, y: m.y, z: m.z };
+      const p = new THREE.Vector3(m.x, m.y, m.z);
       this.sfx(m.w, p, { volume: 1, ref: 6 });
-      this.effects.flash(p, 0.4, 0.05);
-      this.lights.muzzle(new THREE.Vector3(m.x, m.y, m.z));
+      this.effects.flash(p, (m.fl || 0.4) * 0.5, 0.05);
+      this.lights.muzzle(p);
+      if (m.fx !== undefined) this.effects.burst('muzzleSmoke', p, { x: m.fx, y: m.fy, z: m.fz });
+      for (const im of m.im || []) {
+        const ip = new THREE.Vector3(im[0], im[1], im[2]);
+        this.effects.tracer(p, ip);
+        if (im[3] === 'e') this.effects.burst(im[4] || 'blood', ip, { x: 0, y: 0.5, z: 0 }, 0.6);
+        else if (im.length >= 6) {
+          const n = { x: im[3], y: im[4], z: im[5] };
+          this.effects.burst('impact', ip, n, 0.7);
+          this.effects.bulletHole(ip, n);
+          if (Math.random() < 0.3) this.sfx('ricochet', ip, { volume: 0.4 });
+        }
+      }
+    } else if (m.k === 'melee') {
+      const ip = { x: m.x, y: m.y, z: m.z };
+      this.effects.burst(m.b || 'impact', ip, { x: 0, y: 0.5, z: 0 }, 0.5);
+      this.sfx(m.b === 'bone' ? 'hitBone' : m.b ? 'hitFlesh' : 'hitWall', ip, { volume: 0.6 });
     } else if (m.k === 'splash') {
       this.effects.burst('splash', m);
       this.sfx('splash', m, { volume: 0.6 });
@@ -1380,6 +1579,7 @@ export class Game {
     const scene = this.engine.scene;
     scene.remove(this.renderer.root, this.objects.root, this.views.root, this.hemi, this.lightMgr.group, this.effects.points, this.effects.apoints, this.effects.dust);
     scene.remove(this.lights.spot, this.lights.spot.target, this.lights.fill, this.lights.muzzleLight, this.lights.lighter, ...this.lights.pool);
+    for (const l of this.lights.remote) scene.remove(l, l.target);
     this.engine.camera.remove(this.viewmodel.root);
     this.buzz?.stop();
     this.draft?.stop();
@@ -1389,3 +1589,7 @@ export class Game {
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function useAnim(it) {
+  const snd = it && ITEMS[it.id]?.sound;
+  return snd === 'drink' ? 'drink' : snd === 'bandage' ? 'bandage' : 'eat';
+}

@@ -36,15 +36,29 @@ export function rollLoot(rng, table, rolls = 1) {
   return out;
 }
 
+// Loot scales with the number of players: every pickup has a few extra copies
+// that only exist once the session has had at least `mp` players, and
+// containers carry extra pre-rolled entries gated the same way. Generation
+// stays deterministic for every peer; the gate is applied at runtime.
+const MP_TIERS = [2, 4, 6];
 export function addPickup(c, rng, table, x, y, z) {
   const loot = rollLoot(rng, table, 1)[0];
   if (!loot) return null;
-  return addObject(c, { kind: 'pickup', item: loot.item, qty: loot.qty, x, y, z, ry: rng.float(0, Math.PI * 2) });
+  const o = addObject(c, { kind: 'pickup', item: loot.item, qty: loot.qty, x, y, z, ry: rng.float(0, Math.PI * 2) });
+  for (const mp of MP_TIERS) {
+    if (!rng.chance(0.75)) continue;
+    const extra = rollLoot(rng, table, 1)[0];
+    if (!extra) continue;
+    const a = rng.float(0, Math.PI * 2), d = rng.float(0.35, 0.7);
+    addObject(c, { kind: 'pickup', item: extra.item, qty: extra.qty, x: x + Math.cos(a) * d, y, z: z + Math.sin(a) * d, ry: rng.float(0, Math.PI * 2), mp });
+  }
+  return o;
 }
 
 export function addContainer(c, rng, ctype, table, x, y, z, ry, rolls = [1, 3]) {
   const loot = rollLoot(rng, table, rng.int(rolls[0], rolls[1]));
-  return addObject(c, { kind: 'container', ctype, loot, x, y, z, ry });
+  const lootMp = rollLoot(rng, table, 4).map((it, k) => ({ ...it, mp: [2, 3, 5, 7][k] }));
+  return addObject(c, { kind: 'container', ctype, loot, lootMp, x, y, z, ry });
 }
 
 export function addNote(c, noteId, x, y, z, ry = 0) {
@@ -105,7 +119,7 @@ export function tileCenter(c, lx, lz) { return { x: c.tx(lx), z: c.tz(lz) }; }
 
 // Environmental storytelling vignette: the remains of a wanderer (with their
 // backpack) or an abandoned camp, placed on a free tile.
-const PACK_LOOT = [['almondWater', 20], ['battery', 18, [1, 3]], ['bandage', 14], ['snackBar', 12], ['flare', 8], ['glowstick', 10, [1, 3]], ['ammo9', 8, [5, 10]], ['painkillers', 8], ['knife', 3], ['lighter', 4]];
+const PACK_LOOT = [['cleanWater', 12], ['dirtyWater', 10], ['gpsBoard', 4], ['antenna', 4], ['cloth', 6], ['battery', 18, [1, 3]], ['bandage', 14], ['snackBar', 12], ['flare', 8], ['glowstick', 10, [1, 3]], ['ammo9', 8, [5, 10]], ['painkillers', 8], ['knife', 3], ['lighter', 4]];
 export function addVignette(c, rng, addPropFn, noteIds, floorY = 0) {
   for (let k = 0; k < 12; k++) {
     const lx = rng.int(2, CS - 3), lz = rng.int(2, CS - 3), i = lz * CS + lx;

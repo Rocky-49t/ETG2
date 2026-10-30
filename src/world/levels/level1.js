@@ -12,11 +12,11 @@ import { registerObjectKind } from '../../game/objects.js';
 import { ITEMS } from '../../game/items.js';
 
 const LOOT = [
-  ['almondWater', 18], ['waterBottle', 12], ['snackBar', 14], ['cannedBeans', 8], ['battery', 14, [1, 2]], ['bandage', 12],
-  ['flare', 10, [1, 2]], ['lighter', 6], ['ammo9', 10, [6, 12]], ['glowstick', 8, [1, 2]], ['crowbar', 3], ['knife', 3], ['pistol', 2], ['ductTape', 4], [null, 18],
+  ['dirtyWater', 16], ['cleanWater', 8], ['fireSalts', 14], ['snackBar', 8], ['scrap', 8], ['wire', 6], ['gpsBoard', 2], ['cannedBeans', 8], ['battery', 14, [1, 2]], ['bandage', 12],
+  ['flare', 10, [1, 2]], ['lighter', 6], ['ammo9', 10, [6, 12]], ['glowstick', 8, [1, 2]], ['crowbar', 3], ['knife', 10], ['pistol', 2], ['ductTape', 4], [null, 18],
 ];
 const CRATE_LOOT = [
-  ['flare', 16, [1, 2]], ['ammo9', 16, [8, 15]], ['battery', 12, [1, 3]], ['cannedBeans', 10], ['waterBottle', 10], ['bandage', 10], ['medkit', 3],
+  ['flare', 16, [1, 2]], ['ammo9', 16, [8, 15]], ['battery', 12, [1, 3]], ['cannedBeans', 10], ['cleanWater', 8], ['fireSalts', 10], ['scrap', 8], ['knife', 6], ['bandage', 10], ['medkit', 3],
   ['lighter', 6], ['pistol', 4], ['shells', 4, [3, 6]], ['crowbar', 4], ['ductTape', 6], ['energyDrink', 5], [null, 10],
 ];
 
@@ -363,7 +363,7 @@ export default {
         addProp(c, 'debris', cxw + 0.8, 0, czw + 0.4, 0, { mat: 'concrete' });
         addDecal(c, { name: 'stain', x: cxw, y: 0.005, z: czw, nx: 0, ny: 1, nz: 0, size: 2, rot: 0 });
         const s = take(rs); if (s) { const p = wallPos(c, s, 0.5); addProp(c, 'table', p.x, 0, p.z, yawFor(s.nx, s.nz)); addNote(c, 'l1_b', p.x, 0.79, p.z, 0.4); }
-        const s2 = take(rs); if (s2) { const p = wallPos(c, s2, 0.4); addContainer(c, rng, 'crate', [['flare', 10, [1, 2]], ['lighter', 6], ['waterBottle', 5]], p.x, 0, p.z, yawFor(s2.nx, s2.nz), [2, 2]); }
+        const s2 = take(rs); if (s2) { const p = wallPos(c, s2, 0.4); addContainer(c, rng, 'crate', [['flare', 10, [1, 2]], ['lighter', 6], ['cleanWater', 5], ['fireSalts', 5]], p.x, 0, p.z, yawFor(s2.nx, s2.nz), [2, 2]); }
       } else if (r.type === 'exit') {
         // service door set into the wall farthest from the room entrance
         const cand = rs.filter(s => (s.nz !== 0 ? s.lx > r.x && s.lx < r.x + r.w - 1 : s.lz > r.z && s.lz < r.z + r.h - 1));

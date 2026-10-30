@@ -148,7 +148,7 @@ input[type=color] { padding: 0; width: 38px; height: 30px; border-radius: 4px; c
 .lobby-chat .chat-log { height: 140px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); border-radius: 4px; padding: 8px; overflow-y: auto; }
 
 /* ---------------- settings & help */
-.settings-grid { display: grid; gap: 12px; }
+.settings-grid { display: grid; gap: 12px; max-height: 68vh; overflow-y: auto; padding-right: 6px; }
 .settings-grid .srow { display: grid; grid-template-columns: 150px 1fr 44px; align-items: center; gap: 10px; font-size: 13px; }
 .settings-grid .srow .val { font: 12px var(--mono); color: var(--muted); text-align: right; }
 .settings-grid .seg { display: flex; gap: 4px; }
@@ -233,7 +233,9 @@ input[type=color] { padding: 0; width: 38px; height: 30px; border-radius: 4px; c
 #lightInfo { position: absolute; right: 30px; bottom: 100px; display: flex; gap: 8px; align-items: center; width: 140px; }
 #lightInfo .ic { font-size: 12px; }
 
-#chat { position: absolute; left: 26px; bottom: 150px; width: 380px; pointer-events: auto; }
+#chat { position: fixed; left: 26px; bottom: 150px; width: 380px; pointer-events: auto; z-index: 11; font-family: var(--sans); }
+#chat.hidden { display: none; }
+body.is-loading #chat { z-index: 85; bottom: 40px; }
 .chat-log { font: 13px var(--sans); line-height: 1.4; display: grid; gap: 2px; align-content: end; }
 #chat .chat-log { max-height: 180px; overflow: hidden; }
 .chat-log .msg { text-shadow: 0 1px 3px #000; transition: opacity 1s; }
@@ -333,3 +335,61 @@ h2.blood { font: 400 42px var(--type) !important; color: var(--danger) !importan
 .console-row { display: flex; align-items: center; gap: 8px; padding: 6px 16px 10px; }
 .console-row span { color: #f4dc7a; }
 #consoleInput { flex: 1; background: transparent; border: none; outline: none; color: #fff; font: 14px var(--mono); }
+
+/* ---------------- holsters, worn armor, crafting */
+.slot.holster { border-style: dashed; border-color: rgba(138, 154, 82, 0.6); }
+.slot.holster .key { color: #a8b86a; }
+.slot.holster::after { content: 'GUN'; position: absolute; right: 3px; top: 2px; font: 700 8px var(--mono); color: rgba(168, 184, 106, 0.6); }
+.slot.picked { outline: 2px solid var(--accent); outline-offset: 1px; }
+.small-note { font: 11px var(--sans); font-weight: 400; letter-spacing: 0; margin-left: 8px; text-transform: none; }
+.worn-box { margin-top: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: rgba(0, 0, 0, 0.3); }
+.worn-box .ic { width: 36px; height: 36px; }
+.worn-box .bar { flex: 1; height: 5px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; }
+.worn-box .bar div { height: 100%; background: #9bd46b; }
+.craft-box { margin-top: 12px; }
+.craft-box h3 { margin: 0 0 6px; }
+.craft-list { display: grid; gap: 5px; max-height: 260px; overflow-y: auto; padding-right: 4px; }
+.recipe { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; padding: 5px 7px; border: 1px solid var(--line); border-radius: 4px; background: rgba(0, 0, 0, 0.25); }
+.recipe.ok { border-color: rgba(155, 212, 107, 0.45); }
+.recipe .out { width: 34px; height: 34px; }
+.recipe .name { font-size: 12.5px; font-weight: 600; }
+.recipe .needs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.recipe .need { display: inline-flex; align-items: center; gap: 2px; font: 11px var(--mono); color: #9bd46b; }
+.recipe .need.miss { color: #e2735f; }
+.recipe .need .ic { width: 18px; height: 18px; display: inline-block; }
+.recipe button { padding: 4px 10px; font-size: 12px; }
+#hotbar .slot.holster.off, .inv-grid .slot.holster.off { display: none; }
+/* status effects + transmitter */
+#statusFx { position: absolute; right: 22px; top: 120px; display: grid; gap: 5px; justify-items: end; }
+.status-chip { display: flex; align-items: center; gap: 7px; padding: 4px 9px; border-radius: 4px; background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(255, 255, 255, 0.12); font: 600 12px var(--sans); }
+.status-chip b { font: 12px var(--mono); color: var(--accent); }
+.status-chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+#transmitterPanel { position: absolute; left: 22px; top: 96px; min-width: 230px; padding: 8px 11px 9px; background: rgba(6, 14, 8, 0.78); border: 1px solid rgba(125, 255, 160, 0.35); border-radius: 4px; font: 12px var(--mono); color: #b8ffcc; box-shadow: 0 0 18px rgba(60, 255, 120, 0.08); }
+#transmitterPanel.hidden { display: none; }
+#transmitterPanel .tp-h { display: flex; justify-content: space-between; color: #7dffa0; font-weight: 700; letter-spacing: 0.08em; font-size: 11px; margin-bottom: 4px; }
+#transmitterPanel .tp-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; line-height: 1.55; }
+#transmitterPanel .tp-row .arr { display: inline-block; width: 14px; text-align: center; }
+#transmitterPanel .tp-row.me { color: #fff; }
+#transmitterPanel .tp-row.far { opacity: 0.7; }
+#armorChip { display: none; }
+#armorFill { height: 100%; background: linear-gradient(90deg, #56603e, #a8b86a); }
+
+/* ---------------- role select */
+.role-panel { max-width: 1100px; }
+.role-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 14px; }
+.role-card { text-align: left; display: grid; gap: 7px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0, 0, 0, 0.35); cursor: pointer; font: 13px var(--sans); color: var(--text); transition: transform 0.12s, border-color 0.12s; }
+.role-card:hover { transform: translateY(-2px); border-color: var(--rc, var(--accent)); }
+.role-card .rc-ic { font-size: 26px; color: var(--rc); }
+.role-card .rc-name { font: 600 17px var(--sans); color: var(--rc); }
+.role-card .rc-role { font: 11px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: 0.1em; }
+.role-card ul { margin: 2px 0 0; padding-left: 16px; display: grid; gap: 3px; color: #cfc8b0; }
+.role-card .rc-kit { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.role-card .rc-kit canvas { width: 26px !important; height: 26px !important; }
+.np-class { font: 600 10px var(--mono); opacity: 0.85; margin-left: 4px; }
+
+/* ---------------- keybinds */
+.kb-head { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 6px; grid-column: 1 / -1; }
+.kb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 4px 18px; grid-column: 1 / -1; }
+.kb-row { display: grid; grid-template-columns: 1fr 78px 78px; gap: 6px; align-items: center; font-size: 13px; }
+.kb-key { font: 12px var(--mono); padding: 4px 6px; }
+.kb-key.listening { border-color: var(--accent); color: var(--accent); }

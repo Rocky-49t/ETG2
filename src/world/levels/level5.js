@@ -24,7 +24,7 @@ const SECTORS = 8;
 const COLLAPSE_ORDER = [1, 6, 3, 5, 2, 7]; // never 0 (exit side) or 4 (bridge side)
 const LANTERN = [1, 0.78, 0.5];
 
-const LOOT = [['almondWater', 16], ['waterBottle', 10], ['cannedBeans', 10], ['bandage', 14], ['medkit', 6], ['battery', 14, [1, 2]], ['flare', 14, [1, 2]], ['ammo9', 12, [8, 15]], ['shells', 8, [3, 6]], ['painkillers', 8], [null, 8]];
+const LOOT = [['cleanWater', 16], ['goanJuice', 8], ['rifleAmmo', 4, [6, 12]], ['cannedBeans', 10], ['bandage', 14], ['medkit', 6], ['battery', 14, [1, 2]], ['flare', 14, [1, 2]], ['ammo9', 12, [8, 15]], ['shells', 8, [3, 6]], ['painkillers', 8], [null, 8]];
 const ARMORY = [['shotgun', 10], ['smg', 10], ['pistol', 6], ['shells', 18, [4, 8]], ['ammo9', 18, [12, 24]], ['flare', 16, [2, 3]], ['medkit', 10]];
 
 registerProps({
@@ -254,7 +254,7 @@ export default {
       const gx = (GATE_X0 + 4) * TILE, gz = 17;
       addProp(c, 'gateArch', gx, 0, gz, Math.PI / 2, { w: 14 });
       addContainer(c, rng, 'crate', ARMORY, gx + 3, 0, gz - 6.5, 0, [3, 4]);
-      addContainer(c, rng, 'crate', [['flare', 20, [2, 3]], ['medkit', 8], ['battery', 10, [2, 3]], ['almondWater', 10]], gx - 3, 0, gz + 6.5, Math.PI, [3, 3]);
+      addContainer(c, rng, 'crate', [['flare', 20, [2, 3]], ['medkit', 8], ['battery', 10, [2, 3]], ['cleanWater', 10]], gx - 3, 0, gz + 6.5, Math.PI, [3, 3]);
       addNote(c, 'l5_d', gx + 1, 0.005, gz - 5.5, 0.4);
       addLight(c, { kind: 'bulb', cord: 0.2, shade: true, x: gx, y: 7.6, z: gz, color: LANTERN, intensity: 9, range: 16, flicker: 0.15 });
     }

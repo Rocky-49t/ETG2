@@ -163,7 +163,9 @@ class App {
     const session = new Session();
     const game = this.makeGame(session, seedStr, { difficulty: this.params.get('difficulty') || 'normal' });
     await game.enterLevel(LEVELS[level] ? level : FIRST_LEVEL);
-    if (this.params.get('god')) { game.stats.damage = () => {}; }
+    if (this.params.get('god')) { game.cheatGod = true; }
+    if (this.params.get('class')) game.chooseRole(this.params.get('class'));
+    else game.promptRole();
     this.relock();
   }
 
@@ -181,6 +183,7 @@ class App {
       if (!isFinite(level.floorAt(sp.x, sp.z))) Object.assign(sp, level.spawnPoint());
       await game.enterLevel(lvl, { spawn: sp });
     } else await game.enterLevel(FIRST_LEVEL);
+    game.promptRole();
     this.relock();
   }
 
@@ -205,29 +208,33 @@ class App {
     window.addEventListener('keydown', e => {
       const g = this.game;
       if (!g || input.isTyping(e)) return;
-      if (e.code === 'Backquote') {
+      const is = a => input.matches(a, e.code);
+      if (is('console')) {
         e.preventDefault();
         if (!this.ui.open.has('pause') && !g.won) this.console.toggle(g);
         return;
       }
       if (e.code === 'Escape') {
-        if (this.ui.open.has('chat')) return;
+        if (this.ui.open.has('chat')) { this.ui.closeChat(); return; }
         if (this.ui.open.has('settings')) { this.closeSettings(); return; }
         if (this.ui.open.has('help')) { this.ui.open.delete('help'); this.ui.screen('help', false); this.ui.pause(g); return; }
         if (this.ui.open.has('pause')) { if (performance.now() - (this.pausedAt || 0) > 350) this.ui.resume(); return; }
         if (this.ui.modalOpen) { for (const n of [...this.ui.open]) this.ui.closeModal(n); return; }
-        if (!g.dead && !g.won) this.ui.pause(g);
-      } else if ((e.code === 'Tab' || e.code === 'KeyI') && !g.dead) {
+        if (!g.dead && !g.won && !g.transitioning) this.ui.pause(g);
+      } else if (is('inventory') && !g.dead) {
         e.preventDefault();
-        if (this.ui.open.has('pause') || this.ui.open.has('note') || this.ui.open.has('journal')) return;
+        if (g.transitioning || this.ui.open.has('pause') || this.ui.open.has('note') || this.ui.open.has('journal') || this.ui.open.has('computer')) return;
         this.ui.toggleInventory(g);
-      } else if (e.code === 'KeyJ' && !this.ui.open.has('pause')) {
+      } else if (is('interact') && !e.repeat && this.ui.open.has('inventory')) {
+        // E closes the inventory / container screen (never opens it)
+        this.ui.toggleInventory(g);
+      } else if (is('journal') && !this.ui.open.has('pause') && !g.transitioning) {
         if (this.ui.open.has('journal')) this.ui.closeModal('journal');
         else if (!this.ui.modalOpen) this.ui.openJournal(g);
-      } else if ((e.code === 'KeyT' || e.code === 'Enter') && !this.ui.modalOpen) {
+      } else if (is('chat') && !this.ui.modalOpen) {
         e.preventDefault();
         this.ui.openChat(g);
-      } else if (e.code === 'KeyE' && this.ui.open.has('note')) {
+      } else if (is('interact') && this.ui.open.has('note')) {
         this.ui.closeModal('note');
       }
     });

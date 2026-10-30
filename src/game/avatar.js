@@ -240,7 +240,9 @@ export class Avatar {
     if (this.held) this.heldSlot.remove(this.held);
     this.held = model || null;
     if (model) {
-      model.rotation.set(-Math.PI / 2, 0, 0);
+      // item models point their barrel / front down -Z with +Y up; map that onto
+      // the hand so -Z runs along the fingers and +Y faces the back of the hand
+      model.rotation.set(-Math.PI / 2, 0, Math.PI);
       this.heldSlot.add(model);
     }
   }
@@ -288,6 +290,23 @@ export class Avatar {
         Lh.sh.rotation.x = Lh.sh.rotation.x * (1 - S.aim) + (-1.2 - pitch) * S.aim;
         Lh.sh.rotation.z = Lh.sh.rotation.z * (1 - S.aim) + -0.55 * S.aim;
         Lh.elbow.rotation.x = -0.6 * S.aim;
+      }
+    }
+    // eating / drinking / patching up: right hand to the mouth (or to the arm)
+    S.use = damp(S.use || 0, st.using ? 1 : 0, 9, dt);
+    if (S.use > 0.01) {
+      const R = this.arms[1], k = S.use;
+      const sip = st.using === 'drink' ? 0.25 + Math.sin(t * 2.2) * 0.08 : Math.sin(t * 7) * 0.12;
+      if (st.using === 'bandage') {
+        R.sh.rotation.x = R.sh.rotation.x * (1 - k) + -0.9 * k; R.sh.rotation.z = R.sh.rotation.z * (1 - k) + -0.6 * k;
+        R.elbow.rotation.x = R.elbow.rotation.x * (1 - k) + (-1.2 + Math.sin(t * 9) * 0.15) * k;
+        const Lh = this.arms[0];
+        Lh.sh.rotation.x = Lh.sh.rotation.x * (1 - k) + -0.7 * k; Lh.elbow.rotation.x = -1.0 * k;
+      } else {
+        R.sh.rotation.x = R.sh.rotation.x * (1 - k) + (-1.0 - sip) * k;
+        R.sh.rotation.z = R.sh.rotation.z * (1 - k) + -0.45 * k;
+        R.elbow.rotation.x = R.elbow.rotation.x * (1 - k) + -2.15 * k;
+        this.neck.rotation.x += (st.using === 'drink' ? -0.35 : 0.1) * k;
       }
     }
     // swimming: horizontal body with breaststroke

@@ -201,6 +201,15 @@ export const SFX = {
     tone(A, dest, t, { freq: 140, to: 45, a: 0.001, d: 0.16, vol: 0.9 });
     return 0.4;
   },
+  rifle(A, dest, o, t) {
+    // sharp supersonic crack, mechanical clack, then a rolling boom tail
+    burst(A, dest, t, { type: 'highpass', freq: 2600, a: 0.0005, d: 0.035, vol: 0.9 });
+    burst(A, dest, t, { type: 'lowpass', freq: 3000, a: 0.001, d: 0.12, vol: 1.0 });
+    tone(A, dest, t, { freq: 160, to: 40, a: 0.001, d: 0.18, vol: 0.95 });
+    burst(A, dest, t + 0.03, { kind: 'pink', type: 'lowpass', freq: 420, a: 0.01, d: 0.45, vol: 0.45 });
+    burst(A, dest, t + 0.012, { type: 'bandpass', freq: 3200, Q: 3, d: 0.02, vol: 0.18 });
+    return 0.6;
+  },
   smg(A, dest, o, t) {
     burst(A, dest, t, { type: 'lowpass', freq: 3200, a: 0.001, d: 0.09, vol: 0.85 });
     tone(A, dest, t, { freq: 120, to: 50, a: 0.001, d: 0.1, vol: 0.7 });

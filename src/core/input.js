@@ -2,6 +2,31 @@
 // consume edge-triggered presses via pressed(code).
 import { settings } from './settings.js';
 
+// Rebindable actions: [id, label, default codes]. Settings store overrides
+// under 'binds' as {id: [code, code2]}.
+export const ACTIONS = [
+  ['forward', 'Move forward', ['KeyW']], ['back', 'Move back', ['KeyS']], ['left', 'Strafe left', ['KeyA']], ['right', 'Strafe right', ['KeyD']],
+  ['sprint', 'Sprint', ['ShiftLeft']], ['crouch', 'Crouch / swim down', ['KeyC', 'ControlLeft']], ['jump', 'Jump / swim up', ['Space']],
+  ['use', 'Use / attack', ['Mouse0']], ['aim', 'Aim / focus beam', ['Mouse2']], ['interact', 'Interact (hold to revive)', ['KeyE']],
+  ['reload', 'Reload', ['KeyR']], ['flashlight', 'Flashlight', ['KeyF']], ['drop', 'Drop held item', ['KeyG']],
+  ['inventory', 'Inventory & crafting', ['Tab', 'KeyI']], ['journal', 'Journal', ['KeyJ']], ['chat', 'Chat', ['KeyT', 'Enter']],
+  ['respawn', 'Hold to give up (when downed)', ['KeyX']], ['console', 'Cheat console', ['Backquote']],
+  ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => ['hotbar' + n, 'Hotbar slot ' + n, ['Digit' + n]]),
+];
+const DEFAULT_BINDS = Object.fromEntries(ACTIONS.map(a => [a[0], a[2]]));
+
+export function keyLabel(code) {
+  if (!code) return '—';
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (code === 'Mouse0') return 'LMB';
+  if (code === 'Mouse1') return 'MMB';
+  if (code === 'Mouse2') return 'RMB';
+  if (code.startsWith('Mouse')) return 'Mouse ' + code.slice(5);
+  const map = { ShiftLeft: 'L-Shift', ShiftRight: 'R-Shift', ControlLeft: 'L-Ctrl', ControlRight: 'R-Ctrl', AltLeft: 'L-Alt', AltRight: 'R-Alt', Space: 'Space', Backquote: '`', Enter: 'Enter', Tab: 'Tab', Escape: 'Esc', CapsLock: 'Caps' };
+  return map[code] || code.replace('Arrow', '↑').replace('Numpad', 'Num ');
+}
+
 class Input {
   constructor() {
     this.down = new Set();
@@ -21,7 +46,7 @@ class Input {
     this.canvas = canvas;
     window.addEventListener('keydown', e => {
       if (this.isTyping(e)) return;
-      if (e.code === 'Tab' || e.code === 'Space' || (e.code.startsWith('Arrow'))) e.preventDefault();
+      if (e.code === 'Tab' || e.code === 'Space' || (e.code.startsWith('Arrow')) || (this.locked && /^(Key[A-Z]|Digit|F\d)/.test(e.code) && (e.ctrlKey || e.altKey))) e.preventDefault();
       if (!this.down.has(e.code)) this.justPressed.add(e.code);
       this.down.add(e.code);
     });
@@ -68,6 +93,24 @@ class Input {
     } catch { /* ignore */ }
   }
   unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
+
+  // ---- rebindable actions
+  binds() { return { ...DEFAULT_BINDS, ...(settings.get('binds') || {}) }; }
+  codes(action) { return (this._b || (this._b = this.binds()))[action] || []; }
+  refreshBinds() { this._b = this.binds(); }
+  act(action) { return this.codes(action).some(c => this.isDown(c)); }
+  actPressed(action) { return this.codes(action).some(c => this.pressed(c)); }
+  matches(action, code) { return this.codes(action).includes(code); }
+  label(action) { return keyLabel(this.codes(action)[0]); }
+  setBind(action, slot, code) {
+    const all = settings.get('binds') || {};
+    const cur = [...this.codes(action)];
+    cur[slot] = code;
+    all[action] = cur.filter(Boolean);
+    settings.set('binds', { ...all });
+    this.refreshBinds();
+  }
+  resetBinds() { settings.set('binds', {}); this.refreshBinds(); }
 
   isDown(code) { return this.enabled && this.down.has(code); }
   pressed(code) { return this.enabled && this.justPressed.has(code); }

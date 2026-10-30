@@ -17,11 +17,11 @@ const SEWER_F = -3.5, SEWER_C = -0.5, CH_F = -4.3, CH_W = -3.8;
 const COOL = [0.82, 0.9, 1.0], SEWER_LAMP = [0.72, 0.85, 0.5];
 
 const LOOT = [
-  ['almondWater', 16], ['waterBottle', 12], ['snackBar', 14], ['energyDrink', 6], ['battery', 18, [1, 2]], ['bandage', 12], ['painkillers', 8],
+  ['dirtyWater', 14], ['cleanWater', 10], ['purifier', 5, [1, 2]], ['wire', 5], ['antenna', 2], ['gpsBoard', 2], ['snackBar', 14], ['energyDrink', 6], ['battery', 18, [1, 2]], ['bandage', 12], ['painkillers', 8],
   ['glowstick', 10, [1, 2]], ['ammo9', 10, [6, 12]], ['shells', 5, [2, 4]], ['decoy', 4], ['pistol', 2], ['knife', 3], ['ductTape', 4], [null, 16],
 ];
 const DESK_LOOT = [
-  ['battery', 22, [1, 2]], ['snackBar', 14], ['painkillers', 10], ['almondWater', 10], ['ammo9', 8, [5, 10]], ['glowstick', 8], ['bandage', 8],
+  ['battery', 22, [1, 2]], ['snackBar', 14], ['painkillers', 10], ['dirtyWater', 10], ['scrap', 5], ['ammo9', 8, [5, 10]], ['glowstick', 8], ['bandage', 8],
   ['decoy', 4], ['flashlight', 3], ['energyDrink', 6], [null, 18],
 ];
 const PUMP_LOOT = [['shells', 14, [3, 6]], ['ammo9', 14, [8, 15]], ['medkit', 6], ['bandage', 10], ['battery', 12, [2, 3]], ['shotgun', 5], ['smg', 3], ['flare', 8, [1, 2]], [null, 8]];

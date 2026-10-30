@@ -712,7 +712,7 @@ export class Game {
   onDamaged(amount, cause) {
     this.hud.damageFlash(Math.min(1, amount / 30));
     this.player.shake = Math.min(1, this.player.shake + amount / 40);
-    if (amount > 6) this.sfx('hurt', null, { volume: 0.8 });
+    if (amount > 6) this.sfx('hurt', null, { volume: 0.9, big: amount > 25 });
   }
 
   // host -> this client: an entity (or hazard) hurt us
@@ -1418,7 +1418,7 @@ export class Game {
     });
     this.hostBroadcast({ t: 'pinfo', id: pid, name, skin: normalizeSkin(m.skin) }, true, pid);
     if (this.cheats.on) this.hostSend(pid, { t: 'cheatPerm', on: true, ids: [...this.cheats.granted] });
-    this.hostBroadcast({ t: 'sys', text: `${name} noclipped into the run.` });
+    this.hostBroadcast({ t: 'sys', text: `${name} came through the machine.` });
   }
 
   hostPeerLeft(pid) {

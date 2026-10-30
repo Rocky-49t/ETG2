@@ -313,7 +313,7 @@ export default {
   portConfig: { min: 1, max: 2, wMin: 1, wMax: 2 },
   ambience: 'tunnels',
   surface: 'concrete',
-  notes: ['l1_a', 'l1_b', 'l1_c', 'l1_d', 'l1_e', 'gen_a', 'gen_c'],
+  notes: ['l1_a', 'l1_b', 'l1_c', 'l1_d', 'l1_e', 'gen_a', 'gen_c', 'lore_ririq'],
   decalTexts: ['SERVICE EXIT', 'DOGS HATE FIRE', 'KEEP MOVING', 'NOT DOGS'],
   entities: {
     primary: 'marrowhound', max: 2, pack: [2, 3], spawnCd: 55, minDist: 24, maxDist: 40, rare: ['lookalike'],

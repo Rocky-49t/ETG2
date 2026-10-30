@@ -546,7 +546,7 @@ export default {
   waterFog: 0.25, waterFogColor: 0x1a2412,
   portConfig: { min: 1, max: 3, wMin: 1, wMax: 2 },
   ambience: 'offices',
-  notes: ['l2_a', 'l2_b', 'l2_c', 'l2_d', 'l2_e', 'gen_a', 'gen_c'],
+  notes: ['l2_a', 'l2_b', 'l2_c', 'l2_d', 'l2_e', 'gen_a', 'gen_c', 'lore_tuff'],
   decalTexts: ['STAIRWELL', 'LIGHT ITS SKULL', 'DON\'T PICK UP', 'IT FOLLOWS'],
   entities: {
     primary: 'inkwalker', max: 1, spawnCd: 75, minDist: 28, maxDist: 44, rare: ['lookalike'],

@@ -200,7 +200,7 @@ export default {
 
   onState(v, s, prev, game) {
     if (s === 'hunt') game.sfx('hushShriek', v.pos, { volume: 0.9, ref: 5 });
-    if (s === 'attack') game.sfx('hushInhale', v.pos, { volume: 1 });
+    if (s === 'attack') { game.sfx('hushInhale', v.pos, { volume: 1 }); setTimeout(() => game.sfx('hushShriek', v.pos, { volume: 0.9, ref: 4 }), 380); }
     if (s === 'listen') game.sfx('hushClick', v.pos, { volume: 0.8, ref: 3 });
     if (s === 'dead') game.sfx('hushShriek', v.pos, { volume: 0.6 });
   },

@@ -380,7 +380,7 @@ export class LevelInstance {
     const out = [];
     let k = bestK;
     while (k !== undefined && k !== sk) {
-      const x = (k >> 16) - 32768, z = (k & 0xffff) - 32768;
+      const x = (k >>> 16) - 32768, z = (k & 0xffff) - 32768;
       out.push({ x: (x + 0.5) * TILE, z: (z + 0.5) * TILE });
       k = came.get(k);
     }

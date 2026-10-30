@@ -102,9 +102,21 @@ export const SFX = {
     return 0.5;
   },
   hurt(A, dest, o, t) {
-    tone(A, dest, t, { type: 'sawtooth', freq: rnd(180, 230), to: 120, a: 0.01, d: 0.18, vol: 0.12 });
-    burst(A, dest, t, { kind: 'pink', type: 'lowpass', freq: 500, d: 0.2, vol: 0.5 });
-    return 0.3;
+    // the blow: a dull body thump and a slap of cloth and skin
+    tone(A, dest, t, { type: 'sine', freq: 95, to: 48, a: 0.004, d: 0.22, vol: 0.5 });
+    burst(A, dest, t, { kind: 'pink', type: 'lowpass', freq: 700, d: 0.12, vol: 0.55 });
+    burst(A, dest, t, { type: 'bandpass', freq: 1800, Q: 1.2, d: 0.05, vol: 0.25 });
+    // a short, breathy grunt through a vocal formant
+    const f0 = rnd(140, 175);
+    const v = osc(A, 'sawtooth', f0); v.frequency.exponentialRampToValueAtTime(f0 * 0.72, t + 0.28);
+    const fa = filt(A, 'bandpass', rnd(650, 760), 4), fb = filt(A, 'bandpass', rnd(1100, 1250), 6);
+    const g = gain(A, 0); v.connect(fa).connect(g); v.connect(fb).connect(g); g.connect(dest);
+    g.gain.setValueAtTime(0.0001, t + 0.03); g.gain.linearRampToValueAtTime(0.32, t + 0.07); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+    v.start(t + 0.03); v.stop(t + 0.38);
+    burst(A, dest, t + 0.03, { kind: 'pink', type: 'bandpass', freq: 1500, Q: 0.8, a: 0.02, d: 0.25, vol: 0.12 });
+    // a heavy hit leaves your ears ringing
+    if (o.big) tone(A, dest, t + 0.05, { type: 'sine', freq: rnd(3600, 4200), a: 0.05, d: 1.6, vol: 0.03 });
+    return o.big ? 1.7 : 0.45;
   },
   // ---------------------------------------------------------------- items
   pickup(A, dest, o, t) {
@@ -808,5 +820,38 @@ Object.assign(SFX, {
     burst(A, dest, t + 0.6, { kind: 'brown', type: 'lowpass', freq: 300, a: 0.05, d: 1.2, vol: 0.5 });
     tone(A, dest, t + 0.6, { freq: 60, to: 40, a: 0.05, d: 1.1, vol: 0.3 });
     return 2;
+  },
+});
+
+// ---------------------------------------------------------------- attacks
+Object.assign(SFX, {
+  // the Inkwalker's strike: a long wet inhale, then a scream from several
+  // throats at once over a sub-bass thump
+  inkAttack(A, dest, o, t) {
+    burst(A, dest, t, { kind: 'pink', type: 'bandpass', freq: 400, Q: 1.5, a: 0.25, d: 0.15, vol: 0.4, sweepTo: 2400 });
+    const T = t + 0.32, d = 1.3;
+    const sh = A.ctx.createWaveShaper(); const curve = new Float32Array(512);
+    for (let k = 0; k < 512; k++) { const x = k / 256 - 1; curve[k] = Math.tanh(x * 6) * 0.9; }
+    sh.curve = curve;
+    const fA = filt(A, 'bandpass', 700, 2.5), fB = filt(A, 'bandpass', 1800, 4), fC = filt(A, 'highpass', 3500, 0.7);
+    const g = gain(A, 0);
+    sh.connect(fA).connect(g); sh.connect(fB).connect(g); sh.connect(fC).connect(g); g.connect(dest);
+    for (const [f0, f1, type, v] of [[220, 640, 'sawtooth', 0.3], [233, 180, 'sawtooth', 0.3], [880, 2200, 'square', 0.12], [55, 38, 'sawtooth', 0.35], [1310, 900, 'sawtooth', 0.1]]) {
+      const s = osc(A, type, f0); s.frequency.exponentialRampToValueAtTime(f1, T + d);
+      const fm = osc(A, 'sine', rnd(22, 48)); const fg = gain(A, f0 * 0.09); fm.connect(fg).connect(s.frequency);
+      const sg = gain(A, v); s.connect(sg).connect(sh);
+      s.start(T); s.stop(T + d + 0.05); fm.start(T); fm.stop(T + d + 0.05);
+    }
+    g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(0.55, T + 0.04); g.gain.setValueAtTime(0.5, T + d * 0.55); g.gain.exponentialRampToValueAtTime(0.0001, T + d);
+    tone(A, dest, T, { type: 'sine', freq: 70, to: 30, a: 0.005, d: 0.6, vol: 0.6 });
+    burst(A, dest, T, { kind: 'brown', type: 'lowpass', freq: 300, a: 0.005, d: 0.5, vol: 0.6 });
+    for (let i = 0; i < 6; i++) burst(A, dest, T + 0.1 + i * rnd(0.05, 0.12), { type: 'bandpass', freq: rnd(2500, 4500), Q: 6, d: 0.03, vol: 0.2 });
+    return T - t + d + 0.1;
+  },
+  boneCrunch(A, dest, o, t) {
+    for (let i = 0; i < 3; i++) burst(A, dest, t + i * 0.025, { type: 'bandpass', freq: rnd(1500, 3200), Q: 3, d: 0.03, vol: 0.45 });
+    burst(A, dest, t, { kind: 'pink', type: 'lowpass', freq: 500, d: 0.15, vol: 0.5 });
+    tone(A, dest, t, { freq: 140, to: 60, d: 0.12, vol: 0.3 });
+    return 0.3;
   },
 });

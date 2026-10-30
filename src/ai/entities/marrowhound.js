@@ -212,7 +212,7 @@ export default {
   onState(v, s, prev, game) {
     if (s === 'stalk' && prev !== 'retreat' && prev !== 'flinch') game.sfx('growl', v.pos, { volume: 0.9, ref: 3, dur: 1.6 });
     if (s === 'charge') game.sfx('bark', v.pos, { volume: 1, ref: 4 });
-    if (s === 'bite') game.sfx('bark', v.pos, { volume: 0.8, ref: 3 });
+    if (s === 'bite') { game.sfx('bark', v.pos, { volume: 0.8, ref: 3 }); setTimeout(() => game.sfx('boneCrunch', v.pos, { volume: 1, ref: 3 }), 220); }
     if (s === 'flee' || s === 'flinch') game.sfx('growl', v.pos, { volume: 0.6, dur: 0.6 });
     if (s === 'dead') game.sfx('boneRattle', v.pos, { volume: 1 });
   },

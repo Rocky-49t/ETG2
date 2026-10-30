@@ -214,7 +214,7 @@ export default {
   onState(v, s, prev, game) {
     if (s === 'chase' && prev !== 'attack' && prev !== 'stunned') { game.sfx('inkScreech', v.pos, { volume: 1, ref: 5 }); game.stats.scare(5); }
     if (s === 'stunned') { game.sfx('stunned', v.pos, { volume: 1 }); game.subtitle('The Inkwalker reels from the light!', 2); }
-    if (s === 'attack') game.sfx('inkMoan', v.pos, { volume: 0.8 });
+    if (s === 'attack') { game.sfx('inkAttack', v.pos, { volume: 1.3, ref: 6 }); game.stats.scare(6); }
     if (s === 'collapsed') { game.sfx('stunned', v.pos, {}); game.subtitle('The Inkwalker collapses into a puddle of ink. It won\'t stay down.', 3.5); }
   },
 

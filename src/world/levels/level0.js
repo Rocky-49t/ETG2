@@ -319,7 +319,7 @@ export default {
   hemi: { sky: 0x6e6438, ground: 0x221e10, intensity: 0.22 },
   portConfig: { min: 2, max: 4, wMin: 1, wMax: 3 },
   ambience: 'lobby',
-  notes: ['l0_a', 'l0_b', 'l0_c', 'l0_d', 'l0_e', 'gen_a', 'gen_b'],
+  notes: ['l0_a', 'l0_b', 'l0_c', 'l0_d', 'l0_e', 'gen_a', 'gen_b', 'lore_machine'],
   entities: { primary: 'hush', max: 2, rare: ['lookalike'] },
 
   // Set piece: the fluorescents die in a wave racing toward you, then return.

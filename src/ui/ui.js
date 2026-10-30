@@ -25,6 +25,14 @@ const TIPS = [
   'Arrows on the walls were painted by people who went before you.',
   'Glowsticks are cheap light. Throw them ahead of you.',
   'The music box draws things that listen. Throw it far away.',
+  'Swimming into a pool edge? Hold jump to haul yourself out.',
+  'Hold the flashlight on a Scuttler and it cannot move.',
+  'Platinum snakes speed up every time a bullet hits them. Knives don\'t wind them up.',
+  'Office vending machines sometimes stock a pale bottle. Inkwalkers ignore whoever drinks it.',
+  'Some office computers are infected. They all want you to make a call.',
+  'Toll locks on Level 4 hum their order, or list it on a plaque. Leaving the level re-seals them.',
+  'Each role carries different gear. Scouts start with Location Transmitters.',
+  'Dead? You wake up again on the same level — just farther from your team.',
 ];
 
 export class UI {

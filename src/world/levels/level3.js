@@ -349,7 +349,7 @@ export default {
   ambience: 'pools',
   surface: 'tile',
   lockerStyle: 'metal',
-  notes: ['l3_a', 'l3_b', 'l3_c', 'l3_d', 'gen_a', 'gen_b'],
+  notes: ['l3_a', 'l3_b', 'l3_c', 'l3_d', 'gen_a', 'gen_b', 'lore_rucky'],
   decalTexts: ['MAIN DRAIN', 'LISTEN FOR IT', 'STAY DRY', 'NO LIFEGUARD'],
   entities: {
     primary: 'undertow', max: 1, spawnCd: 50, minDist: 14, maxDist: 30, rare: ['lookalike'],

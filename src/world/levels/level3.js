@@ -358,6 +358,7 @@ export default {
     secondary: [{ type: 'undertow', max: 1, spawnCd: 60, chance: 0.12, boost: ctx => ctx.players.some(p => zoneFor(ctx.level, Math.floor(p.x / 32), Math.floor(p.z / 32)) === 'blue') }],
   },
   exitStyle: 'mosaic',
+  containerMats: { cabinet: 'poolTile', crate: 'poolTileBlue', cardboard: 'soggyCardboard' },
   allowBlackout: false,
   eventSounds: ['splash', 'drip', 'whisper', 'tideGroan', 'knock'],
 

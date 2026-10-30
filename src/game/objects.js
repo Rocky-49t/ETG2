@@ -33,7 +33,7 @@ export const OBJECT_KINDS = {
     radius: 0.55,
   },
   container: {
-    build(o) { return containerModel(o.ctype); },
+    build(o, game) { return containerModel(o.ctype, game.level?.def.containerMats); },
     prompt: (o, s) => (s?.opened && !(s.loot?.length) ? `Empty ${CTYPE_NAMES[o.ctype] || 'container'}` : `Search ${CTYPE_NAMES[o.ctype] || 'container'}`),
     radius: 0.7,
     animate(mesh, o, s, dt) {

@@ -267,8 +267,24 @@ body.is-loading #chat { z-index: 85; bottom: 40px; }
 
 /* ---------------- hiding */
 #hideOverlay { position: fixed; inset: 0; z-index: 9; pointer-events: none; }
-#hideOverlay .slats { position: absolute; inset: 0; background: repeating-linear-gradient(180deg, #050403 0 34px, transparent 34px 46px); box-shadow: inset 0 0 160px 60px #000; }
-#hideOverlay .hide-hint { position: absolute; bottom: 40px; width: 100%; text-align: center; font: 13px var(--sans); color: var(--muted); text-shadow: 0 1px 3px #000; }
+/* inside a locker: sheet-metal door, a louvered vent to peek through */
+#hideOverlay .locker-in { position: absolute; inset: -2%; animation: lkBreath 4.2s ease-in-out infinite; }
+#hideOverlay .locker-in > div { position: absolute; }
+#hideOverlay .lk-top, #hideOverlay .lk-bot, #hideOverlay .lk-l, #hideOverlay .lk-r {
+  background: linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 100%) 0 0 / 7px 100%, linear-gradient(180deg, #17181a, #0d0e0f 40%, #141517 70%, #0a0a0b); }
+#hideOverlay .lk-top { left: 0; right: 0; top: 0; height: 30%; }
+#hideOverlay .lk-bot { left: 0; right: 0; top: 58%; bottom: 0; }
+#hideOverlay .lk-l { left: 0; width: 27%; top: 30%; height: 28%; }
+#hideOverlay .lk-r { right: 0; width: 27%; top: 30%; height: 28%; }
+#hideOverlay .lk-vent { left: 27%; right: 27%; top: 30%; height: 28%; box-shadow: inset 0 0 0 3px #050505, inset 0 0 22px 4px rgba(0,0,0,0.8);
+  background: repeating-linear-gradient(180deg, #08090a 0 8px, #3a3c40 8px 9px, rgba(0,0,0,0.0) 9px 22px, rgba(255,236,200,0.05) 22px 23px); }
+#hideOverlay .lk-rivets { inset: 0; pointer-events: none;
+  background: radial-gradient(circle, #2c2e31 0 3px, #050505 4px, transparent 5px) 0 0 / 0 0;
+  background-image: radial-gradient(circle at 26% 29%, #34363a 0 3px, #000 4px, transparent 5px), radial-gradient(circle at 74% 29%, #34363a 0 3px, #000 4px, transparent 5px), radial-gradient(circle at 26% 59%, #34363a 0 3px, #000 4px, transparent 5px), radial-gradient(circle at 74% 59%, #34363a 0 3px, #000 4px, transparent 5px), radial-gradient(ellipse at 50% 80%, rgba(0,0,0,0) 0 10%, rgba(0,0,0,0) 10%); background-size: auto; }
+#hideOverlay .lk-breath { inset: 0; box-shadow: inset 0 0 220px 90px #000; animation: lkFog 4.2s ease-in-out infinite; background: radial-gradient(ellipse at 50% 46%, rgba(200,210,220,0) 30%, rgba(200,210,220,0.0) 60%); }
+@keyframes lkBreath { 0%, 100% { transform: translateY(0) scale(1); } 45% { transform: translateY(-3px) scale(1.006); } }
+@keyframes lkFog { 0%, 60%, 100% { background: radial-gradient(ellipse at 50% 46%, rgba(200,210,220,0) 0%, transparent 60%); } 40% { background: radial-gradient(ellipse at 50% 46%, rgba(200,210,220,0.07) 0%, transparent 45%); } }
+#hideOverlay .hide-hint { position: absolute; bottom: 118px; width: 100%; text-align: center; font: 13px var(--sans); color: var(--muted); text-shadow: 0 1px 3px #000; }
 
 /* ---------------- inventory */
 .inv-panel { width: min(920px, calc(100vw - 32px)) !important; }

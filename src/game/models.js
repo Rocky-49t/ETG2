@@ -353,16 +353,17 @@ export function lockerModel(variant = 'metal') {
   return g;
 }
 
-export function containerModel(ctype) {
+// mats: optional per-level material overrides, e.g. { cabinet: 'poolTile', crate: 'rustMetal' }
+export function containerModel(ctype, mats = {}) {
   const g = new THREE.Group();
   if (ctype === 'cardboard') {
-    const m = LIB.dyn('cardboard');
+    const m = LIB.dyn(mats.cardboard || 'cardboard');
     g.add(mesh(box(0.6, 0.42, 0.45), m, 0, 0.21, 0));
     const f1 = new THREE.Group(); f1.position.set(0, 0.42, -0.225); f1.add(mesh(box(0.6, 0.01, 0.22), m, 0, 0, 0.11)); g.add(f1);
     const f2 = new THREE.Group(); f2.position.set(0, 0.42, 0.225); f2.add(mesh(box(0.6, 0.01, 0.22), m, 0, 0, -0.11)); g.add(f2);
     g.userData.flaps = [f1, f2];
   } else if (ctype === 'cabinet') {
-    const m = LIB.dyn('paintedMetal');
+    const m = LIB.dyn(mats.cabinet || 'paintedMetal');
     g.add(mesh(box(0.47, 1.32, 0.6), m, 0, 0.66, 0));
     const drawers = [];
     for (let k = 0; k < 4; k++) {
@@ -382,7 +383,7 @@ export function containerModel(ctype) {
     }
     g.userData.drawers = drawers;
   } else if (ctype === 'crate') {
-    const m = LIB.dyn('woodCrate');
+    const m = LIB.dyn(mats.crate || 'woodCrate');
     g.add(mesh(box(0.8, 0.55, 0.55), m, 0, 0.275, 0));
     const lid = new THREE.Group(); lid.position.set(0, 0.55, -0.275); lid.add(mesh(box(0.82, 0.05, 0.57), m, 0, 0.025, 0.285)); g.add(lid);
     g.userData.lid = lid;

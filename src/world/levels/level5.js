@@ -315,6 +315,7 @@ export default {
   portConfig: { min: 1, max: 1 },
   ambience: 'bridge',
   surface: 'concrete',
+  containerMats: { crate: 'rustMetal', cabinet: 'stone' },
   notes: ['l5_a', 'l5_b', 'l5_c', 'l5_d'],
   decalTexts: ['NO BOTTOM', 'LIGHT IT UP', 'STAY CENTER', 'IT OWNS THIS'],
   entities: { primary: null, max: 0, rare: ['lookalike'] },

@@ -14,7 +14,7 @@ export const SKIN_OPTIONS = {
   shirtColor: ['#4fc3f7', '#ff8a65', '#81c784', '#ba68c8', '#ffd54f', '#f06292', '#4b5563', '#e7e2d3', '#1f2937', '#8d6e63'],
   pantsColor: ['#2b3446', '#1b1b1b', '#5b4636', '#3e5a3a', '#7d7d78', '#1e3a8a', '#6b2c2c', '#c8bfa4'],
   shoesColor: ['#151515', '#f2f2f2', '#6b3a1f', '#a8301f', '#2a4b8d', '#e2b833'],
-  accessory: ['none', 'backpack', 'scarf', 'glasses', 'gasmask', 'satchel'],
+  accessory: ['none', 'backpack', 'scarf', 'glasses', 'gasmask', 'satchel', 'goggles', 'bandana', 'radio', 'beltpack'],
 };
 
 export const DEFAULT_SKIN = {
@@ -96,6 +96,8 @@ export class Avatar {
     const shoeM = mat(s.shoesColor, 0.6);
     const hairM = mat(s.hairColor, 0.9);
     const hwM = mat(s.headwearColor, 0.6);
+    // what the shoulders and sleeves are made of (coats and jackets go over the top)
+    const outerM = s.shirt === 'labcoat' ? mat('#ecebe4', 0.8) : s.shirt === 'jacket' ? mat('#3a3a32', 0.8) : shirtM;
 
     const root = new THREE.Group();
     this.group.add(root);
@@ -123,8 +125,10 @@ export class Avatar {
       hips.add(part(rbox(0.36, 0.34, 0.235), mat('#ecebe4', 0.8), 0, -0.16, 0));
     }
     // neck & head
+    // shoulder yoke so the neck and arms meet the torso instead of floating
+    spine.add(part(rbox(0.4, 0.08, 0.2, 0.35), outerM, 0, 0.455, 0));
     const neck = new THREE.Group(); neck.position.y = 0.5; spine.add(neck); this.neck = neck;
-    neck.add(part(new THREE.CylinderGeometry(0.055, 0.06, 0.08, 8), skinM, 0, 0.03, 0));
+    neck.add(part(new THREE.CylinderGeometry(0.052, 0.066, 0.15, 10), skinM, 0, 0.02, -0.005));
     const head = new THREE.Group(); head.position.y = 0.09; neck.add(head); this.head = head;
     head.add(part(rbox(0.22, 0.25, 0.23, 0.12), skinM, 0, 0.12, 0));
     // face
@@ -197,18 +201,57 @@ export class Avatar {
       }
       head.add(part(new THREE.BoxGeometry(0.03, 0.006, 0.006), frame, 0, 0.15, 0.124));
     }
-    if (s.accessory === 'gasmask') { head.add(part(rbox(0.16, 0.13, 0.08), mat('#2b2f2a', 0.7), 0, 0.08, 0.12)); head.add(part(new THREE.CylinderGeometry(0.035, 0.04, 0.06, 10), mat('#444', 0.5), 0, 0.05, 0.18, )); }
-    if (s.accessory === 'scarf') spine.add(part(rbox(0.26, 0.08, 0.26, 0.3), mat(s.headwearColor, 0.9), 0, 0.5, 0));
-    if (s.accessory === 'backpack') { spine.add(part(rbox(0.3, 0.36, 0.14, 0.15), mat('#5b4a32', 0.85), 0, 0.26, -0.17)); spine.add(part(rbox(0.22, 0.1, 0.06), mat('#4a3b28', 0.85), 0, 0.16, -0.25)); }
-    if (s.accessory === 'satchel') { spine.add(part(rbox(0.06, 0.6, 0.03), mat('#6b4a2a', 0.8), 0, 0.25, 0.12)); hips.add(part(rbox(0.24, 0.2, 0.08), mat('#6b4a2a', 0.8), 0.15, 0, 0.13)); }
+    if (s.accessory === 'gasmask') {
+      const rub = mat('#2b2f2a', 0.7);
+      head.add(part(rbox(0.17, 0.15, 0.08, 0.3), rub, 0, 0.1, 0.12));
+      for (const sx of [-1, 1]) {
+        head.add(part(new THREE.CylinderGeometry(0.03, 0.03, 0.012, 14), mat('#9fb4b8', 0.1, 0.3, { transparent: true, opacity: 0.55 }), sx * 0.045, 0.145, 0.163, Math.PI / 2, 0, 0));
+        head.add(part(new THREE.CylinderGeometry(0.034, 0.038, 0.06, 12), mat('#4a4c48', 0.5, 0.3), sx * 0.07, 0.05, 0.16, Math.PI / 2, 0, sx * 0.6));
+        head.add(part(new THREE.BoxGeometry(0.01, 0.012, 0.24), rub, sx * 0.112, 0.15, 0.0));
+      }
+      head.add(part(new THREE.CylinderGeometry(0.026, 0.03, 0.04, 10), mat('#333', 0.5), 0, 0.055, 0.17, Math.PI / 2, 0, 0));
+    }
+    if (s.accessory === 'goggles') {
+      const strap = mat('#2a2a2a', 0.8);
+      head.add(part(new THREE.CylinderGeometry(0.121, 0.121, 0.025, 16), strap, 0, 0.215, 0));
+      for (const sx of [-1, 1]) head.add(part(new THREE.CylinderGeometry(0.034, 0.03, 0.03, 12), mat('#c9a24a', 0.35, 0.5), sx * 0.048, 0.225, 0.11, Math.PI / 2 - 0.5, 0, 0));
+    }
+    if (s.accessory === 'bandana') {
+      head.add(part(rbox(0.235, 0.09, 0.08, 0.3), mat(s.headwearColor, 0.9), 0, 0.06, 0.09));
+      head.add(part(new THREE.ConeGeometry(0.06, 0.1, 4), mat(s.headwearColor, 0.9), 0, 0.0, 0.12, Math.PI, Math.PI / 4, 0));
+    }
+    if (s.accessory === 'scarf') {
+      const sm = mat(s.headwearColor, 0.95);
+      spine.add(part(new THREE.TorusGeometry(0.09, 0.04, 8, 16), sm, 0, 0.5, 0, Math.PI / 2, 0, 0));
+      spine.add(part(rbox(0.07, 0.26, 0.03, 0.3), sm, 0.07, 0.34, 0.125, 0, 0, 0.1));
+      spine.add(part(rbox(0.06, 0.2, 0.03, 0.3), sm, 0.12, 0.37, 0.12, 0, 0, -0.15));
+    }
+    if (s.accessory === 'backpack') {
+      const bm = mat('#5b4a32', 0.85), sm = mat('#3a2f20', 0.85);
+      spine.add(part(rbox(0.3, 0.38, 0.15, 0.15), bm, 0, 0.26, -0.18));
+      spine.add(part(rbox(0.22, 0.1, 0.06), mat('#4a3b28', 0.85), 0, 0.15, -0.27));
+      spine.add(part(new THREE.CylinderGeometry(0.06, 0.06, 0.32, 10), mat('#5a6a4a', 0.9), 0, 0.5, -0.19, 0, 0, Math.PI / 2)); // bedroll
+      for (const sx of [-1, 1]) spine.add(part(rbox(0.045, 0.42, 0.02, 0.3), sm, sx * 0.1, 0.27, 0.115));
+    }
+    if (s.accessory === 'satchel') { spine.add(part(rbox(0.06, 0.62, 0.03), mat('#6b4a2a', 0.8), 0, 0.25, 0.12, 0, 0, 0.55)); hips.add(part(rbox(0.24, 0.2, 0.08), mat('#6b4a2a', 0.8), 0.18, 0, 0.1)); hips.add(part(rbox(0.24, 0.07, 0.085), mat('#5a3d22', 0.8), 0.18, 0.07, 0.1)); }
+    if (s.accessory === 'radio') {
+      spine.add(part(rbox(0.07, 0.11, 0.04, 0.2), mat('#2b2e2a', 0.6), 0.13, 0.4, 0.125));
+      spine.add(part(new THREE.CylinderGeometry(0.006, 0.006, 0.16, 5), mat('#111', 0.4), 0.15, 0.52, 0.125));
+      spine.add(part(new THREE.BoxGeometry(0.012, 0.012, 0.005), mat('#30ff60', 0.3, 0, { emissive: '#30ff60', emissiveIntensity: 1.5 }), 0.11, 0.43, 0.147));
+    }
+    if (s.accessory === 'beltpack') {
+      hips.add(part(rbox(0.36, 0.05, 0.23, 0.3), mat('#2a2620', 0.7), 0, 0.04, 0));
+      for (const sx of [-1, 0, 1]) hips.add(part(rbox(0.08, 0.1, 0.05, 0.25), mat('#4a4636', 0.85), sx * 0.11, 0.0, sx ? 0.11 : -0.13));
+    }
 
     // arms
-    const armGeo = rbox(0.1, 0.3, 0.1, 0.25), foreGeo = rbox(0.09, 0.28, 0.09, 0.25);
-    const sleeveM = s.shirt === 'vest' || s.shirt === 'tee' ? skinM : shirtM;
+    const armGeo = rbox(0.115, 0.31, 0.115, 0.3), foreGeo = rbox(0.1, 0.28, 0.1, 0.3);
+    const sleeveM = s.shirt === 'vest' || s.shirt === 'tee' ? skinM : outerM;
     this.arms = [];
     for (const side of [-1, 1]) {
       const sh = new THREE.Group(); sh.position.set(side * 0.235, 0.44, 0); spine.add(sh);
-      const upper = part(armGeo, s.shirt === 'tee' || s.shirt === 'vest' ? shirtM : shirtM, 0, -0.14, 0);
+      sh.add(part(new THREE.SphereGeometry(0.068, 10, 8), outerM, 0, -0.01, 0)); // shoulder cap
+      const upper = part(armGeo, outerM, 0, -0.14, 0);
       sh.add(upper);
       const elbow = new THREE.Group(); elbow.position.y = -0.29; sh.add(elbow);
       elbow.add(part(foreGeo, sleeveM, 0, -0.13, 0));

@@ -471,6 +471,7 @@ export default {
   surface: 'carpet',
   lockerStyle: 'metal',
   exitStyle: 'plaque',
+  containerMats: { cabinet: 'beigeWall', crate: 'darkWood' },
   notes: ['l4_a', 'l4_b', 'l4_c', 'gen_a'],
   decalTexts: ['THE WINDOWS LIE', 'DON\'T WAVE BACK', 'TOLL PAID', 'LISTEN TO THE LOCK'],
   entities: { primary: 'platsnake', max: 2, spawnCd: 55, minDist: 18, maxDist: 34, rare: ['lookalike'] },

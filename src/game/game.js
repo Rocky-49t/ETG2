@@ -596,6 +596,9 @@ export class Game {
     this.sfx('locker', o, {});
     this.emitNoise(NOISE.locker);
     this.ui.hideOverlay(true);
+    // look out through the vents: the locker's own door would fill the view
+    const door = this.objects.all.get(o.id)?.mesh?.userData.door;
+    if (door) door.visible = false;
     audio.setMuffle(0.55);
     this.player.yaw = (o.ry || 0) + Math.PI;
     this.player.pitch = 0;
@@ -623,6 +626,8 @@ export class Game {
     this.hiddenIn = null;
     this.ui.hideOverlay(false);
     audio.setMuffle(0);
+    const door = o && this.objects.all.get(o.id)?.mesh?.userData.door;
+    if (door) door.visible = true;
     if (o) {
       const fx = Math.sin(o.ry || 0), fz = Math.cos(o.ry || 0);
       this.player.pos.set(o.x + fx * 0.75, o.y, o.z + fz * 0.75);

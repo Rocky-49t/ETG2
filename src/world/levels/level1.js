@@ -291,6 +291,7 @@ export default {
     return game.inventory.has('keycard') ? 'You have the keycard. Find a SERVICE DOOR (hazard-striped frame) — or force a maintenance hatch.' : 'Find a service keycard (foremen\'s offices, break rooms), then a SERVICE DOOR — or find a maintenance hatch in the floor.';
   },
   exitStyle: 'stencil',
+  containerMats: { cabinet: 'rustMetal' },
   decalLabels: { num0: 'PLATFORM 2', lvl0: 'GOAN LINE  ·  RINGWAY', lvl1: 'LEVEL 0' },
   subtitle: 'Brick, steam and the smell of hot iron.',
   palette: {

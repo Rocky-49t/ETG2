@@ -72,6 +72,7 @@ export const MATERIAL_DEFS = {
   pillarPaint: { recipe: 'pillarPaint', params: { roughness: 1 } },
   woodCrate: { recipe: 'woodCrate', params: { roughness: 1, metalness: 1 } },
   cardboard: { recipe: 'cardboard', params: { roughness: 1 } },
+  soggyCardboard: { recipe: 'cardboard', params: { roughness: 1, color: 0x8a8070 } },
   paintedMetal: { recipe: 'paintedMetal', params: { roughness: 1, metalness: 1 } },
   paper: { recipe: 'paper', params: { roughness: 1 } },
   brick: { recipe: 'brick', params: { roughness: 1 } },

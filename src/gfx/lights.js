@@ -23,6 +23,8 @@ export function flickerValue(l, t, now) {
   return 1;
 }
 
+const OFFSETS = { panel: [0.3, 0], bulb: [0.6, 0], cage: [0.25, 0.55], lantern: [0.65, 0], flood: [0.2, 0.5], strip: [0.3, 0], skylight: [0.5, 0], none: [0, 0] };
+
 export class LightManager {
   constructor(scene, count) {
     this.scene = scene;
@@ -102,7 +104,11 @@ export class LightManager {
         slot.src = l; slot.fade = 0; slot.releasing = false;
         this.assigned.set(l, slot);
         slot.light.color.setRGB(l.color[0], l.color[1], l.color[2]);
-        slot.light.position.set(l.x, l.y - 0.3, l.z);
+        // keep the real light clear of its own fixture: a point light sitting
+        // inside a shade or against a wall blows out a tiny patch, which bloom
+        // turns into a hard square glow
+        const off = OFFSETS[l.kind] || OFFSETS.panel;
+        slot.light.position.set(l.x + (l.nx || 0) * off[1], l.y - off[0], l.z + (l.nz || 0) * off[1]);
         slot.light.distance = (l.range || 9) * 1.15;
       }
     }

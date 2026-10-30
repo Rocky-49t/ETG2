@@ -171,6 +171,106 @@ OBJECT_KINDS.levelDoor = {
   radius: 0.9, centerY: 1.0,
 };
 
+// Vending machine with limited stock (host tracks what's left).
+OBJECT_KINDS.vendor = {
+  build(o, game) {
+    const g = new THREE.Group();
+    const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+    const body = new THREE.MeshStandardMaterial({ color: o.color ?? 0x8a2a24, roughness: 0.45, metalness: 0.3 });
+    add(new THREE.BoxGeometry(0.92, 1.92, 0.82), body, 0, 0.96, 0);
+    add(new THREE.BoxGeometry(0.6, 1.2, 0.02), new THREE.MeshStandardMaterial({ color: 0x9ec4d0, roughness: 0.05, transparent: true, opacity: 0.35 }), -0.1, 1.15, 0.42);
+    const back = add(new THREE.BoxGeometry(0.56, 1.14, 0.01), new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0xfff2d8, emissiveIntensity: 0.55 }), -0.1, 1.15, 0.38);
+    back.castShadow = false;
+    const items = o.shelf || ['paleDraught'];
+    for (let r = 0; r < 4; r++) for (let k = 0; k < 3; k++) {
+      const m = itemModel(items[(r + k) % items.length]);
+      m.scale.setScalar(0.85); m.position.set(-0.28 + k * 0.18, 0.62 + r * 0.27, 0.22);
+      g.add(m);
+    }
+    add(new THREE.BoxGeometry(0.18, 0.5, 0.03), game.lib.dyn('darkMetal'), 0.33, 1.2, 0.42);
+    add(new THREE.BoxGeometry(0.5, 0.16, 0.04), game.lib.dyn('black'), -0.1, 0.25, 0.42);
+    const sign = add(new THREE.BoxGeometry(0.88, 0.2, 0.02), new THREE.MeshBasicMaterial({ color: o.signColor ?? 0xf2efe6 }), 0, 1.8, 0.42);
+    sign.castShadow = false;
+    g.userData.back = back;
+    return g;
+  },
+  prompt(o, s) {
+    const left = s?.stock ?? o.stock;
+    return left > 0 ? `Use ${o.label || 'vending machine'} (${left} left)` : `${o.label || 'Vending machine'} — sold out`;
+  },
+  radius: 0.75, centerY: 1.0,
+  animate(mesh, o, s) { const left = s?.stock ?? o.stock; mesh.userData.back.material.emissiveIntensity = left > 0 ? 0.55 + Math.sin(performance.now() * 0.03) * (Math.random() < 0.02 ? 0.4 : 0) : 0.08; },
+};
+
+// A text plate on a wall (office numbers, labels).
+OBJECT_KINDS.sign = {
+  build(o) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 96;
+    const x = c.getContext('2d');
+    x.fillStyle = o.bg || '#d8d2bc'; x.fillRect(0, 0, 256, 96);
+    x.strokeStyle = o.border || '#4a4232'; x.lineWidth = 6; x.strokeRect(3, 3, 250, 90);
+    x.fillStyle = o.fg || '#2a2418'; x.font = `bold ${o.size || 46}px Arial, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(o.text, 128, 50);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(o.w || 0.36, (o.w || 0.36) * 0.375), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }));
+    m.position.y = o.h ?? 1.7;
+    const g = new THREE.Group(); g.add(m);
+    return g;
+  },
+  prompt: () => null,
+};
+
+// Ladder between two heights: interact to climb to the other end.
+OBJECT_KINDS.ladder = {
+  build(o, game) {
+    if (!o.visual) return null;
+    const g = new THREE.Group();
+    const mat = game.lib.dyn('rustMetal') || game.lib.dyn('darkMetal');
+    const h = o.len || 4;
+    for (const sx of [-0.25, 0.25]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.05, h, 0.05), mat); r.position.set(sx, h / 2, 0); g.add(r); }
+    for (let y = 0.3; y < h; y += 0.32) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.5, 6), mat); r.rotation.z = Math.PI / 2; r.position.set(0, y, 0); g.add(r); }
+    return g;
+  },
+  prompt: o => o.up ? 'Climb up the ladder' : 'Climb down the ladder',
+  radius: 0.9, centerY: 0.8,
+};
+
+// Wall phone: dial a number.
+OBJECT_KINDS.phone = {
+  build(o, game) {
+    const g = new THREE.Group();
+    const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+    const beige = new THREE.MeshStandardMaterial({ color: 0xd6ccb0, roughness: 0.5 });
+    add(new THREE.BoxGeometry(0.2, 0.28, 0.07), beige, 0, 1.4, 0.035);
+    add(new THREE.BoxGeometry(0.06, 0.24, 0.06), beige, -0.13, 1.42, 0.07);
+    for (let i = 0; i < 12; i++) add(new THREE.BoxGeometry(0.03, 0.022, 0.01), game.lib.dyn('plasticDark'), -0.03 + (i % 3) * 0.04, 1.47 - Math.floor(i / 3) * 0.035, 0.072);
+    const cord = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.006, 4, 10), game.lib.dyn('plasticDark')); cord.position.set(-0.13, 1.28, 0.07); g.add(cord);
+    return g;
+  },
+  prompt: () => 'Use the phone',
+  radius: 0.45, centerY: 1.25,
+};
+
+// Office computer: sit down and use it.
+OBJECT_KINDS.computer = {
+  build(o) {
+    // the glowing screen over the desk monitor (its object sits at the monitor)
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.28), new THREE.MeshBasicMaterial({ color: 0x2050c0 }));
+    m.position.set(0, 0.98, 0.034);
+    g.add(m);
+    g.userData.scr = m;
+    return g;
+  },
+  prompt: o => o.infected ? 'Use the computer (the screen is flickering)' : 'Use the computer',
+  radius: 0.5, centerY: 0.82,
+  animate(mesh, o) {
+    const t = performance.now() * 0.001, m = mesh.userData.scr.material;
+    if (o.infected) { const f = Math.sin(t * 9) > 0.6 || Math.random() < 0.04; m.color.setHex(f ? 0xc01818 : 0x2050c0); }
+    else m.color.setHex(Math.random() < 0.01 ? 0x6a8ae0 : 0x2050c0);
+  },
+};
+
 export function registerObjectKind(kind, def) { OBJECT_KINDS[kind] = def; }
 
 const tmp = new THREE.Vector3();

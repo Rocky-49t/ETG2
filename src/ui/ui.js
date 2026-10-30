@@ -10,6 +10,7 @@ import { HOTBAR, HOLSTER0, HOLSTERS } from '../game/inventory.js';
 import { WEAPONS } from '../game/weapons.js';
 import { RECIPES, canCraft, craft } from '../game/crafting.js';
 import { CLASSES, CLASS_ORDER } from '../game/classes.js';
+import { ComputerUI, PhoneUI } from './computer.js';
 
 const $ = id => document.getElementById(id);
 const TIPS = [
@@ -36,6 +37,8 @@ export class UI {
     this.onQuit = null;
     this.onSettings = null;
     this.onHelp = null;
+    this.computer = new ComputerUI(this);
+    this.phone = new PhoneUI(this);
     this.bindInventory();
     this.bindPause();
     this.bindChat();
@@ -58,6 +61,7 @@ export class UI {
     this.open.delete(name);
     this.screen(name, false);
     if (name === 'inventory') { this.containerObj = null; $('containerBox').classList.add('hidden'); }
+    this.onClose?.[name]?.();
     if (relock && !this.modalOpen && this.game && !this.game.dead) input.lock();
   }
   closeAll() { for (const n of [...this.open]) this.closeModal(n, false); }

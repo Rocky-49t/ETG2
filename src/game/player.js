@@ -77,7 +77,7 @@ export class PlayerController {
     const head = level.headAt(this.body);
     const canStand = head - this.pos.y >= STAND_H + 0.02;
     this.crouching = !this.fly && (wantCrouch || (!canStand && !this.swimming));
-    const targetH = this.downed ? 0.6 : this.crouching ? CROUCH_H : STAND_H;
+    const targetH = this.downed ? 0.6 : this.seated ? 1.25 : this.crouching ? CROUCH_H : STAND_H;
     this.height = damp(this.height, targetH, 12, dt);
 
     // water

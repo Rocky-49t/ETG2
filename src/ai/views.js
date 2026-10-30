@@ -16,7 +16,7 @@ export class EntityViews {
   }
 
   clear() {
-    for (const v of this.views.values()) this.root.remove(v.group);
+    for (const v of this.views.values()) { this.root.remove(v.group); v.def.dispose?.(v, this.game); }
     this.views.clear();
   }
 
@@ -44,7 +44,7 @@ export class EntityViews {
     for (const [id, v] of this.views) {
       if (!seen.has(id)) {
         v.missing = (v.missing || 0) + 1;
-        if (v.missing > 3) { this.root.remove(v.group); this.views.delete(id); }
+        if (v.missing > 3) { this.root.remove(v.group); this.views.delete(id); v.def.dispose?.(v, this.game); }
       }
     }
   }

@@ -256,7 +256,9 @@ export function addLevelDoor(c, level, rng, to, opts = {}) {
   if (hash01(c.cx, c.cz, level.levelSeed, opts.salt ?? 811) >= (opts.p ?? 0.04)) return null;
   const spots = wallSpots(c, (lx, lz, i) => freeTile(c, i) && c.floor[i] === (opts.floor ?? 0) && c.ceil[i] - c.floor[i] >= 2.8 && lx > 0 && lz > 0 && lx < CS - 1 && lz < CS - 1);
   if (!spots.length) return null;
-  const s = spots[Math.floor(hash01(c.cx, c.cz, level.levelSeed, (opts.salt ?? 811) + 1) * spots.length)];
+  let s = spots[Math.floor(hash01(c.cx, c.cz, level.levelSeed, (opts.salt ?? 811) + 1) * spots.length)];
+  // near a given point (so wayfinding toward a side exit lands on the door)
+  if (opts.near) s = spots.reduce((b, q) => (Math.hypot(c.tx(q.lx) - opts.near.x, c.tz(q.lz) - opts.near.z) < Math.hypot(c.tx(b.lx) - opts.near.x, c.tz(b.lz) - opts.near.z) ? q : b), s);
   const p = wallPos(c, s, 0.08);
   c.flags[s.i] |= F_RESERVED;
   const label = opts.label || ('LEVEL ' + to.slice(1));

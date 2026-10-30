@@ -24,7 +24,10 @@ export default {
   init(e) { e.state = 'stalk'; e.stunCd = 0; e.lightAcc = 0; e.seenHide = null; },
 
   think(e, dt, ctx) {
-    const { level, players } = ctx;
+    const { level } = ctx;
+    // the pale draught makes a drinker invisible to it: it neither hunts nor hears them
+    const players = ctx.players.filter(p => !p.ward);
+    const noises = players.length === ctx.players.length ? ctx.noises : ctx.noises.filter(n => players.some(p => p.id === n.pid));
     const diffK = ctx.difficulty === 'easy' ? 0.85 : ctx.difficulty === 'hard' ? 1.12 : 1;
     e.stunCd = Math.max(0, e.stunCd - dt);
     if (e.state === 'collapsed') {
@@ -40,7 +43,7 @@ export default {
     // flashlight on the skull
     if (e.state !== 'stunned' && e.stunCd <= 0) {
       let lit = 0;
-      for (const p of players) if (!p.dead) lit = Math.max(lit, lightOn(p, e.x, e.y + 2.4, e.z, level, 14));
+      for (const p of ctx.players) if (!p.dead) lit = Math.max(lit, lightOn(p, e.x, e.y + 2.4, e.z, level, 14));
       e.lightAcc = lit > 0 ? e.lightAcc + dt * lit : Math.max(0, e.lightAcc - dt * 0.5);
       if (e.lightAcc > 0.9) { setState(e, 'stunned'); e.lightAcc = 0; e.stunCd = 9; }
     }
@@ -57,7 +60,7 @@ export default {
     if (sees) { e.lastSeen = { x: p.x, z: p.z, t: ctx.time, id: p.id }; if (e.state !== 'attack') setState(e, 'chase'); }
     // watched someone climb into a locker
     if (p.hidden && e.lastSeen?.id === p.id && ctx.time - e.lastSeen.t < 1.5) e.seenHide = { id: p.id, x: p.x, z: p.z };
-    const heard = hearNoise(e, ctx.noises, level, 1.2);
+    const heard = hearNoise(e, noises, level, 1.2);
     if (heard && !sees) e.lastSeen = { x: heard.x, z: heard.z, t: ctx.time };
 
     switch (e.state) {

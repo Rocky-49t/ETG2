@@ -612,3 +612,158 @@ export const SFX = {
     return 1.5;
   },
 };
+
+// ---------------------------------------------------------------- Level 2 additions, spider
+Object.assign(SFX, {
+  spiderShriek(A, dest, o, t) {
+    // chittering, rising screech: a buzzing square swept up, chopped fast
+    const s = osc(A, 'square', 1800); const f = filt(A, 'bandpass', 3200, 2.5); const g = gain(A, 0);
+    s.frequency.exponentialRampToValueAtTime(3600, t + 0.35); s.frequency.exponentialRampToValueAtTime(2400, t + 1.0);
+    const fm = osc(A, 'sawtooth', 70); const fg = gain(A, 500); fm.connect(fg).connect(s.frequency);
+    const am = osc(A, 'square', 38); const ag = gain(A, 0.5); am.connect(ag).connect(g.gain);
+    s.connect(f).connect(g).connect(dest);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.32, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.05);
+    for (const n of [s, fm, am]) { n.start(t); n.stop(t + 1.1); }
+    burst(A, dest, t, { type: 'highpass', freq: 4500, a: 0.02, d: 0.9, vol: 0.35 });
+    for (let i = 0; i < 9; i++) burst(A, dest, t + i * 0.07, { type: 'bandpass', freq: rnd(2500, 5000), Q: 6, d: 0.02, vol: 0.3 });
+    return 1.1;
+  },
+  spiderHiss(A, dest, o, t) {
+    const d = rnd(0.8, 1.4);
+    const n = noiseSrc(A, 'white'); const f = filt(A, 'highpass', 3800, 0.7); const f2 = filt(A, 'peaking', 6500, 2); f2.gain.value = 8;
+    const g = gain(A, 0); const am = osc(A, 'triangle', rnd(14, 22)); const ag = gain(A, 0.12); am.connect(ag).connect(g.gain);
+    n.connect(f).connect(f2).connect(g).connect(dest);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.32, t + 0.08); g.gain.setValueAtTime(0.3, t + d * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    n.start(t, Math.random()); n.stop(t + d + 0.05); am.start(t); am.stop(t + d + 0.05);
+    burst(A, dest, t, { kind: 'pink', type: 'bandpass', freq: 900, Q: 3, a: 0.05, d: d * 0.8, vol: 0.12 });
+    return d;
+  },
+  spiderBite(A, dest, o, t) {
+    burst(A, dest, t, { type: 'bandpass', freq: 3800, Q: 4, d: 0.03, vol: 0.6 });
+    burst(A, dest, t + 0.04, { type: 'bandpass', freq: 2600, Q: 4, d: 0.04, vol: 0.55 });
+    burst(A, dest, t + 0.05, { kind: 'pink', type: 'lowpass', freq: 600, d: 0.12, vol: 0.6 });
+    tone(A, dest, t + 0.04, { freq: 110, to: 50, d: 0.12, vol: 0.4 });
+    return 0.3;
+  },
+  skitter(A, dest, o, t) {
+    const v = o.volume ?? 1;
+    for (let i = 0; i < 4; i++) burst(A, dest, t + i * rnd(0.012, 0.03), { type: 'bandpass', freq: rnd(2800, 5200), Q: 7, d: 0.012, vol: 0.35 * v });
+    return 0.15;
+  },
+
+  // ------------------------------------------------------------ Deedee
+  paleSong(A, dest, o) {
+    // a breathy, slightly-wrong lullaby sung by something that learned it
+    // from a recording: formant-filtered voice with a tremulous vibrato
+    const out = gain(A, 0.5);
+    const f1 = filt(A, 'bandpass', 420, 5), f2 = filt(A, 'bandpass', 980, 7), f3 = filt(A, 'bandpass', 2600, 9);
+    const lp = filt(A, 'lowpass', 3200, 0.5);
+    const mix = gain(A, 1);
+    mix.connect(f1).connect(lp); mix.connect(f2).connect(lp);
+    const g3 = gain(A, 0.35); mix.connect(f3).connect(g3).connect(lp);
+    lp.connect(out).connect(dest);
+    const breath = noiseSrc(A, 'pink'); const bf = filt(A, 'bandpass', 1400, 1.2); const bg = gain(A, 0.03);
+    breath.connect(bf).connect(bg).connect(out); breath.start();
+    const MEL = [[0, 2], [3, 1], [7, 1], [5, 2], [3, 1], [2, 1], [0, 3], [-2, 1], [0, 1], [3, 2], [2, 1], [-1.4, 1], [0, 4], [null, 2],
+      [7, 2], [8, 1], [7, 1], [5, 2], [3, 2], [5, 1], [3, 1], [2, 2], [0, 3], [null, 1], [-5, 2], [-2, 1], [0, 5], [null, 3]];
+    const base = 330 * (0.97 + Math.random() * 0.06);
+    let i = Math.floor(Math.random() * MEL.length), stopped = false;
+    const beat = 0.42;
+    const tick = () => {
+      if (stopped) return;
+      const [semi, len] = MEL[i % MEL.length];
+      const t = A.now + 0.02, dur = len * beat;
+      if (semi !== null) {
+        const off = Math.random() < 0.12 ? -0.45 : 0; // now and then, a note slides flat
+        const f = base * Math.pow(2, (semi + off) / 12);
+        const v1 = osc(A, 'sawtooth', f), v2 = osc(A, 'triangle', f * 1.002);
+        const vib = osc(A, 'sine', 5.2 + Math.random()); const vg = gain(A, f * 0.012); vib.connect(vg); vg.connect(v1.frequency); vg.connect(v2.frequency);
+        if (off) v1.frequency.linearRampToValueAtTime(f * 0.97, t + dur);
+        const g = gain(A, 0);
+        v1.connect(g); v2.connect(g); g.connect(mix);
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.22, t + 0.14); g.gain.setValueAtTime(0.2, t + dur * 0.8); g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.1);
+        for (const n of [v1, v2, vib]) { n.start(t); n.stop(t + dur + 0.15); }
+      }
+      i++;
+      setTimeout(tick, dur * 1000 * (1 + (Math.random() - 0.5) * 0.08));
+    };
+    tick();
+    return { stop() { stopped = true; try { breath.stop(); } catch { /* ignore */ } } };
+  },
+  paleVanish(A, dest, o, t) {
+    burst(A, dest, t, { kind: 'pink', type: 'bandpass', freq: 2200, Q: 0.8, a: 0.05, d: 1.2, vol: 0.5, sweepTo: 250 });
+    for (let i = 0; i < 10; i++) burst(A, dest, t + rnd(0, 0.5), { type: 'highpass', freq: 5000, d: 0.015, vol: 0.25 });
+    tone(A, dest, t, { type: 'sine', freq: 660, to: 1320, a: 0.3, d: 0.9, vol: 0.06 });
+    return 1.4;
+  },
+  paleScream(A, dest, o, t) {
+    // several throats at once, sliding apart: a shriek that turns into a roar
+    const d = o.short ? 0.55 : 1.8;
+    const sh = A.ctx.createWaveShaper(); const curve = new Float32Array(256);
+    for (let k = 0; k < 256; k++) { const x = k / 128 - 1; curve[k] = Math.tanh(x * 4); }
+    sh.curve = curve;
+    const fA = filt(A, 'bandpass', 900, 3), fB = filt(A, 'bandpass', 1500, 4);
+    const g = gain(A, 0);
+    sh.connect(fA).connect(g); sh.connect(fB).connect(g); g.connect(dest);
+    for (const [f0, f1, type] of [[620, 1100, 'sawtooth'], [655, 380, 'sawtooth'], [1240, 1900, 'square'], [180, 90, 'sawtooth']]) {
+      const s = osc(A, type, f0); s.frequency.exponentialRampToValueAtTime(f1, t + d);
+      const fm = osc(A, 'sine', rnd(28, 40)); const fg = gain(A, f0 * 0.06); fm.connect(fg).connect(s.frequency);
+      const sg = gain(A, 0.25); s.connect(sg).connect(sh);
+      s.start(t); s.stop(t + d + 0.05); fm.start(t); fm.stop(t + d + 0.05);
+    }
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.5, t + 0.05); g.gain.setValueAtTime(0.45, t + d * 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    burst(A, dest, t, { type: 'highpass', freq: 2500, a: 0.02, d: d * 0.9, vol: 0.3 });
+    return d + 0.1;
+  },
+
+  // ------------------------------------------------------------ office machines
+  vend(A, dest, o, t) {
+    const m = osc(A, 'sawtooth', 70); const f = filt(A, 'lowpass', 300, 2); const g = gain(A, 0);
+    m.connect(f).connect(g).connect(dest);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.18, t + 0.05); g.gain.setValueAtTime(0.18, t + 0.7); g.gain.linearRampToValueAtTime(0.0001, t + 0.8);
+    m.start(t); m.stop(t + 0.85);
+    tone(A, dest, t + 0.95, { freq: 90, to: 50, d: 0.15, vol: 0.5 });
+    burst(A, dest, t + 0.95, { kind: 'pink', type: 'lowpass', freq: 800, d: 0.12, vol: 0.6 });
+    burst(A, dest, t + 1.05, { type: 'bandpass', freq: 2200, Q: 5, d: 0.05, vol: 0.2 });
+    return 1.3;
+  },
+  dialTone(A, dest) {
+    const a = osc(A, 'sine', 350), b = osc(A, 'sine', 440); const g = gain(A, 0.06);
+    a.connect(g); b.connect(g); g.connect(dest); a.start(); b.start();
+    return { stop() { a.stop(); b.stop(); } };
+  },
+  dtmf(A, dest, o, t) {
+    const K = { 1: [697, 1209], 2: [697, 1336], 3: [697, 1477], 4: [770, 1209], 5: [770, 1336], 6: [770, 1477], 7: [852, 1209], 8: [852, 1336], 9: [852, 1477], '*': [941, 1209], 0: [941, 1336], '#': [941, 1477] };
+    const [lo, hi] = K[o.digit] || K[0];
+    tone(A, dest, t, { freq: lo, a: 0.005, d: 0.16, vol: 0.12 });
+    tone(A, dest, t, { freq: hi, a: 0.005, d: 0.16, vol: 0.12 });
+    return 0.2;
+  },
+  phoneError(A, dest, o, t) {
+    [913.8, 1370.6, 1776.7].forEach((f, i) => tone(A, dest, t + i * 0.34, { freq: f, a: 0.01, d: 0.3, vol: 0.12 }));
+    return 1.1;
+  },
+  ringback(A, dest, o, t) {
+    for (const f of [440, 480]) { const s = osc(A, 'sine', f); const g = gain(A, 0); s.connect(g).connect(dest); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07, t + 0.02); g.gain.setValueAtTime(0.07, t + 1.9); g.gain.linearRampToValueAtTime(0.0001, t + 2); s.start(t); s.stop(t + 2.05); }
+    return 2.1;
+  },
+  ladder(A, dest, o, t) {
+    for (let i = 0; i < 4; i++) {
+      burst(A, dest, t + i * 0.28, { type: 'bandpass', freq: rnd(900, 1300), Q: 9, d: 0.08, vol: 0.4 });
+      tone(A, dest, t + i * 0.28, { type: 'triangle', freq: rnd(400, 520), d: 0.12, vol: 0.06 });
+    }
+    return 1.2;
+  },
+});
+
+Object.assign(SFX, {
+  // dial-up handshake: dial pulses, answer tone, the screech, then hiss
+  modem(A, dest, o, t) {
+    for (let i = 0; i < 7; i++) SFX.dtmf(A, dest, { digit: String((i * 3 + 1) % 10) }, t + i * 0.12);
+    tone(A, dest, t + 1.0, { freq: 2100, a: 0.01, d: 0.6, vol: 0.06 });
+    tone(A, dest, t + 1.7, { type: 'square', freq: 1200, to: 2400, a: 0.01, d: 0.5, vol: 0.04 });
+    for (let i = 0; i < 6; i++) tone(A, dest, t + 2.2 + i * 0.12, { type: 'sawtooth', freq: rnd(900, 2600), a: 0.005, d: 0.1, vol: 0.035 });
+    burst(A, dest, t + 2.9, { type: 'bandpass', freq: 1800, Q: 0.6, a: 0.02, d: 1.2, vol: 0.12 });
+    return 4.2;
+  },
+});

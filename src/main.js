@@ -228,7 +228,7 @@ class App {
         if (!g.dead && !g.won && !g.transitioning) this.ui.pause(g);
       } else if (is('inventory') && !g.dead) {
         e.preventDefault();
-        if (g.transitioning || this.ui.open.has('pause') || this.ui.open.has('note') || this.ui.open.has('journal') || this.ui.open.has('computer')) return;
+        if (g.transitioning || this.ui.open.has('pause') || this.ui.open.has('note') || this.ui.open.has('journal') || this.ui.open.has('computer') || this.ui.open.has('phone')) return;
         this.ui.toggleInventory(g);
       } else if (is('interact') && !e.repeat && this.ui.open.has('inventory')) {
         // E closes the inventory / container screen (never opens it)

@@ -526,10 +526,57 @@ export class Game {
           if (!bar && !s?.prog) this.subtitle('Rusted shut. A few more heaves — or something to pry with.', 2.5);
         }
         break;
+      case 'vendor':
+        if ((s?.stock ?? o.stock) <= 0) { this.sfx('doorLocked', o, { volume: 0.5 }); this.subtitle('Sold out. The coil turns and turns on nothing.', 2); return; }
+        this.request({ t: 'int', l, id: o.id, a: 'buy' });
+        this.sfx('vend', { x: o.x, y: o.y + 1, z: o.z }, {});
+        this.emitNoise(5);
+        break;
+      case 'ladder':
+        this.climbLadder(o);
+        break;
+      case 'phone':
+        this.ui.phone.open(this, o);
+        break;
+      case 'computer':
+        this.useComputer(o);
+        break;
       default:
         // level-specific kinds
         this.def.interact?.(this, o, s, tgt);
     }
+  }
+
+  // Climb to the other end of a ladder (a short fade hides the teleport).
+  climbLadder(o) {
+    if (this.transitioning || this.climbing) return;
+    this.climbing = true;
+    this.sfx('ladder', null, { volume: 0.9 });
+    this.emitNoise(6);
+    this.ui.fade(true);
+    setTimeout(() => {
+      this.climbing = false;
+      if (this.levelId !== o.level && o.level) return;
+      this.player.teleport(o.dest.x, o.dest.y + 0.05, o.dest.z, o.dest.yaw);
+      this.ui.fade(false);
+    }, 650);
+  }
+
+  // Sit down at a desk computer: snap into the chair facing the screen.
+  useComputer(o) {
+    const P = this.player;
+    if (o.seat) {
+      this.preSeat = { x: P.pos.x, y: P.pos.y, z: P.pos.z };
+      P.teleport(o.seat.x, P.pos.y, o.seat.z, o.seat.yaw);
+      P.pitch = -0.12;
+      P.height = 1.3;
+    }
+    this.sfx('click', o, {});
+    this.ui.computer.open(this, o);
+  }
+  standUp() {
+    // step back out of the chair to where we stood
+    if (this.preSeat) { const p = this.preSeat; this.preSeat = null; this.player.teleport(p.x, p.y, p.z); }
   }
 
   readNote(id) {
@@ -1057,7 +1104,7 @@ export class Game {
         id: this.myId, levelId: this.levelId, x: P.pos.x, y: P.pos.y, z: P.pos.z, crouch: P.crouching, sprint: P.sprinting,
         hidden: this.hidden || this.notarget, downed: this.downed, dead: this.dead || this.downed, light: this.lights.on, focus: this.lights.focus,
         dir: { x: dir.x, y: dir.y, z: dir.z }, lighter: this.held.lighterLit, sanity: this.stats.sanity, swim: P.swimming,
-        inWater: this.level.waterAt(P.pos.x, P.pos.z) > P.pos.y + 0.4, ambientLight: this.ambientLightAt(P.pos),
+        inWater: this.level.waterAt(P.pos.x, P.pos.z) > P.pos.y + 0.4, ambientLight: this.ambientLightAt(P.pos), ward: this.stats.hasStatus('inkward'),
       });
     }
     for (const [id, s] of this.pstate) {
@@ -1065,7 +1112,7 @@ export class Game {
       const cp = Math.cos(s.pt), dir = { x: -Math.sin(s.yw) * cp, y: Math.sin(s.pt), z: -Math.cos(s.yw) * cp };
       out.push({
         id, levelId: s.lvl, x: s.x, y: s.y, z: s.z, crouch: s.cr, sprint: s.sp, hidden: s.hd || s.nt, downed: s.dn, dead: s.dd || s.dn,
-        light: s.fl, focus: s.fo, dir, lighter: s.lt, sanity: s.sn, swim: s.sw, inWater: s.iw, ambientLight: 0.3,
+        light: s.fl, focus: s.fo, dir, lighter: s.lt, sanity: s.sn, swim: s.sw, inWater: s.iw, ambientLight: 0.3, ward: !!s.wd,
       });
     }
     return out;
@@ -1191,7 +1238,7 @@ export class Game {
       lvl: this.levelId, cr: P.crouching, sp: P.sprinting, sw: P.swimming, dn: this.downed, dd: this.dead, hd: this.hidden, nt: this.notarget || undefined,
       hi: it ? it.id : null, fl: this.lights.on, fo: this.lights.focus, lt: this.held.lighterLit, hp: Math.round(this.stats.health),
       sn: Math.round(this.stats.sanity), iw: this.level ? this.level.waterAt(P.pos.x, P.pos.z) > P.pos.y + 0.4 : false,
-      us: this.held.useT > 0 ? useAnim(it) : undefined, cl: this.classId || undefined,
+      us: this.held.useT > 0 ? useAnim(it) : undefined, cl: this.classId || undefined, wd: this.stats.hasStatus('inkward') || undefined,
     };
   }
 
@@ -1293,6 +1340,7 @@ export class Game {
         break;
       }
       case 'cheat': this.hostCheat(pid, m); break;
+      case 'call': this.hostCall(pid, m); break;
       case 'chat': {
         const text = String(m.text || '').slice(0, 200);
         if (text) this.hostBroadcast({ t: 'chat', from: pid, name: this.nameOf(pid), text });
@@ -1441,9 +1489,31 @@ export class Game {
           if (prog >= 1) this.hostEvent(m.l, { k: 'sound', name: 'metalDoor', x: o.x, y: 0.5, z: o.z, volume: 1 });
         }
         break;
+      case 'vendor': {
+        const sold = s.sold || 0;
+        if (m.a !== 'buy' || sold >= o.stock) return;
+        set({ sold: sold + 1, stock: o.stock - sold - 1 });
+        const item = o.goods[sold] || 'snackBar';
+        setTimeout(() => this.hostSend(pid, { t: 'give', item: { id: item, qty: 1, data: ITEMS[item]?.data ? { ...ITEMS[item].data } : undefined } }), 1000);
+        break;
+      }
       default:
         LEVELS[m.l]?.hostInteract?.(this, pid, o, s, m);
     }
+  }
+
+  // Someone dialled a phone. Only one number answers — and it comes to you.
+  hostCall(pid, m) {
+    if (m.n !== '1143141967' || !LEVELS[m.l]) return;
+    if (this.entities.byLevel(m.l).some(e => e.type === 'deedee' && e.state !== 'dead')) return;
+    const ctx = this.lastPerLevel?.get(m.l);
+    const target = ctx?.players.find(p => p.id === pid) || { x: m.x, z: m.z };
+    let pos = ctx && this.director.findSpawn(ctx, 14, 24, null, target, false);
+    if (!pos) pos = this.getLevel(m.l).randomWalkableNear(m.x, m.z, 16);
+    if (!pos) return;
+    const e = this.entities.spawn('deedee', m.l, pos.x, pos.z);
+    if (e) e.caller = pid;
+    setTimeout(() => this.hostEvent(m.l, { k: 'sound', name: 'paleVanish', x: pos.x, y: 1, z: pos.z, volume: 0.6 }), 200);
   }
 
   syncDoorCollider(l, o, open) {

@@ -58,8 +58,18 @@ export function addPickup(c, rng, table, x, y, z) {
 export function addContainer(c, rng, ctype, table, x, y, z, ry, rolls = [1, 3]) {
   const loot = rollLoot(rng, table, rng.int(rolls[0], rolls[1]));
   const lootMp = rollLoot(rng, table, 4).map((it, k) => ({ ...it, mp: [2, 3, 5, 7][k] }));
-  return addObject(c, { kind: 'container', ctype, loot, lootMp, x, y, z, ry });
+  const o = addObject(c, { kind: 'container', ctype, loot, lootMp, x, y, z, ry });
+  // solid furniture: players and creatures bump into it
+  const dims = CONTAINER_DIMS[ctype];
+  if (dims) {
+    const side = Math.abs(Math.sin(ry || 0)) > 0.7;
+    const hx = (side ? dims[2] : dims[0]) / 2, hz = (side ? dims[0] : dims[2]) / 2;
+    o.collider = c.addCollider(x - hx, y, z - hz, x + hx, y + dims[1], z + hz, false);
+    o.collider.keep = true;
+  }
+  return o;
 }
+const CONTAINER_DIMS = { cabinet: [0.5, 1.32, 0.62], crate: [0.82, 0.58, 0.57], cardboard: [0.6, 0.44, 0.45] };
 
 export function addNote(c, noteId, x, y, z, ry = 0) {
   return addObject(c, { kind: 'note', noteId, x, y, z, ry });
@@ -103,7 +113,9 @@ export function freeTile(c, i) {
   return c.type[i] === T_FLOOR && !(c.flags[i] & (F_RESERVED | F_NAVBLOCK | F_LANDMARK)) && c.ramp[i] < 0;
 }
 
-// Wall-mounted arrow decal pointing (roughly) toward a world target.
+// Wall-mounted EXIT sign / arrow pointing toward a world target. Exit signs
+// ('arrow') use left/right when the target lies along the wall, and an up
+// arrow (ahead) or down arrow (behind you) when it lies across it.
 export function addWayfinding(c, rng, spots, target, opts = {}) {
   if (!target || !spots.length) return;
   const s = rng.pick(spots);
@@ -111,8 +123,12 @@ export function addWayfinding(c, rng, spots, target, opts = {}) {
   const dx = target.x - p.x, dz = target.z - p.z;
   // decal u axis for wall normal n is (nz, 0, -nx)
   const ux = s.nz, uz = -s.nx;
-  const flip = ux * dx + uz * dz < 0;
-  addDecal(c, { name: opts.name || rng.pick(['arrow', 'arrow2']), x: p.x, y: opts.y ?? rng.float(1.1, 1.7), z: p.z, nx: s.nx, ny: 0, nz: s.nz, size: opts.size || rng.float(0.6, 0.9), flip, rot: rng.float(-0.12, 0.12) });
+  const lat = ux * dx + uz * dz, nor = s.nx * dx + s.nz * dz;
+  let name = opts.name || rng.pick(['arrow', 'arrow2']);
+  let flip = lat < 0;
+  if (name === 'arrow' && Math.abs(lat) < Math.abs(nor) * 0.6) { name = nor < 0 ? 'exitU' : 'exitD'; flip = false; }
+  const sign = name === 'arrow' || name.startsWith('exit');
+  addDecal(c, { name, x: p.x, y: opts.y ?? rng.float(1.2, 1.6), z: p.z, nx: s.nx, ny: 0, nz: s.nz, size: opts.size || (sign ? 0.8 : rng.float(0.6, 0.9)), flip, rot: sign && opts.style !== 'spray' ? 0 : rng.float(-0.1, 0.1) });
 }
 
 export function tileCenter(c, lx, lz) { return { x: c.tx(lx), z: c.tz(lz) }; }
@@ -200,7 +216,7 @@ export function addPortArrow(c, rng, ports, target, opts = {}) {
   const spots = wallSpots(c, (lx, lz, i) => Math.abs(lx - goal.lx) + Math.abs(lz - goal.lz) <= (opts.reach ?? 4) && c.floor[i] === 0)
     .filter(s => Math.abs(s.nx * (goal.x - c.tx(s.lx))) + Math.abs(s.nz * (goal.z - c.tz(s.lz))) < TILE * 1.5);
   if (!spots.length) return false;
-  for (let k = 0; k < Math.min(opts.count ?? 2, spots.length); k++) {
+  for (let k = 0; k < Math.min(opts.count ?? 1, spots.length); k++) {
     const s = spots.splice(rng.int(0, spots.length - 1), 1)[0];
     addWayfinding(c, rng, [s], goal, { name: opts.name || 'arrow', size: opts.size || 0.85, y: opts.y ?? 1.45 });
   }
@@ -231,4 +247,28 @@ export function addHatchExit(c, level, opts = {}) {
     return addObject(c, { kind: 'hatch', x: c.tx(lx), y: 0, z: c.tz(lz), ry: (hash01(c.cx, c.cz, 91) * 4 | 0) * Math.PI / 2, to: level.def.next, label: opts.label || 'maintenance hatch', mat: opts.mat });
   }
   return null;
+}
+
+// Rare door on a wall that leads to another level (back doors, alternate
+// exits). Placement depends only on the chunk hash so it is stable.
+export function addLevelDoor(c, level, rng, to, opts = {}) {
+  if (Math.max(Math.abs(c.cx), Math.abs(c.cz)) < (opts.minR ?? 2)) return null;
+  if (hash01(c.cx, c.cz, level.levelSeed, opts.salt ?? 811) >= (opts.p ?? 0.04)) return null;
+  const spots = wallSpots(c, (lx, lz, i) => freeTile(c, i) && c.floor[i] === (opts.floor ?? 0) && c.ceil[i] - c.floor[i] >= 2.8 && lx > 0 && lz > 0 && lx < CS - 1 && lz < CS - 1);
+  if (!spots.length) return null;
+  const s = spots[Math.floor(hash01(c.cx, c.cz, level.levelSeed, (opts.salt ?? 811) + 1) * spots.length)];
+  const p = wallPos(c, s, 0.08);
+  c.flags[s.i] |= F_RESERVED;
+  const label = opts.label || ('LEVEL ' + to.slice(1));
+  return addObject(c, { kind: 'levelDoor', to, label, x: p.x, y: opts.floor ?? 0, z: p.z, ry: yawFor(s.nx, s.nz) });
+}
+
+// Remove props, colliders, lights and objects inside a world rect (used when
+// a landmark is carved over geometry that was already generated).
+export function clearArea(c, x0, z0, x1, z1) {
+  const inside = (x, z) => x > x0 && x < x1 && z > z0 && z < z1;
+  c.props = c.props.filter(p => !inside(p.x, p.z));
+  c.colliders = c.colliders.filter(b => !(b.x0 < x1 && b.x1 > x0 && b.z0 < z1 && b.z1 > z0) || b.keep);
+  c.lights = c.lights.filter(l => !inside(l.x, l.z));
+  c.objects = c.objects.filter(o => !inside(o.x, o.z));
 }

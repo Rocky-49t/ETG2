@@ -140,6 +140,37 @@ OBJECT_KINDS.hatch = {
   },
 };
 
+// A door marked with another level's name: walking through takes you there.
+const LEVEL_DOOR_COLORS = { L0: 0xc9b46a, L1: 0x6a4a32, L2: 0x8a8f96, L3: 0x9ec8d6, L4: 0xb8ad94, L5: 0x6c7278 };
+OBJECT_KINDS.levelDoor = {
+  build(o, game) {
+    const g = new THREE.Group();
+    const dark = game.lib.dyn('darkMetal');
+    const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+    for (const sx of [-0.62, 0.62]) add(new THREE.BoxGeometry(0.1, 2.3, 0.14), dark, sx, 1.15, 0);
+    add(new THREE.BoxGeometry(1.34, 0.1, 0.14), dark, 0, 2.3, 0);
+    const panel = add(new THREE.BoxGeometry(1.14, 2.22, 0.05), new THREE.MeshStandardMaterial({ color: LEVEL_DOOR_COLORS[o.to] ?? 0x8a7a60, roughness: 0.7, metalness: 0.15 }), 0, 1.12, 0.02);
+    panel.castShadow = true;
+    add(new THREE.SphereGeometry(0.04, 8, 6), game.lib.dyn('chrome'), 0.45, 1.05, 0.07);
+    // sign above the frame
+    const c = document.createElement('canvas'); c.width = 256; c.height = 96;
+    const x = c.getContext('2d');
+    x.fillStyle = '#16191b'; x.fillRect(0, 0, 256, 96);
+    x.strokeStyle = '#c9a640'; x.lineWidth = 5; x.strokeRect(4, 4, 248, 88);
+    x.fillStyle = '#efe6c4'; x.font = 'bold 44px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(o.label || 'LEVEL ?', 128, 50);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const sign = add(new THREE.PlaneGeometry(0.9, 0.34), new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.35, roughness: 0.6 }), 0, 2.6, 0.08);
+    sign.castShadow = false;
+    // light leaking under the door
+    const leak = add(new THREE.PlaneGeometry(1.0, 0.5), new THREE.MeshBasicMaterial({ color: 0xffe0a0, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }), 0, 0.005, 0.3);
+    leak.rotation.x = -Math.PI / 2;
+    return g;
+  },
+  prompt: o => `Go through the door marked ${o.label}`,
+  radius: 0.9, centerY: 1.0,
+};
+
 export function registerObjectKind(kind, def) { OBJECT_KINDS[kind] = def; }
 
 const tmp = new THREE.Vector3();

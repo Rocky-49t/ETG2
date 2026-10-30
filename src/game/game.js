@@ -269,7 +269,7 @@ export class Game {
     this.sceneDef = def;
     this.renderer.radius = def.renderRadius ?? settings.preset.renderRadius;
     const decals = this.lib.baked.get('decals');
-    if (decals) { decals.map?.dispose(); decals.map = buildDecalAtlas(def.decalTexts || DECAL_TEXTS); }
+    if (decals) { decals.map?.dispose(); decals.map = buildDecalAtlas(def.decalTexts || DECAL_TEXTS, def.exitStyle || 'spray', def.decalLabels || {}); }
     scene.fog = new THREE.FogExp2(def.fog.color, def.fog.density);
     scene.background = new THREE.Color(def.background ?? def.fog.color);
     this.hemi.color.set(def.hemi?.sky ?? 0x888888);
@@ -510,6 +510,11 @@ export class Game {
           return;
         }
         this.request({ t: 'int', l, id: o.id, a: 'toggle' });
+        break;
+      case 'levelDoor':
+        this.sfx('doorOpen', o, { volume: 0.9 });
+        this.subtitle(`You step through the door marked ${o.label}.`, 2);
+        this.useExit(o.to);
         break;
       case 'hatch':
         if (s?.open) { this.useExit(o.to); return; }
@@ -1088,6 +1093,7 @@ export class Game {
     // keep host collision data loaded around remote players (cheap: chunk() is cached)
     for (const p of targets) if (p.levelId !== this.levelId) this.getLevel(p.levelId).chunk(Math.floor(p.x / CHUNK), Math.floor(p.z / CHUNK));
     this.entities.update(dt, perLevel);
+    this.entitiesOpenDoors(perLevel);
     this.director.update(dt, perLevel);
     for (const [lid, ctx] of perLevel) LEVELS[lid].hostUpdate?.(this, ctx, dt);
     this.noises.length = 0;
@@ -1104,6 +1110,23 @@ export class Game {
         const lvl = s?.lvl;
         if (!byLevel.has(lvl)) byLevel.set(lvl, lvl ? this.entities.snapshot(lvl) : []);
         this.session.sendTo(id, { t: 'snap', ht: this.time, l: lvl, e: byLevel.get(lvl), p: players, b: lvl ? LEVELS[lvl].bossSnap?.(this, lvl) : undefined });
+      }
+    }
+  }
+
+  // Creatures shoulder ordinary (unlocked) doors open as they pass.
+  entitiesOpenDoors(perLevel) {
+    for (const [lid, ctx] of perLevel) {
+      for (const e of this.entities.byLevel(lid)) {
+        if (e.state === 'dead' || (e.speedNow || 0) < 0.3 || e.def.noDoors) continue;
+        const ch = ctx.level.chunk(Math.floor(e.x / CHUNK), Math.floor(e.z / CHUNK));
+        for (const o of ch.objects) {
+          if (o.kind !== 'door' || Math.abs(o.x - e.x) > 1.6 || Math.abs(o.z - e.z) > 1.6) continue;
+          const s = this.world.get(lid, o.id);
+          if (s?.open || (o.locked && !s?.unlocked)) continue;
+          this.hostBroadcast({ t: 'os', l: lid, id: o.id, s: { ...(s || {}), open: true } });
+          if (o.collider) o.collider.disabled = true;
+        }
       }
     }
   }

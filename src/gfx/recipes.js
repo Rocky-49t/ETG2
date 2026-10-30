@@ -92,7 +92,7 @@ export const RECIPES = {
       const wick = smoothstep(0.22, 0.0, v) * (0.55 + 0.45 * f(N3, u, 0.1, 6, 3));
       r -= wick * 0.22; g -= wick * 0.25; b -= wick * 0.2;
       // tide-mark stains
-      const st = stain(u, v, 2, 0.8);
+      const st = { t: 0, rim: 0, n: 0.5 }; // stains come from the world-space shader term
       r -= st.t * 0.10 + st.rim * 0.12; g -= st.t * 0.12 + st.rim * 0.14; b -= st.t * 0.12 + st.rim * 0.1;
       // ceiling smoke yellowing (top)
       const top = smoothstep(0.8, 1.0, v);
@@ -191,7 +191,7 @@ export const RECIPES = {
       const w = W1(u * 6, v * 6, 6);
       const crack = smoothstep(0.03, 0.0, w.f2 - w.f1) * smoothstep(0.55, 0.68, f(N3, u, v, 5, 3));
       let c = 0.52 + (n - 0.5) * 0.18 + (spk - 0.5) * 0.08 - crack * 0.18;
-      const st = stain(u, v, 2, 0.64, N3);
+      const st = { t: 0, rim: 0, n: 0.5 }; // stains come from the world-space shader term
       c -= st.t * 0.08;
       s.set(i, c, c * 0.98, c * 0.95);
       s.h[i] = 0.5 + (spk - 0.5) * 0.3 + (n - 0.5) * 0.2 - crack * 0.6;
@@ -371,7 +371,7 @@ export const RECIPES = {
       const seam = slab.d < 0.004;
       let c = 0.36 + (n - 0.5) * 0.14 + (spk - 0.5) * 0.06 + (slab.id - 0.5) * 0.04;
       // oil stains
-      const st = stain(u, v, 2.5, 0.6, N3);
+      const st = { t: 0, rim: 0, n: 0.5 }; // stains come from the world-space shader term
       c -= st.t * 0.14 + st.rim * 0.06;
       // painted hazard line on one edge
       let r = c, g = c * 0.97, b = c * 0.93;
@@ -411,7 +411,7 @@ export const RECIPES = {
       let r = 0.25, g = 0.28, b = 0.33;
       const k = (fib - 0.5) * 0.08 + (stripe - 0.5) * 0.03 + (t.id - 0.5) * 0.03;
       r += k; g += k; b += k;
-      const st = stain(u, v, 2, 0.64, N3);
+      const st = { t: 0, rim: 0, n: 0.5 }; // stains come from the world-space shader term
       r -= st.t * 0.06; g -= st.t * 0.06; b -= st.t * 0.07;
       if (t.d < 0.002) { r *= 0.8; g *= 0.8; b *= 0.8; }
       s.set(i, r, g, b);

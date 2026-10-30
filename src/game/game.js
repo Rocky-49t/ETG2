@@ -1355,6 +1355,7 @@ export class Game {
       }
       case 'respawned': this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} respawned at the level entrance.` }, true, pid); break;
       case 'exitUsed': {
+        LEVELS[m.to]?.hostArrive?.(this, pid, m.from);
         if (!m.tp) this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} went ${LEVEL_ORDER.indexOf(m.to) < LEVEL_ORDER.indexOf(m.from) ? 'back up' : 'deeper'} — ${LEVELS[m.to]?.name || ''}.` }, true);
         break;
       }
@@ -1501,6 +1502,15 @@ export class Game {
       default:
         LEVELS[m.l]?.hostInteract?.(this, pid, o, s, m);
     }
+  }
+
+  // Host: put an item on the floor (entity drops).
+  hostDropItem(l, item, qty, x, z) {
+    const lvl = this.getLevel(l);
+    const y = lvl.floorAt(x, z);
+    if (!isFinite(y)) return;
+    const id = 'd' + hash4(this.time * 1000 | 0, Math.random() * 1e9 | 0).toString(36);
+    this.hostBroadcast({ t: 'dyn+', l, d: { id, kind: 'drop', item, qty, x, y: y + 0.02, z, ry: Math.random() * 6 } });
   }
 
   // Someone dialled a phone. Only one number answers — and it comes to you.

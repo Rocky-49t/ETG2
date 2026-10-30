@@ -208,6 +208,41 @@ he was staring at the water
             — pim`,
   },
 
+  l4_a: {
+    title: 'Survey card, US Expedition 2',
+    level: 'Level 4',
+    body: `LEVEL 4 — provisional name "the Quiet Rooms".
+
+Beige walls, gray carpet, ceiling the colour of old mint. Windows everywhere, and every one of them shows daylight. There is no outside. We checked: behind the glass is plaster.
+
+Stay near the windows. The dark between them is where the snakes are.
+
+Do NOT shoot the platinum snakes unless you have to. Every round that hits one makes it faster. A knife does not seem to wind them up.`,
+  },
+  l4_b: {
+    title: 'Napkin, restaurant 3',
+    level: 'Level 4',
+    body: `table for six
+we were six
+
+i keep seeing someone standing behind the windows when i'm tired
+they never wave
+i stopped waving`,
+  },
+  l4_c: {
+    title: 'Toll room — field notes',
+    level: 'Level 4',
+    body: `The vault behind the steel door has a door marked 5 in it. The lock beside the vault wants the plates pressed in an order.
+
+Some locks HUM the order — press "Listen" and watch which plate lights.
+Some have a PLAQUE with the words in order. One word is always scratched out; it's whichever plate is left over.
+
+Get it wrong and it buzzes loud enough to bring things.
+
+The order changed when we came back. Everything resets if you leave.
+If you find one of the heavy "5" bridge keys, it opens a vault without the lock.`,
+  },
+
   l5_a: {
     title: 'Leader\'s log — Ines',
     level: 'Level 5',

@@ -421,6 +421,19 @@ export const RECIPES = {
     return { normal: 1.3 };
   },
 
+  // Level 4: flat gray loop-pile carpet
+  grayCarpet(s) {
+    s.each((u, v, i) => {
+      const loop = Math.sin(u * Math.PI * 2 * 96) * Math.sin(v * Math.PI * 2 * 96);
+      const fib = f(N1, u, v, 200, 2), mott = f(N2, u, v, 5, 3);
+      let k = 0.37 + (fib - 0.5) * 0.07 + loop * 0.02 + (mott - 0.5) * 0.05;
+      s.set(i, k * 0.98, k, k * 1.01);
+      s.h[i] = fib * 0.5 + loop * 0.25 + 0.3;
+      s.rough[i] = 0.98;
+    });
+    return { normal: 1.1 };
+  },
+
   drywall(s) {
     s.each((u, v, i) => {
       const n = f(N1, u, v, 6, 5), fine = f(N2, u, v, 120, 2);

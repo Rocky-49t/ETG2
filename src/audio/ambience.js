@@ -130,6 +130,26 @@ export const AMBIENCE = {
     };
   },
 
+  // Level 4: the quiet rooms. Soft air handling, rain you can hear on windows
+  // that aren't there, the building settling.
+  quiet(A, out) {
+    const air = noiseLayer(A, out, 'pink', 'lowpass', 260, 0.5, 0.08);
+    const rain = noiseLayer(A, out, 'white', 'bandpass', 2400, 0.4, 0.018);
+    const rl = lfo(A, rain.g.gain, 0.05, 0.01);
+    const hum = oscLayer(A, out, 'sine', 50, 0.018);
+    const sched = scheduler(A, [
+      { name: 'distantThud', min: 40, max: 110, dist: [25, 45], volume: 0.3 },
+      { name: 'knock', min: 70, max: 160, dist: [12, 30], volume: 0.35 },
+      { name: 'scrape', min: 45, max: 120, dist: [15, 35], volume: 0.3 },
+      { name: 'whisper', min: 120, max: 240, dist: [6, 14], volume: 0.22 },
+    ]);
+    return {
+      reverb: [2.4, 2.2, 0.4],
+      update: dt => sched(dt),
+      stop: () => { air.stop(); rain.stop(); rl.stop(); hum.stop(); },
+    };
+  },
+
   pools(A, out) {
     const lap = noiseLayer(A, out, 'pink', 'bandpass', 520, 0.8, 0.14);
     const l1 = lfo(A, lap.g.gain, 0.17, 0.07);

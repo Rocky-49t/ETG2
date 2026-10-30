@@ -767,3 +767,46 @@ Object.assign(SFX, {
     return 4.2;
   },
 });
+
+// ---------------------------------------------------------------- Level 4
+Object.assign(SFX, {
+  snakeHiss(A, dest, o, t) {
+    burst(A, dest, t, { type: 'highpass', freq: 3200, a: 0.06, d: 1.1, vol: 0.32 });
+    // metal on metal: a rising ring under the hiss
+    tone(A, dest, t, { type: 'triangle', freq: 1460, to: 1880, a: 0.05, d: 1.0, vol: 0.05 });
+    tone(A, dest, t, { type: 'sine', freq: 2210, a: 0.05, d: 0.8, vol: 0.03 });
+    return 1.2;
+  },
+  snakeStrike(A, dest, o, t) {
+    burst(A, dest, t, { kind: 'pink', type: 'bandpass', freq: 900, Q: 1.5, a: 0.01, d: 0.25, vol: 0.5, sweepTo: 2600 });
+    tone(A, dest, t + 0.25, { type: 'square', freq: 320, to: 120, d: 0.2, vol: 0.12 });
+    burst(A, dest, t + 0.3, { type: 'bandpass', freq: 3000, Q: 8, d: 0.4, vol: 0.18 });
+    return 0.8;
+  },
+  snakeScrape(A, dest, o, t) {
+    const v = o.volume ?? 1;
+    burst(A, dest, t, { type: 'bandpass', freq: rnd(1800, 2600), Q: 6, a: 0.05, d: 0.35, vol: 0.18 * v });
+    tone(A, dest, t, { type: 'sine', freq: rnd(2800, 3400), a: 0.05, d: 0.3, vol: 0.012 * v });
+    return 0.45;
+  },
+  // tone-lock plates: a bell partial stack at the given pitch
+  plateTone(A, dest, o, t) {
+    const f = o.freq || 440;
+    tone(A, dest, t, { type: 'sine', freq: f, a: 0.004, d: 1.6, vol: 0.22 });
+    tone(A, dest, t, { type: 'sine', freq: f * 2.01, a: 0.004, d: 0.9, vol: 0.08 });
+    tone(A, dest, t, { type: 'sine', freq: f * 3.02, a: 0.004, d: 0.5, vol: 0.04 });
+    tone(A, dest, t, { type: 'triangle', freq: f * 0.5, a: 0.01, d: 1.2, vol: 0.05 });
+    return 1.7;
+  },
+  lockBuzz(A, dest, o, t) {
+    tone(A, dest, t, { type: 'sawtooth', freq: 110, a: 0.01, d: 0.45, vol: 0.18 });
+    tone(A, dest, t, { type: 'square', freq: 116, a: 0.01, d: 0.45, vol: 0.08 });
+    return 0.5;
+  },
+  lockOpen(A, dest, o, t) {
+    [523, 659, 784, 1046].forEach((f, i) => tone(A, dest, t + i * 0.12, { type: 'sine', freq: f, a: 0.004, d: 0.9, vol: 0.14 }));
+    burst(A, dest, t + 0.6, { kind: 'brown', type: 'lowpass', freq: 300, a: 0.05, d: 1.2, vol: 0.5 });
+    tone(A, dest, t + 0.6, { freq: 60, to: 40, a: 0.05, d: 1.1, vol: 0.3 });
+    return 2;
+  },
+});

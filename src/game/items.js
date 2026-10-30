@@ -54,7 +54,7 @@ export const ITEMS = {
 
   keycard: { name: 'Service Keycard', desc: 'A grimy maintenance keycard: "SERVICE ACCESS — TUNNEL EXIT". Opens the service door.', type: 'key', stack: 1, icon: 'keycard', color: '#e0a33a' },
   fuse: { name: 'Industrial Fuse', desc: 'A heavy ceramic fuse. Something in the stairwell needs power.', type: 'key', stack: 1, icon: 'fuse', color: '#5a8fd0' },
-  level5Key: { name: 'Bridge Key', desc: 'A cold, heavy key stamped "5". Opens a bridge door on Level 4.', type: 'key', stack: 3, icon: 'tkey', color: '#d9d3a0' },
+  level5Key: { name: 'Bridge Key', desc: 'A cold, heavy key stamped "5". Opens a Level 4 toll vault without solving its lock.', type: 'key', stack: 3, icon: 'tkey', color: '#d9d3a0' },
   drainKey: { name: 'Drain Valve Key', desc: 'A T-shaped key stamped "MAIN DRAIN". Opens the drainage grate.', type: 'key', stack: 1, icon: 'tkey', color: '#7fb8c9' },
 };
 

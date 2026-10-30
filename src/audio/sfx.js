@@ -309,6 +309,66 @@ export const SFX = {
     o1.connect(f).connect(g).connect(dest); o1.start();
     return { stop() { o1.stop(); }, set(k, v) { if (k === 'level') g.gain.setTargetAtTime(v * 0.08, A.now, 0.01); } };
   },
+  // muffled speech: a run of formant-filtered syllables
+  talk(A, dest, o, t) {
+    const dur = Math.min(4.5, o.dur || 2), pitch = o.pitch || 1;
+    let tt = t;
+    while (tt < t + dur) {
+      const syl = rnd(0.07, 0.17);
+      const f0 = (110 + Math.random() * 40) * pitch;
+      const v = osc(A, 'sawtooth', f0);
+      const f1 = filt(A, 'bandpass', rnd(500, 900) * pitch, 4); const f2 = filt(A, 'bandpass', rnd(1200, 2200) * pitch, 6);
+      const g = gain(A, 0);
+      v.connect(f1).connect(g); v.connect(f2).connect(g); g.connect(dest);
+      g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(0.09 * (o.volume ?? 1), tt + 0.02); g.gain.linearRampToValueAtTime(0, tt + syl);
+      v.start(tt); v.stop(tt + syl + 0.02);
+      tt += syl + (Math.random() < 0.2 ? rnd(0.12, 0.3) : rnd(0.01, 0.05));
+    }
+    return dur + 0.2;
+  },
+  beepAlert(A, dest, o, t) {
+    tone(A, dest, t, { type: 'square', freq: 880, d: 0.09, vol: 0.05 * (o.volume ?? 1) });
+    tone(A, dest, t + 0.14, { type: 'square', freq: 660, d: 0.12, vol: 0.05 * (o.volume ?? 1) });
+    return 0.35;
+  },
+  radioStatic(A, dest, o, t) {
+    burst(A, dest, t, { type: 'bandpass', freq: 2400, Q: 0.8, a: 0.02, d: 0.9, vol: 0.18 * (o.volume ?? 1) });
+    burst(A, dest, t + 0.1, { type: 'highpass', freq: 5000, a: 0.01, d: 0.5, vol: 0.08 });
+    return 1.1;
+  },
+  spark(A, dest, o, t) {
+    for (let i = 0; i < 4; i++) burst(A, dest, t + i * rnd(0.02, 0.06), { type: 'highpass', freq: 3500, a: 0.001, d: 0.02, vol: 0.25 * (o.volume ?? 1) });
+    tone(A, dest, t, { type: 'square', freq: 120, d: 0.08, vol: 0.04 });
+    return 0.3;
+  },
+  transferWhine(A, dest, o, t) {
+    // rising scream of the binding array + sub drop at the end
+    const v = osc(A, 'sawtooth', 120); const f = filt(A, 'bandpass', 600, 3); const g = gain(A, 0);
+    v.frequency.setValueAtTime(120, t); v.frequency.exponentialRampToValueAtTime(1800, t + 3.8);
+    f.frequency.setValueAtTime(600, t); f.frequency.exponentialRampToValueAtTime(4200, t + 3.8);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.16, t + 3.2); g.gain.linearRampToValueAtTime(0, t + 4.1);
+    v.connect(f).connect(g).connect(dest); v.start(t); v.stop(t + 4.2);
+    burst(A, dest, t, { kind: 'pink', type: 'lowpass', freq: 900, a: 3.5, d: 0.6, vol: 0.5 });
+    tone(A, dest, t + 3.9, { freq: 70, to: 25, a: 0.01, d: 1.4, vol: 0.9 });
+    return 5.5;
+  },
+  machineHum(A, dest) {
+    const o1 = osc(A, 'sawtooth', 55); const o2 = osc(A, 'sine', 110.5); const o3 = osc(A, 'triangle', 220);
+    const f = filt(A, 'lowpass', 400, 1.5); const g = gain(A, 0);
+    const lfoO = osc(A, 'sine', 3.1); const lg = gain(A, 0.0); lfoO.connect(lg).connect(g.gain);
+    o1.connect(f); o2.connect(f); o3.connect(f); f.connect(g).connect(dest);
+    o1.start(); o2.start(); o3.start(); lfoO.start();
+    return {
+      stop() { o1.stop(); o2.stop(); o3.stop(); lfoO.stop(); },
+      set(k, v) {
+        if (k !== 'level') return;
+        g.gain.setTargetAtTime(v * 0.22, A.now, 0.3);
+        lg.gain.setTargetAtTime(v * 0.06, A.now, 0.3);
+        f.frequency.setTargetAtTime(300 + v * 2400, A.now, 0.5);
+        o1.frequency.setTargetAtTime(55 + v * 30, A.now, 0.8); o3.frequency.setTargetAtTime(220 + v * 260, A.now, 0.8);
+      },
+    };
+  },
   // faint two-note chirp from objective items (keycards, fuses, valve keys)
   keyChirp(A, dest, o, t) {
     tone(A, dest, t, { freq: 1320, d: 0.09, vol: 0.05 });

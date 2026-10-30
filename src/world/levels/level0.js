@@ -7,6 +7,7 @@ import { placeLandmark } from '../level.js';
 import { addProp } from '../props.js';
 import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette, sideExitAt, nearestExit, addPortArrow } from './common.js';
 import { hash01, makeNoise2D, RNG } from '../../core/rng.js';
+import { placeGoaningMachine } from '../machine.js';
 
 const darkNoise = makeNoise2D(404);
 
@@ -126,6 +127,14 @@ function pitRoom(c, rng, lx, lz) {
   c.meta.exitRoom = { x: px, z: pz };
 }
 
+const ARRIVAL = [
+  [0.6, 'GM-2: Trans-reality jump complete. Location: Goanrooms — Level 0.', 'warn'],
+  [3.4, 'GM-2: WARNING. Quantum binding array damaged. Return jump unavailable.', 'warn'],
+  [7.0, 'Radio: ...Kestrel to Expedition Three... do you... *static* ...the array... —'],
+  [10.2, 'The radio dies. The machine will not take you home. Not from here.'],
+  [12.8, 'You are stuck in the Goanrooms. Find a way deeper — and maybe a way back.'],
+];
+
 export default {
   id: 'L0',
   name: 'Level 0',
@@ -141,7 +150,7 @@ export default {
     ledge: { mat: 'concrete', scale: 2 },
     soffit: { mat: 'wallpaper', scaleU: 2, scaleV: 3 },
   },
-  materials: ['carpet', 'wallpaper', 'ceilingTile', 'lightPanel', 'trim', 'concrete', 'pillarPaint', 'cardboard', 'woodCrate', 'paintedMetal', 'laminate', 'plastic', 'darkMetal', 'black', 'paper', 'fabric', 'glowWhite', 'bulbWarm', 'chrome', 'plasticDark'],
+  materials: ['carpet', 'wallpaper', 'ceilingTile', 'lightPanel', 'trim', 'concrete', 'pillarPaint', 'cardboard', 'woodCrate', 'paintedMetal', 'laminate', 'plastic', 'darkMetal', 'black', 'paper', 'fabric', 'glowWhite', 'bulbWarm', 'chrome', 'plasticDark', 'labPanel', 'grate', 'glass', 'hazard', 'glowGreen', 'glowAmber', 'glowRed', 'monitorOff'],
   ambient: [0.05, 0.043, 0.02],
   bakeGain: 0.085,
   dynGain: 0.6,
@@ -174,6 +183,56 @@ export default {
     setTimeout(() => { game.sfx('hushClick', { x: m.x - dx * 8, y: 1.5, z: m.z - dz * 8 }, { volume: 0.6 }); game.stats.scare(5); }, 1600);
   },
 
+  // arriving from the prologue: seats inside the damaged machine
+  arrivalSpawn(level, idx) {
+    const m = level.chunk(0, 0).meta.machine;
+    if (!m) return null;
+    const s = m.seats[idx % m.seats.length];
+    const extra = Math.floor(idx / m.seats.length);
+    return { x: s.x + (extra ? (s.x < m.chamber.x0 + 2.5 ? 0.7 : -0.7) * extra : 0), y: 0.08, z: s.z, yaw: s.yaw };
+  },
+
+  onEnter(game) {
+    if (!game.classId) setTimeout(() => { if (!game.classId && game.levelId === 'L0') game.promptRole(); }, 1500);
+    if (game.arrivalPending) { game.arrivalPending = false; game.l0arrival = { t: 0, line: 0, short: !!game.skippedPrologue }; }
+  },
+
+  clientUpdate(game, dt) {
+    const A = game.l0arrival;
+    const m = game.level.chunk(0, 0).meta.machine;
+    // the wrecked emitter keeps sparking and smoking
+    if (m && Math.random() < dt * 2.5) {
+      const cx = (m.chamber.x0 + m.chamber.x1) / 2, cz = (m.chamber.z0 + m.chamber.z1) / 2 - 0.5;
+      const d = Math.hypot(cx - game.player.pos.x, cz - game.player.pos.z);
+      if (d < 30) {
+        game.effects.burst(Math.random() < 0.6 ? 'spark' : 'smoke', { x: cx + (Math.random() - 0.5) * 0.8, y: 1.65, z: cz + (Math.random() - 0.5) * 0.8, floor: 0.07 }, { x: 0, y: -1, z: 0 }, 0.6);
+        if (Math.random() < 0.35) game.sfx('spark', { x: cx, y: 1.7, z: cz }, { volume: 0.5, ref: 2 });
+      }
+    }
+    if (!A) return;
+    A.t += dt;
+    const u = game.engine.post.u;
+    u.warp.value = Math.max(0, 0.85 - A.t * 0.45);
+    const lines = A.short ? ARRIVAL.slice(1) : ARRIVAL;
+    while (A.line < lines.length && A.t >= lines[A.line][0] * (A.short ? 0.6 : 1)) {
+      const [, text, cls] = lines[A.line++];
+      game.subtitle(text, 4.5, cls || '');
+      game.sfx(cls === 'warn' ? 'beepAlert' : 'radioStatic', null, { volume: 0.6 });
+    }
+    if (A.t > 15) { game.l0arrival = null; u.warp.value = 0; game.hud.setObjective(game.def, game); }
+  },
+
+  hostUpdate(game, ctx, dt) {
+    // the jammed door grinds open a few seconds after the team arrives
+    const m = ctx.level.chunk(0, 0).meta.machine;
+    if (!m) return;
+    const S = game.l0door || (game.l0door = { t: 0 });
+    if (S.done) return;
+    S.t += dt;
+    if (game.world.get('L0', m.door.id)?.open) { S.done = true; return; }
+    if (S.t > 5.5) { S.done = true; game.hostBroadcast({ t: 'os', l: 'L0', id: m.door.id, s: { open: true } }); game.hostEvent('L0', { k: 'sound', name: 'metalGroan', x: m.door.x, y: 1, z: m.door.z, volume: 1 }); }
+  },
+
   landmarks(level) {
     const exit = placeLandmark(level, 'L0exit', 55, 95);
     return [{ type: 'spawn', tx: 8, tz: 8 }, { type: 'exit', ...exit }];
@@ -195,7 +254,10 @@ export default {
     // landmarks
     for (const lm of landmarks) {
       if (lm.type === 'spawn') {
-        carveRect(c, lm.lx - 2, lm.lz - 2, lm.lx + 2, lm.lz + 2, { ...T(ceil), flags: F_RESERVED });
+        // arrival room: the damaged Goaning Machine stands against the north side
+        carveRect(c, lm.lx - 3, lm.lz - 3, lm.lx + 3, lm.lz + 3, { ...T(Math.max(ceil, 3.7)), flags: F_RESERVED | F_ROOM });
+        for (let z = lm.lz - 3; z <= lm.lz - 1; z++) for (let x = lm.lx - 2; x <= lm.lx + 2; x++) c.flags[z * CS + x] |= F_LANDMARK;
+        c.meta.machine = placeGoaningMachine(c, c.tx(lm.lx), c.tz(lm.lz) - 4, { damaged: true, startOpen: false });
       } else if (lm.type === 'exit') {
         pitRoom(c, rng, lm.lx, lm.lz);
       }

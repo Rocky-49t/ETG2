@@ -5,6 +5,60 @@ import { N1, N2, N3, W1, W2, f, brickCell, stain, hash01, clamp, smoothstep } fr
 const fract = x => x - Math.floor(x);
 
 export const RECIPES = {
+  // ------------------------------------------------------------- Prologue lab
+  labPanel(s) {
+    // white composite wall panels on a 2x3 grid with seams, screws and a kick strip
+    s.each((u, v, i) => {
+      const pu = fract(u * 2), pv = fract(v * 3);
+      const seam = Math.min(pu, 1 - pu) < 0.008 || Math.min(pv, 1 - pv) < 0.006;
+      const n = f(N1, u, v, 8, 3) - 0.5, fine = f(N2, u, v, 140, 2) - 0.5;
+      let r = 0.86, g = 0.87, b = 0.88;
+      r += n * 0.03 + fine * 0.02; g += n * 0.03 + fine * 0.02; b += n * 0.025 + fine * 0.02;
+      let h = 0.55 + fine * 0.05;
+      if (seam) { r -= 0.3; g -= 0.3; b -= 0.3; h = 0.2; }
+      const sx = Math.min(pu, 1 - pu), sy = Math.min(pv, 1 - pv);
+      if (Math.hypot(sx - 0.03, sy - 0.03) < 0.008) { r = g = b = 0.6; h = 0.75; }
+      if (v < 0.07) { r = 0.32; g = 0.34; b = 0.36; h = 0.6; }          // kick strip
+      else if (v < 0.075) { r = 0.2; g = 0.2; b = 0.22; h = 0.3; }
+      s.set(i, r, g, b);
+      s.h[i] = h;
+      s.rough[i] = v < 0.07 ? 0.5 : 0.35;
+    });
+    return { normal: 0.6 };
+  },
+  labFloor(s) {
+    // grey epoxy floor with large tiles, scuffs and yellow-black safety stripe edges
+    s.each((u, v, i) => {
+      const tu = fract(u * 2), tv = fract(v * 2);
+      const seam = Math.min(tu, 1 - tu) < 0.004 || Math.min(tv, 1 - tv) < 0.004;
+      const n = f(N1, u, v, 6, 4) - 0.5, sc = f(N2, u * 3, v, 40, 3);
+      let r = 0.46, g = 0.48, b = 0.5;
+      r += n * 0.06; g += n * 0.06; b += n * 0.06;
+      const scuff = smoothstep(0.72, 0.8, sc) * 0.08;
+      r -= scuff; g -= scuff; b -= scuff;
+      if (seam) { r -= 0.1; g -= 0.1; b -= 0.1; }
+      s.set(i, r, g, b);
+      s.h[i] = seam ? 0.3 : 0.5 + n * 0.05;
+      s.rough[i] = 0.32 + scuff * 2;
+    });
+    return { normal: 0.5 };
+  },
+  labCeil(s) {
+    // clean ceiling grid with perforated tiles
+    const grid = 4;
+    s.each((u, v, i) => {
+      const c = brickCell(u, v, grid, grid, 0);
+      let r = 0.88, g = 0.89, b = 0.9, h = 0.45;
+      const holes = (Math.sin(u * Math.PI * 2 * 96) * Math.sin(v * Math.PI * 2 * 96)) > 0.8;
+      if (holes) { r -= 0.12; g -= 0.12; b -= 0.12; h = 0.35; }
+      if (c.d < 0.007) { r = 0.75; g = 0.76; b = 0.78; h = 0.8; }
+      s.set(i, r, g, b);
+      s.h[i] = h;
+      s.rough[i] = c.d < 0.007 ? 0.4 : 0.9;
+    });
+    return { normal: 0.6 };
+  },
+
   // ------------------------------------------------------------- Level 0
   wallpaper(s) {
     const stripes = 8;

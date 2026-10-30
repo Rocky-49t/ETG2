@@ -162,10 +162,12 @@ class App {
     audio.init();
     const session = new Session();
     const game = this.makeGame(session, seedStr, { difficulty: this.params.get('difficulty') || 'normal' });
-    await game.enterLevel(LEVELS[level] ? level : FIRST_LEVEL);
+    const prologue = settings.get('prologue') && level === FIRST_LEVEL && !this.params.get('level') && !this.params.get('class');
+    await game.enterLevel(prologue ? 'P0' : LEVELS[level] ? level : FIRST_LEVEL);
     if (this.params.get('god')) { game.cheatGod = true; }
     if (this.params.get('class')) game.chooseRole(this.params.get('class'));
-    else game.promptRole();
+    else if (!prologue) game.promptRole();
+    else this.ui.hud.toast('Prologue — press Esc to skip', 4);
     this.relock();
   }
 
@@ -182,8 +184,11 @@ class App {
       const sp = m.spawn ? { x: m.spawn.x + 0.8, y: m.spawn.y, z: m.spawn.z } : level.spawnPoint();
       if (!isFinite(level.floorAt(sp.x, sp.z))) Object.assign(sp, level.spawnPoint());
       await game.enterLevel(lvl, { spawn: sp });
-    } else await game.enterLevel(FIRST_LEVEL);
-    game.promptRole();
+      if (lvl !== 'P0') game.promptRole();
+    } else {
+      await game.enterLevel(m.prologue ? 'P0' : FIRST_LEVEL);
+      if (!m.prologue) game.promptRole();
+    }
     this.relock();
   }
 

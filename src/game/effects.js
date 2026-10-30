@@ -159,6 +159,8 @@ export class Effects {
         const a = (i / (40 * k)) * Math.PI * 2;
         this.spawn({ x: p.x + Math.cos(a) * 0.5, y: p.y + 0.1, z: p.z + Math.sin(a) * 0.5, vx: Math.cos(a) * 9, vy: 0.3, vz: Math.sin(a) * 9, life: 0.7, size: 0.25, grow: 0.5, r: 1, g: 0.75, b: 0.35, a: 0.5, drag: 1.5 }, true);
       }
+    } else if (kind === 'spark') {
+      for (let i = 0; i < 10 * k; i++) this.spawn({ x: p.x, y: p.y, z: p.z, vx: (R() - 0.5) * 3, vy: R() * 2.5, vz: (R() - 0.5) * 3, life: 0.3 + R() * 0.5, size: 0.02 + R() * 0.02, r: 1, g: 0.75 + R() * 0.2, b: 0.4, a: 1, grav: 9.8, floor: p.floor ?? -1e9 }, true);
     } else if (kind === 'glint') {
       this.spawn({ x: p.x, y: p.y, z: p.z, life: 0.5, size: 0.06, r: 1, g: 0.95, b: 0.8, a: 0.9 }, true);
     }

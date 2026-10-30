@@ -395,11 +395,13 @@ export class UI {
     $('btnPauseSettings').onclick = () => this.onSettings?.();
     $('btnPauseHelp').onclick = () => this.onHelp?.();
     $('btnQuit').onclick = () => this.onQuit?.();
+    $('btnSkipPrologue').onclick = () => { const g = this.game; this.resume(); g?.skipPrologue(); };
   }
   pause(game) {
     this.game = game;
     if (!game.online) game.paused = true;
     $('pauseInfo').textContent = `${game.def?.name || ''} — ${game.def?.title || ''} · seed ${game.seedLabel || game.seed}${game.online ? ' · co-op continues while paused' : ''}`;
+    $('btnSkipPrologue').classList.toggle('hidden', !(game.levelId === 'P0' && game.isHost));
     this.openModal('pause');
   }
   resume() {

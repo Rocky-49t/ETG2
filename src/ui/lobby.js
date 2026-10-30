@@ -28,6 +28,7 @@ export class Lobby {
     $('seedInput').onchange = () => this.pushState();
     $('difficultySel').onchange = () => this.pushState();
     $('friendlyFire').onchange = () => this.pushState();
+    $('prologueToggle').onchange = () => this.pushState();
     $('btnReady').onclick = () => this.toggleReady();
     $('btnStart').onclick = () => this.start();
     $('btnLobbyLeave').onclick = () => this.leave();
@@ -163,7 +164,7 @@ export class Lobby {
       if (m.t === 'lobby') {
         this.players = new Map(m.players.map(p => [p.id, p]));
         $('seedInput').value = m.seed;
-        this.status(`Seed: ${m.seed} · Difficulty: ${m.difficulty}${m.friendlyFire ? ' · friendly fire' : ''}\nWaiting for the host to start.`);
+        this.status(`Seed: ${m.seed} · Difficulty: ${m.difficulty}${m.friendlyFire ? ' · friendly fire' : ''}${m.prologue ? ' · prologue' : ''}\nWaiting for the host to start.`);
         this.render();
       } else if (m.t === 'lchat') this.chatLine(m.name, m.text, m.color);
       else if (m.t === 'start') this.app.startCoop(this.session, m, false);
@@ -200,7 +201,7 @@ export class Lobby {
     if (!this.isHost) return;
     const state = {
       t: 'lobby', players: [...this.players.entries()].map(([id, p]) => ({ id, ...p })),
-      seed: $('seedInput').value || 'GOANROOMS', difficulty: $('difficultySel').value, friendlyFire: $('friendlyFire').checked,
+      seed: $('seedInput').value || 'GOANROOMS', difficulty: $('difficultySel').value, friendlyFire: $('friendlyFire').checked, prologue: $('prologueToggle').checked,
     };
     this.session.broadcast(state);
     this.render();
@@ -224,7 +225,7 @@ export class Lobby {
     this._confirmStart = false;
     settings.set('lastSeed', $('seedInput').value);
     const m = {
-      t: 'start', seed: $('seedInput').value || 'GOANROOMS', difficulty: $('difficultySel').value, friendlyFire: $('friendlyFire').checked,
+      t: 'start', seed: $('seedInput').value || 'GOANROOMS', difficulty: $('difficultySel').value, friendlyFire: $('friendlyFire').checked, prologue: $('prologueToggle').checked,
       roster: [...this.players.entries()].map(([id, p]) => [id, { name: p.name, skin: p.skin }]),
     };
     this.session.broadcast(m);

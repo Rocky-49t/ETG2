@@ -40,6 +40,25 @@ function scheduler(A, events) {
 }
 
 export const AMBIENCE = {
+  lab(A, out) {
+    // clean HVAC, server fans, distant machine room whir and an occasional PA chime
+    const hvac = noiseLayer(A, out, 'pink', 'lowpass', 520, 0.5, 0.1);
+    const fans = noiseLayer(A, out, 'white', 'bandpass', 2400, 1.2, 0.012);
+    const whir = oscLayer(A, out, 'triangle', 92, 0.02);
+    const l1 = lfo(A, whir.o.frequency, 0.08, 3);
+    const hum = oscLayer(A, out, 'sine', 60, 0.02);
+    const sched = scheduler(A, [
+      { name: 'beepAlert', min: 14, max: 30, dist: [6, 16], volume: 0.25 },
+      { name: 'paper', min: 18, max: 40, dist: [4, 10], volume: 0.3 },
+      { name: 'click', min: 6, max: 14, dist: [3, 9], volume: 0.3 },
+    ]);
+    return {
+      reverb: [1.2, 3.0, 0.25],
+      update: dt => sched(dt),
+      stop: () => { hvac.stop(); fans.stop(); whir.stop(); l1.stop(); hum.stop(); },
+    };
+  },
+
   lobby(A, out) {
     // mains hum + harmonics, buzzy ballast, room tone
     const hum = [oscLayer(A, out, 'sine', 60, 0.05), oscLayer(A, out, 'sine', 120, 0.035, 3), oscLayer(A, out, 'sine', 180, 0.012, -4), oscLayer(A, out, 'sine', 240, 0.006)];

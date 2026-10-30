@@ -167,7 +167,8 @@ export class Game {
     for (const o of c.objects) {
       if (!o.collider) continue;
       const s = this.world.get(id, o.id);
-      if (s?.open || s?.unlocked) o.collider.disabled = true;
+      if (s && 'open' in s) o.collider.disabled = !!s.open;
+      else if (s?.unlocked) o.collider.disabled = true;
     }
     LEVELS[id].applyRuntime?.(this, level, c);
   }
@@ -219,12 +220,17 @@ export class Game {
     this.views.clear();
     this.effects.clearTransient();
     let sp = opts.spawn || level.spawnPoint();
+    if (opts.arrival && def.arrivalSpawn) {
+      const ids = [...new Set([this.myId, ...this.roster.keys()])].sort();
+      const a = def.arrivalSpawn(level, Math.max(0, ids.indexOf(this.myId)));
+      if (a) { sp = a; opts.yaw = a.yaw; }
+    }
     if (opts.spawn) {
       let f = level.floorAt(sp.x, sp.z);
       if (!isFinite(f)) { const p = level.randomWalkableNear(sp.x, sp.z, 6); if (p) sp = { x: p.x, y: level.floorAt(p.x, p.z), z: p.z }; }
       else sp = { x: sp.x, y: (sp.y !== undefined && Math.abs(sp.y - f) < 2.5) ? Math.max(f, sp.y) : f, z: sp.z };
     }
-    this.player.teleport(sp.x, sp.y, sp.z, opts.yaw ?? sp.yaw ?? this.openYaw(level, sp));
+    this.player.teleport(sp.x, sp.y, sp.z, opts.yaw ?? sp.yaw ?? (opts.spawn ? undefined : def.spawnYaw) ?? this.openYaw(level, sp));
     this.player.pitch = 0;
     this.renderer.buildAll(sp.x, sp.z);
     this.ui.loadingProgress(1, 'Ready');
@@ -724,6 +730,13 @@ export class Game {
     this.player.teleport(cp.x, cp.y + 0.05, cp.z);
     this.subtitle(this.online ? 'You wake up, gasping, back where you entered this level. Your team is somewhere ahead.' : 'You wake up, gasping, somewhere you have been before.', 3.5);
     if (this.online) this.request({ t: 'respawned' });
+  }
+
+  // Solo player or host skips the rest of the prologue: everyone jumps now.
+  skipPrologue() {
+    if (this.levelId !== 'P0' || !this.isHost) return;
+    this.skippedPrologue = true;
+    LEVELS.P0.skip(this);
   }
 
   // Pick a role (if none yet) through the role screen.

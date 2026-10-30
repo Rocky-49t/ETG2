@@ -61,6 +61,9 @@ export function patchBaked(mat, opts = {}) {
 // Definitions: recipe + material params + uv scale (metres per texture repeat).
 export const MATERIAL_DEFS = {
   wallpaper: { recipe: 'wallpaper', params: { roughness: 1 }, },
+  labPanel: { recipe: 'labPanel', params: { roughness: 1 } },
+  labFloor: { recipe: 'labFloor', params: { roughness: 1 } },
+  labCeil: { recipe: 'labCeil', params: { roughness: 1 } },
   carpet: { recipe: 'carpet', params: { roughness: 1 }, stains: { body: '0.32, 0.33, 0.28', rim: '0.12, 0.12, 0.1' } },
   ceilingTile: { recipe: 'ceilingTile', params: { roughness: 1, metalness: 1 }, stains: { body: '0.17, 0.23, 0.34', rim: '0.1, 0.13, 0.17' } },
   lightPanel: { recipe: 'lightPanel', params: { emissive: 0xfff4dc, emissiveIntensity: 1.9, roughness: 1, metalness: 1 }, emissiveBaked: true },

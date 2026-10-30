@@ -1,19 +1,62 @@
-// Lore notes. Survey Team Wren — six wanderers who went down before you.
+// Lore notes. US Expedition 1 ("Team Wren") — six surveyors who went through
+// the Goaning Machine before you — plus scraps left by the Ririqian Remnants,
+// Tufflandian liaisons and whoever else ended up down here.
 // Notes are spawned by level generators by id; reading adds them to the journal.
 
 export const NOTES = {
   l0_start: {
     title: 'To whoever wakes up here next',
     level: 'Level 0',
-    body: `You noclipped. Don't panic — panic is loud.
+    body: `The machine dropped you here too. Don't panic — panic is loud.
 
 1. CROUCH (C) when you hear clicking. The thing that clicks has no eyes. It hunts by sound.
 2. Your flashlight is F. Batteries die. The dark is worse.
-3. Drink the almond water. It helps with more than thirst.
+3. Drink water when you find it — clean if you can, dirty if you must. It steadies the nerves as much as the thirst.
 4. Follow the arrows we painted. They lead to a pit where the carpet forgets to hold. Jump in.
 
 We were six. Go faster than we did.
             — I.`,
+  },
+  lore_machine: {
+    title: 'Operator\'s log — Site Kestrel',
+    level: 'Level 0',
+    body: `GOANING MACHINE — run 14 (Expedition 2)
+
+Transfer nominal until T+6 s. Field coherence dropped at T+8. Chamber arrived — telemetry confirms — but the return coil burned out on the far side.
+
+Note for whoever reads this down there: the machine is not a door. It is a needle. It pushes you through the web between Earth, the Goanrooms and the Tufferverse, and it only ever pushes one way unless the far coil is intact.
+
+Expedition 1 never sent anything back either.`,
+  },
+  lore_ririq: {
+    title: 'Ririqian pamphlet (damp)',
+    level: 'Level 1',
+    body: `THE BROTHERHOOD ENDURES
+
+In 2013 the faithful Remnant crossed beyond the reach of Tufflandia's tanks and Tufflandia's lies. Supreme Leader RUCKY RUCKY walked first into the dark, and the dark made way for him.
+
+Citizens of the Goanrooms: you are guests in the Remnant's house. Report outsiders. Report Americans. Report anyone carrying a radio.
+
+GLORY TO RIRIQIA BELOW.`,
+  },
+  lore_tuff: {
+    title: 'Briefing excerpt — Tufflandian liaison',
+    level: 'Level 2',
+    body: `(stamped TUFFLANDIA — MINISTRY OF THE EXTERIOR — copy for the US delegation)
+
+...the Ririqian Brotherhood did not dissolve in 2013. Its leadership and several thousand loyalists entered the structure our scientists call the Goanrooms. We have no means to follow them. You do.
+
+We ask only that your expeditions report sightings of the Remnant and of Supreme Leader Rucky Rucky. We do not recommend contact. We do not recommend the lower levels.`,
+  },
+  lore_rucky: {
+    title: 'Remnant patrol order',
+    level: 'Level 3',
+    body: `PATROL 7 — STANDING ORDERS
+
+1. The pools are the Leader's. Do not swim in them.
+2. The American machine-people have come through again. Take their radios. Take their maps.
+3. If you see the Leader's light on the water, kneel.
+4. Do not go up the long stair. Nobody who goes up the long stair comes back down to say what is at the top.`,
   },
   l0_a: {
     title: 'Scout log — Kesh',
@@ -27,7 +70,7 @@ It finds you by your footsteps. Sprinting is a dinner bell. Gunfire is worse. Wa
   l0_b: {
     title: 'Medical notes — Dot',
     level: 'Level 0',
-    body: `Pim had another episode. Said the walls were breathing. Two sips of almond water and he settled.
+    body: `Pim had another episode. Said the walls were breathing. Two sips of clean water and he settled.
 
 Observations:
 - Darkness wears you down. Stay near the lights when you can.
@@ -206,6 +249,41 @@ i asked marcus where the light comes from
 he didn't answer
 he was staring at the water
             — pim`,
+  },
+
+  l4_a: {
+    title: 'Survey card, US Expedition 2',
+    level: 'Level 4',
+    body: `LEVEL 4 — provisional name "the Quiet Rooms".
+
+Beige walls, gray carpet, ceiling the colour of old mint. Windows everywhere, and every one of them shows daylight. There is no outside. We checked: behind the glass is plaster.
+
+Stay near the windows. The dark between them is where the snakes are.
+
+Do NOT shoot the platinum snakes unless you have to. Every round that hits one makes it faster. A knife does not seem to wind them up.`,
+  },
+  l4_b: {
+    title: 'Napkin, restaurant 3',
+    level: 'Level 4',
+    body: `table for six
+we were six
+
+i keep seeing someone standing behind the windows when i'm tired
+they never wave
+i stopped waving`,
+  },
+  l4_c: {
+    title: 'Toll room — field notes',
+    level: 'Level 4',
+    body: `The vault behind the steel door has a door marked 5 in it. The lock beside the vault wants the plates pressed in an order.
+
+Some locks HUM the order — press "Listen" and watch which plate lights.
+Some have a PLAQUE with the words in order. One word is always scratched out; it's whichever plate is left over.
+
+Get it wrong and it buzzes loud enough to bring things.
+
+The order changed when we came back. Everything resets if you leave.
+If you find one of the heavy "5" bridge keys, it opens a vault without the lock.`,
   },
 
   l5_a: {

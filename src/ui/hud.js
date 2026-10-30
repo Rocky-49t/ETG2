@@ -28,9 +28,9 @@ export class HUD {
     this.obj = $('objective'); this.objLevel = $('hudLevel'); this.objText = $('hudObjective');
     this.bossBar = $('bossBar'); this.bossFill = $('bossFill'); this.bossLag = $('bossFillLag'); this.bossName = $('bossName'); this.bossPhase = $('bossPhase');
     this.slots = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const s = document.createElement('div');
-      s.className = 'slot';
+      s.className = 'slot' + (i >= 6 ? ' holster off' : '');
       s.innerHTML = `<span class="key">${i + 1}</span><div class="ic"></div><span class="qty"></span><div class="dur hidden"><div></div></div>`;
       this.hotbar.appendChild(s);
       this.slots.push(s);
@@ -42,7 +42,7 @@ export class HUD {
     this.subList = [];
   }
 
-  show(on) { this.el.classList.toggle('hidden', !on); }
+  show(on) { this.el.classList.toggle('hidden', !on); this.chatEl.classList.toggle('hidden', !on); }
 
   setObjective(def, game) {
     this.objLevel.textContent = `${def.name} — ${def.title}`;
@@ -59,8 +59,13 @@ export class HUD {
 
   inventoryChanged(game) {
     const inv = game.inventory;
-    for (let i = 0; i < 6; i++) {
-      const s = inv.slots[i], el = this.slots[i];
+    const hs = inv.hotbarSlots;
+    for (let p = 0; p < this.slots.length; p++) {
+      const el = this.slots[p];
+      if (p >= 6) el.classList.toggle('off', p >= hs.length);
+      if (p >= hs.length) continue;
+      const i = hs[p];
+      const s = inv.slots[i];
       el.classList.toggle('sel', i === inv.selected);
       const key = s ? s.id + ':' + s.qty + ':' + Math.round(s.data?.dur ?? s.data?.charge ?? s.data?.fuel ?? -1) : '';
       if (el.dataset.key === key) continue;
@@ -86,7 +91,30 @@ export class HUD {
       else this.heldAmmo.innerHTML = `<small>${Math.round(it.data.dur)}%</small>`;
     } else if (it.qty > 1) this.heldAmmo.innerHTML = `<small>×${it.qty}</small>`;
     else if (def.type === 'tool') this.heldAmmo.innerHTML = `<small>fuel ${Math.round(it.data.fuel)}%</small>`;
+    else if (def.type === 'transmitter') this.heldAmmo.innerHTML = `<small>${it.data.on ? 'ON' : 'off'} · ${Math.round(it.data.charge)}%</small>`;
     else this.heldAmmo.innerHTML = '';
+  }
+
+  armorChanged(game) {
+    const a = game.armor;
+    $('armorRow').classList.toggle('hidden', !a);
+    if (a) $('armorFill').style.width = Math.max(0, a.data.dur) + '%';
+  }
+
+  // timed status effects (Pale Draught, Vigor Tonic...)
+  updateStatus(game) {
+    const st = game.stats.status;
+    const keys = Object.keys(st);
+    const sig = keys.map(k => k + Math.ceil(st[k])).join();
+    if (sig === this._stSig) return;
+    this._stSig = sig;
+    const el = $('statusFx');
+    const META = { inkward: ['Inkward', '#e8e4dc', 'Inkwalkers ignore you'], vigor: ['Vigor', '#62e0b8', 'Stamina drains 3× slower'] };
+    el.innerHTML = keys.map(k => {
+      const m = META[k] || [k, '#fff', ''];
+      const t = Math.ceil(st[k]), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
+      return `<div class="status-chip" title="${m[2]}"><span class="dot" style="background:${m[1]}"></span>${m[0]} <b>${mm}:${ss}</b></div>`;
+    }).join('');
   }
 
   prompt(html, sub) {
@@ -166,6 +194,8 @@ export class HUD {
   update(game, dt) {
     const s = game.stats;
     this._post = game.engine.post;
+    this.updateStatus(game);
+    game.updateTransmitterHud?.(dt);
     // vitals
     this.hp.style.transform = `scaleX(${s.health / 100})`;
     this.hpLag.style.transform = `scaleX(${s.health / 100})`;

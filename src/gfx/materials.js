@@ -60,30 +60,44 @@ export function patchBaked(mat, opts = {}) {
 
 // Definitions: recipe + material params + uv scale (metres per texture repeat).
 export const MATERIAL_DEFS = {
-  wallpaper: { recipe: 'wallpaper', params: { roughness: 1 }, },
+  wallpaper: { recipe: 'wallpaper', params: { roughness: 1 }, stains: { body: '0.12, 0.15, 0.15', rim: '0.12, 0.14, 0.1' } },
+  labPanel: { recipe: 'labPanel', params: { roughness: 1 } },
+  labFloor: { recipe: 'labFloor', params: { roughness: 1 } },
+  labCeil: { recipe: 'labCeil', params: { roughness: 1 } },
   carpet: { recipe: 'carpet', params: { roughness: 1 }, stains: { body: '0.32, 0.33, 0.28', rim: '0.12, 0.12, 0.1' } },
   ceilingTile: { recipe: 'ceilingTile', params: { roughness: 1, metalness: 1 }, stains: { body: '0.17, 0.23, 0.34', rim: '0.1, 0.13, 0.17' } },
   lightPanel: { recipe: 'lightPanel', params: { emissive: 0xfff4dc, emissiveIntensity: 1.9, roughness: 1, metalness: 1 }, emissiveBaked: true },
   trim: { recipe: 'trim', params: { roughness: 1 } },
-  concrete: { recipe: 'concrete', params: { roughness: 1 } },
+  concrete: { recipe: 'concrete', params: { roughness: 1 }, stains: { body: '0.14, 0.14, 0.12', rim: '0.08, 0.08, 0.07' } },
   pillarPaint: { recipe: 'pillarPaint', params: { roughness: 1 } },
   woodCrate: { recipe: 'woodCrate', params: { roughness: 1, metalness: 1 } },
   cardboard: { recipe: 'cardboard', params: { roughness: 1 } },
+  soggyCardboard: { recipe: 'cardboard', params: { roughness: 1, color: 0x8a8070 } },
   paintedMetal: { recipe: 'paintedMetal', params: { roughness: 1, metalness: 1 } },
   paper: { recipe: 'paper', params: { roughness: 1 } },
   brick: { recipe: 'brick', params: { roughness: 1 } },
   rustMetal: { recipe: 'rustMetal', params: { roughness: 1, metalness: 1 } },
   grate: { recipe: 'grate', params: { roughness: 1, metalness: 1 } },
-  industrialFloor: { recipe: 'industrialFloor', params: { roughness: 1 } },
+  industrialFloor: { recipe: 'industrialFloor', params: { roughness: 1 }, stains: { body: '0.2, 0.2, 0.18', rim: '0.1, 0.1, 0.09' } },
   hazard: { recipe: 'hazard', params: { roughness: 1 } },
-  officeCarpet: { recipe: 'officeCarpet', params: { roughness: 1 } },
+  officeCarpet: { recipe: 'officeCarpet', params: { roughness: 1 }, stains: { body: '0.22, 0.2, 0.16', rim: '0.1, 0.09, 0.07' } },
   drywall: { recipe: 'drywall', params: { roughness: 1 } },
+  beigeWall: { recipe: 'drywall', params: { roughness: 1, color: 0xf6e2bc }, stains: { body: '0.16, 0.14, 0.1', rim: '0.1, 0.09, 0.07' } },
+  grayCarpet: { recipe: 'grayCarpet', params: { roughness: 1 }, stains: { body: '0.24, 0.24, 0.23', rim: '0.12, 0.12, 0.11' } },
+  ggCeiling: { recipe: 'ceilingTile', params: { roughness: 1, metalness: 1, color: 0xb2c4ae } },
+  windowFrame: { params: { color: 0xe6e1d6, roughness: 0.5 } },
+  darkWood: { params: { color: 0x3a2618, roughness: 0.6 } },
   fabric: { recipe: 'fabric', params: { roughness: 1 } },
   laminate: { recipe: 'laminate', params: { roughness: 1 } },
   sewerBrick: { recipe: 'sewerBrick', params: { roughness: 1 } },
   sewerFloor: { recipe: 'sewerFloor', params: { roughness: 1 } },
   poolTile: { recipe: 'poolTile', params: { roughness: 1 } },
   poolTileBlue: { recipe: 'poolTileBlue', params: { roughness: 1 } },
+  poolTileDeep: { recipe: 'poolTileDeep', params: { roughness: 1 } },
+  ringRed: { params: { color: 0xc42a1e, roughness: 0.45 } },
+  ringWhite: { params: { color: 0xf0ece4, roughness: 0.45 } },
+  rope: { params: { color: 0xb8a77a, roughness: 0.95 } },
+  railSteel: { params: { color: 0xc9d2d6, roughness: 0.3, metalness: 0.25 } },
   bridgeConcrete: { recipe: 'bridgeConcrete', params: { roughness: 1 } },
   stone: { recipe: 'stone', params: { roughness: 1 } },
   bone: { recipe: 'bone', params: { roughness: 1 } },
@@ -192,19 +206,21 @@ export class MaterialLib {
 }
 
 // ---------------------------------------------------------------------------
-// Decal atlas: 4x4 cells drawn with canvas 2D. Used for arrows, graffiti,
-// stains, handprints and blood. Cells referenced by name.
-export const DECALS = ['arrow', 'arrow2', 'hand', 'stain', 'blood', 'blood2', 'text0', 'text1', 'text2', 'text3', 'scratch', 'drip', 'tally', 'eye', 'arrowL', 'footprints'];
+// Decal atlas: 5x5 cells drawn with canvas 2D. Used for exit signs, arrows,
+// graffiti, stains, handprints and blood. Cells referenced by name. The EXIT
+// sign cells (arrow / arrowL / exitU / exitD) are drawn in a per-level style.
+const GRID = 5;
+export const DECALS = ['arrow', 'arrow2', 'hand', 'stain', 'blood', 'blood2', 'text0', 'text1', 'text2', 'text3', 'scratch', 'drip', 'tally', 'eye', 'arrowL', 'footprints', 'exitU', 'exitD', 'num0', 'num1', 'num2', 'num3', 'lvl0', 'lvl1', 'lvl2'];
 export const DECAL_TEXTS = ['IT HEARS YOU', "DON'T RUN", 'NOT REAL', 'KEEP THE LIGHT ON', 'COUNT THE DOORS', 'BEHIND YOU?', 'WE WERE 6', 'DOWN IS OUT', 'LISTEN', 'NO ECHO HERE'];
 
-export function buildDecalAtlas(seedTexts = DECAL_TEXTS) {
-  const S = 1024, C = S / 4;
+export function buildDecalAtlas(seedTexts = DECAL_TEXTS, style = 'spray', labels = {}) {
+  const S = 256 * GRID, C = S / GRID;
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;
   const g = cv.getContext('2d');
   g.clearRect(0, 0, S, S);
   const cell = (idx, fn) => {
-    const x = (idx % 4) * C, y = Math.floor(idx / 4) * C;
+    const x = (idx % GRID) * C, y = Math.floor(idx / GRID) * C;
     g.save();
     g.translate(x, y);
     g.beginPath(); g.rect(0, 0, C, C); g.clip();
@@ -225,13 +241,9 @@ export function buildDecalAtlas(seedTexts = DECAL_TEXTS) {
     g.globalAlpha = 1;
   };
   const paint = 'rgba(40,10,8,0.9)';
-  // 0 arrow (spray)
-  cell(0, (g, C) => {
-    rough(g, [[C * 0.1, C * 0.6], [C * 0.86, C * 0.6], [C * 0.64, C * 0.4], [C * 0.86, C * 0.6], [C * 0.64, C * 0.8]], C * 0.085, paint);
-    g.fillStyle = paint; g.font = `bold ${Math.round(C * 0.2)}px Impact, Arial Black, sans-serif`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.globalAlpha = 0.85; g.fillText('EXIT', C * 0.44, C * 0.3); g.globalAlpha = 1;
-  });
+  // 0 / 14 / 16 / 17: EXIT signs (right, left, ahead, behind) in the level's style
+  const exitSign = (idx, dir) => cell(idx, (g, C) => drawExitSign(g, C, dir, style, rough, paint));
+  exitSign(0, 'r'); exitSign(14, 'l'); exitSign(16, 'u'); exitSign(17, 'd');
   // 1 arrow chalk
   cell(1, (g, C) => rough(g, [[C * 0.15, C * 0.55], [C * 0.8, C * 0.45], [C * 0.65, C * 0.32], [C * 0.8, C * 0.45], [C * 0.68, C * 0.62]], C * 0.035, 'rgba(235,235,225,0.85)'));
   // 2 hand print
@@ -316,13 +328,6 @@ export function buildDecalAtlas(seedTexts = DECAL_TEXTS) {
     g.beginPath(); g.moveTo(C * 0.1, C * 0.5); g.quadraticCurveTo(C * 0.5, C * 0.15, C * 0.9, C * 0.5); g.quadraticCurveTo(C * 0.5, C * 0.85, C * 0.1, C * 0.5); g.stroke();
     g.fillStyle = 'rgba(20,10,10,0.9)'; g.beginPath(); g.arc(C / 2, C / 2, C * 0.12, 0, Math.PI * 2); g.fill();
   });
-  // 14 EXIT arrow pointing left (the mirrored twin of cell 0, text kept readable)
-  cell(14, (g, C) => {
-    rough(g, [[C * 0.9, C * 0.6], [C * 0.14, C * 0.6], [C * 0.36, C * 0.4], [C * 0.14, C * 0.6], [C * 0.36, C * 0.8]], C * 0.085, paint);
-    g.fillStyle = paint; g.font = `bold ${Math.round(C * 0.2)}px Impact, Arial Black, sans-serif`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.globalAlpha = 0.85; g.fillText('EXIT', C * 0.56, C * 0.3); g.globalAlpha = 1;
-  });
   // 15 footprints (bare, wet)
   cell(15, (g, C) => {
     g.fillStyle = 'rgba(30,25,15,0.45)';
@@ -331,6 +336,16 @@ export function buildDecalAtlas(seedTexts = DECAL_TEXTS) {
       g.beginPath(); g.ellipse(x, y, C * 0.05, C * 0.09, 0, 0, Math.PI * 2); g.fill();
     }
   });
+  // 18-21: small door / room number plates (labels.num0..3), 22-24: level door signs
+  const plate = (idx, text, opts = {}) => cell(idx, (g, C) => {
+    g.fillStyle = opts.bg || '#d8d2bc'; g.fillRect(C * 0.12, C * 0.3, C * 0.76, C * 0.4);
+    g.strokeStyle = opts.border || '#3a3428'; g.lineWidth = C * 0.025; g.strokeRect(C * 0.14, C * 0.32, C * 0.72, C * 0.36);
+    g.fillStyle = opts.fg || '#2a2418'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `bold ${Math.round(C * (opts.size || 0.2))}px Arial, sans-serif`;
+    g.fillText(text, C / 2, C / 2);
+  });
+  for (let k = 0; k < 4; k++) plate(18 + k, labels['num' + k] || String(200 + k * 7));
+  for (let k = 0; k < 3; k++) plate(22 + k, labels['lvl' + k] || 'LEVEL ' + k, { bg: '#1c2326', fg: '#e8e2c0', border: '#c9a640', size: 0.15 });
   const t = new THREE.CanvasTexture(cv);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
@@ -339,6 +354,61 @@ export function buildDecalAtlas(seedTexts = DECAL_TEXTS) {
 
 export function decalUV(name) {
   const idx = Math.max(0, DECALS.indexOf(name));
-  const x = (idx % 4) / 4, y = 1 - (Math.floor(idx / 4) + 1) / 4;
-  return [x, y, x + 0.25, y + 0.25];
+  const x = (idx % GRID) / GRID, y = 1 - (Math.floor(idx / GRID) + 1) / GRID;
+  return [x, y, x + 1 / GRID, y + 1 / GRID];
+}
+
+// One EXIT sign: dir r/l/u/d, style per level.
+function drawExitSign(g, C, dir, style, rough, paint) {
+  const arrowPts = (cx, cy, len, head) => {
+    const v = { r: [1, 0], l: [-1, 0], u: [0, -1], d: [0, 1] }[dir];
+    const ax = cx - v[0] * len / 2, ay = cy - v[1] * len / 2, bx = cx + v[0] * len / 2, by = cy + v[1] * len / 2;
+    const px = -v[1], py = v[0];
+    return [[ax, ay], [bx, by], [bx - v[0] * head + px * head, by - v[1] * head + py * head], [bx, by], [bx - v[0] * head - px * head, by - v[1] * head - py * head]];
+  };
+  const solidArrow = (cx, cy, len, w, col) => {
+    const P = arrowPts(cx, cy, len, w * 1.6);
+    g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'butt'; g.lineJoin = 'miter';
+    g.beginPath(); g.moveTo(P[0][0], P[0][1]); g.lineTo(P[1][0], P[1][1]); g.stroke();
+    g.beginPath(); g.moveTo(P[2][0], P[2][1]); g.lineTo(P[1][0], P[1][1]); g.lineTo(P[4][0], P[4][1]); g.stroke();
+  };
+  const text = (t, x, y, size, col, font = 'Impact, Arial Black, sans-serif') => { g.fillStyle = col; g.font = `bold ${Math.round(C * size)}px ${font}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, x, y); };
+  const horiz = dir === 'r' || dir === 'l';
+  if (style === 'stencil') {
+    // L1: yellow stencil on a black hazard plate
+    g.fillStyle = '#1a1814'; g.fillRect(C * 0.06, C * 0.2, C * 0.88, C * 0.6);
+    g.fillStyle = '#d9a52a';
+    for (let i = 0; i < 9; i++) { g.save(); g.beginPath(); g.rect(C * 0.06, C * 0.2, C * 0.88, C * 0.06); g.clip(); g.fillRect(C * (0.04 + i * 0.11), C * 0.2, C * 0.05, C * 0.06); g.restore(); }
+    text('EXIT', horiz ? C * (dir === 'r' ? 0.36 : 0.64) : C * 0.32, C * 0.53, 0.2, '#e8b830', 'Courier New, monospace');
+    solidArrow(horiz ? C * (dir === 'r' ? 0.74 : 0.26) : C * 0.72, C * 0.53, horiz ? C * 0.26 : C * 0.3, C * 0.07, '#e8b830');
+  } else if (style === 'emergency') {
+    // L2: green illuminated emergency sign with a running figure
+    g.fillStyle = '#e8efe8'; g.fillRect(C * 0.08, C * 0.26, C * 0.84, C * 0.48);
+    g.fillStyle = '#1f9a52'; g.fillRect(C * 0.11, C * 0.29, C * 0.78, C * 0.42);
+    text('EXIT', C * 0.5, C * 0.39, 0.13, '#f4fff4', 'Arial, sans-serif');
+    solidArrow(horiz ? C * (dir === 'r' ? 0.62 : 0.38) : C * 0.62, C * 0.58, horiz ? C * 0.28 : C * 0.16, C * 0.05, '#f4fff4');
+    g.fillStyle = '#f4fff4'; g.beginPath(); g.arc(horiz ? C * (dir === 'r' ? 0.25 : 0.75) : C * 0.3, C * 0.52, C * 0.025, 0, 7); g.fill();
+    g.fillRect(horiz ? C * (dir === 'r' ? 0.235 : 0.735) : C * 0.285, C * 0.55, C * 0.03, C * 0.08);
+  } else if (style === 'mosaic') {
+    // L3: blue tile mosaic set into the white tiles
+    const t = C * 0.07;
+    const on = (x, y) => { g.fillStyle = '#2a68b8'; g.fillRect(x + 1, y + 1, t - 2, t - 2); };
+    const v = { r: [1, 0], l: [-1, 0], u: [0, -1], d: [0, 1] }[dir];
+    for (let k = -4; k <= 4; k++) on(C / 2 + v[0] * k * t - t / 2, C * 0.62 + v[1] * k * t - t / 2);
+    for (let k = 1; k <= 3; k++) for (const sgn of [-1, 1]) on(C / 2 + v[0] * (4 - k) * t + -v[1] * sgn * k * t - t / 2, C * 0.62 + v[1] * (4 - k) * t + v[0] * sgn * k * t - t / 2);
+    text('EXIT', C * 0.5, C * 0.24, 0.13, '#2a68b8', 'Arial Black, sans-serif');
+  } else if (style === 'plaque') {
+    // L4: brass plaque with engraved letters
+    g.fillStyle = '#9a7a3a'; g.fillRect(C * 0.12, C * 0.3, C * 0.76, C * 0.4);
+    g.strokeStyle = '#d8b868'; g.lineWidth = C * 0.02; g.strokeRect(C * 0.15, C * 0.33, C * 0.7, C * 0.34);
+    text('EXIT', horiz ? C * (dir === 'r' ? 0.38 : 0.62) : C * 0.36, C * 0.5, 0.13, '#3a2a10', 'Georgia, serif');
+    solidArrow(horiz ? C * (dir === 'r' ? 0.7 : 0.3) : C * 0.68, C * 0.5, horiz ? C * 0.2 : C * 0.22, C * 0.04, '#3a2a10');
+  } else if (style === 'chalk') {
+    rough(g, arrowPts(C * 0.5, C * 0.6, C * 0.5, C * 0.16), C * 0.04, 'rgba(235,235,225,0.85)');
+    text('EXIT', C * 0.5, C * 0.24, 0.16, 'rgba(235,235,225,0.85)', 'Arial, sans-serif');
+  } else {
+    // L0: red spray paint
+    rough(g, arrowPts(C * 0.5, horiz ? C * 0.6 : C * 0.62, horiz ? C * 0.76 : C * 0.46, C * 0.2), C * 0.085, paint);
+    text('EXIT', horiz ? C * 0.47 : C * 0.5, horiz ? C * 0.3 : C * 0.2, 0.2, paint);
+  }
 }

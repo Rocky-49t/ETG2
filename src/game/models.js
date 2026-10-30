@@ -178,6 +178,17 @@ function bottle(color, label = 0xf3eed8) {
   g.add(mesh(cyl(0.014, 0.014, 0.016, 10), C(0xe8e8e8, 0.5), 0, 0.232, 0));
   return g;
 }
+function ammoBox(color, brass, r) {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.1, 0.05, 0.065), C(color, 0.7), 0, 0.025, 0));
+  g.add(mesh(box(0.06, 0.051, 0.066), C(0xd8d0b0, 0.7), 0, 0.025, 0));
+  // a few loose rounds on top
+  for (let i = 0; i < 3; i++) {
+    g.add(mesh(cyl(r, r, 0.03, 8), C(brass, 0.3, 0.9), -0.025 + i * 0.022, 0.055, 0.012, Math.PI / 2, 0, 0.3));
+    g.add(mesh(new THREE.ConeGeometry(r, 0.012, 8), C(0xb07a3a, 0.3, 0.9), -0.025 + i * 0.022, 0.055, -0.009, -Math.PI / 2, 0, 0));
+  }
+  return g;
+}
 function can(color) {
   const g = new THREE.Group();
   g.add(mesh(cyl(0.034, 0.034, 0.1, 16), C(0xb0b4b8, 0.3, 0.9), 0, 0.05, 0));
@@ -185,18 +196,105 @@ function can(color) {
   return g;
 }
 
+function rifle() {
+  const g = new THREE.Group();
+  const metal = M('darkMetal'), poly = C(0x2e3228, 0.65), tan = C(0x6b6448, 0.7);
+  g.add(mesh(box(0.046, 0.062, 0.3), metal, 0, 0.032, -0.06));                    // receiver
+  g.add(mesh(box(0.05, 0.05, 0.24), poly, 0, 0.03, -0.32));                       // handguard
+  for (let i = 0; i < 6; i++) g.add(mesh(box(0.052, 0.008, 0.018), M('black'), 0, 0.058, -0.24 - i * 0.032)); // rail notches
+  g.add(mesh(cyl(0.009, 0.009, 0.2, 8), metal, 0, 0.034, -0.52, Math.PI / 2));   // barrel
+  g.add(mesh(cyl(0.013, 0.013, 0.05, 8), M('black'), 0, 0.034, -0.63, Math.PI / 2)); // flash hider
+  g.add(mesh(box(0.008, 0.04, 0.012), metal, 0, 0.07, -0.42));                    // front sight post
+  g.add(mesh(box(0.034, 0.03, 0.1), M('black'), 0, 0.08, -0.04));                 // optic body
+  g.add(mesh(cyl(0.018, 0.018, 0.012, 12), C(0x3a6a8a, 0.1, 0.4, 0x0a2030, 0.6), 0, 0.08, -0.095, Math.PI / 2)); // lens
+  const mag = mesh(box(0.028, 0.15, 0.06), tan, 0, -0.065, -0.11, 0.18);
+  mag.name = 'mag';
+  g.add(mag);
+  g.add(mesh(box(0.032, 0.1, 0.045), poly, 0, -0.04, 0.04, -0.32));               // grip
+  g.add(mesh(box(0.032, 0.012, 0.06), metal, 0, -0.01, -0.0));                     // trigger guard
+  g.add(mesh(cyl(0.014, 0.014, 0.16, 8), metal, 0, 0.03, 0.17, Math.PI / 2));    // buffer tube
+  g.add(mesh(box(0.042, 0.08, 0.13), poly, 0, 0.0, 0.26, 0.1));                   // stock
+  g.add(mesh(box(0.044, 0.09, 0.02), C(0x151515, 0.9), 0, -0.005, 0.33, 0.1));    // butt pad
+  g.userData.muzzle = new THREE.Vector3(0, 0.034, -0.66);
+  g.userData.mag = mag;
+  return g;
+}
+function pouch(color, label) {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.1, 0.13, 0.03), C(0xc8c2b0, 0.35, 0.5), 0, 0.065, 0));
+  g.add(mesh(box(0.102, 0.05, 0.032), C(color, 0.5), 0, 0.07, 0));
+  g.add(mesh(box(0.104, 0.012, 0.034), C(0x8a857a, 0.4, 0.6), 0, 0.128, 0));
+  for (let i = 0; i < 6; i++) g.add(mesh(box(0.012, 0.012, 0.012), C(color, 0.3, 0, color, 0.15), -0.03 + i * 0.012, 0.137, (i % 2) * 0.006));
+  return g;
+}
+function board() {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.11, 0.004, 0.08), C(0x1f6b38, 0.5), 0, 0.002, 0));
+  g.add(mesh(box(0.028, 0.006, 0.028), C(0x111111, 0.4), -0.015, 0.006, 0));
+  g.add(mesh(box(0.016, 0.01, 0.01), C(0xc0c4c8, 0.3, 0.9), 0.035, 0.008, 0.02));
+  for (let i = 0; i < 6; i++) g.add(mesh(box(0.006, 0.006, 0.004), C(0x222222), 0.02 + (i % 3) * 0.01, 0.006, -0.025 + Math.floor(i / 3) * 0.01));
+  g.add(mesh(cyl(0.004, 0.004, 0.006, 8), C(0xff3030, 0.2, 0, 0xff2020, 1.5), 0.045, 0.006, -0.03));
+  return g;
+}
+function antennaM() {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.04, 0.03, 0.04), C(0x222222, 0.6), 0, 0.015, 0));
+  for (let i = 0; i < 3; i++) g.add(mesh(cyl(0.006 - i * 0.0015, 0.006 - i * 0.0015, 0.09, 8), M('chrome'), 0, 0.075 + i * 0.085, 0));
+  g.add(mesh(new THREE.SphereGeometry(0.007, 8, 6), M('chrome'), 0, 0.33, 0));
+  return g;
+}
+function transmitterM() {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.07, 0.12, 0.035), C(0x3a4a3c, 0.6), 0, 0.06, 0));
+  g.add(mesh(box(0.05, 0.035, 0.002), C(0x7dffa0, 0.2, 0, 0x30ff70, 1.2), 0, 0.085, 0.019));
+  for (let i = 0; i < 3; i++) g.add(mesh(cyl(0.006, 0.006, 0.006, 8), C(0x222222), -0.018 + i * 0.018, 0.04, 0.019, Math.PI / 2));
+  g.add(mesh(cyl(0.004, 0.004, 0.12, 6), M('chrome'), 0.025, 0.18, 0));
+  return g;
+}
+function vestM(color) {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.34, 0.04, 0.42), C(color, 0.85), 0, 0.02, 0));
+  for (const x of [-0.08, 0.08]) g.add(mesh(box(0.12, 0.03, 0.1), C(color, 0.9), x, 0.05, 0.08));
+  g.add(mesh(box(0.36, 0.045, 0.06), C(0x2a2a22, 0.8), 0, 0.022, -0.12));
+  return g;
+}
+
 const BUILDERS = {
-  pistol, shotgun, smg, crowbar, knife, flashlight, lighter, glowstick, flare, decoy,
-  almondWater: () => bottle(0xf1ead0, 0xe6d9a8),
-  waterBottle: () => bottle(0x9fd2f0, 0x3b7fc4),
-  snackBar: () => { const g = new THREE.Group(); g.add(mesh(box(0.12, 0.018, 0.04), C(0xc9822f, 0.5), 0, 0.009, 0)); g.add(mesh(box(0.02, 0.019, 0.041), C(0x7b4b18, 0.5), 0.05, 0.009, 0)); return g; },
+  pistol, shotgun, smg, rifle, crowbar, knife, flashlight, lighter, glowstick, flare, decoy,
+  cleanWater: () => bottle(0x9fd2f0, 0x3b7fc4),
+  dirtyWater: () => bottle(0x8a8452, 0xb8ae88),
+  goanJuice: () => bottle(0xe2a23a, 0x6b3a14),
+  paleDraught: () => bottle(0xf2efe6, 0xd8d2c4),
+  vigorTonic: () => { const g = bottle(0x62e0b8, 0x1b6b55); g.scale.set(0.8, 0.8, 0.8); return g; },
+  fireSalts: () => pouch(0xd9452b),
+  blueberryFireSalts: () => pouch(0x4a6fe0),
+  adrenaline: () => { const g = new THREE.Group(); g.add(mesh(cyl(0.012, 0.012, 0.12, 10), C(0xe04a6a, 0.4), 0, 0.012, 0, 0, 0, Math.PI / 2)); g.add(mesh(cyl(0.013, 0.013, 0.03, 10), C(0xeeeeee, 0.5), 0.055, 0.012, 0, 0, 0, Math.PI / 2)); g.add(mesh(cyl(0.006, 0.006, 0.02, 8), C(0xffcc33, 0.5), -0.068, 0.012, 0, 0, 0, Math.PI / 2)); return g; },
+  purifier: () => { const g = new THREE.Group(); g.add(mesh(cyl(0.02, 0.02, 0.06, 12), C(0x6aa7c8, 0.4), 0, 0.03, 0)); g.add(mesh(cyl(0.021, 0.021, 0.015, 12), C(0xeeeeee, 0.5), 0, 0.066, 0)); return g; },
+  gpsBoard: board,
+  antenna: antennaM,
+  transmitter: transmitterM,
+  cloth: () => { const g = new THREE.Group(); g.add(mesh(box(0.14, 0.02, 0.1), C(0xa89476, 0.95), 0, 0.01, 0, 0, 0.3, 0)); g.add(mesh(box(0.1, 0.018, 0.08), C(0x8a7a5e, 0.95), 0.02, 0.028, 0.01, 0, -0.4, 0.1)); return g; },
+  scrap: () => { const g = new THREE.Group(); g.add(mesh(box(0.14, 0.008, 0.08), C(0x8a8f94, 0.5, 0.8), 0, 0.006, 0, 0, 0.4, 0.08)); g.add(mesh(box(0.08, 0.008, 0.05), C(0x6a5040, 0.7, 0.6), 0.02, 0.016, 0.02, 0.2, -0.3, 0)); return g; },
+  wire: () => { const g = new THREE.Group(); for (let i = 0; i < 4; i++) g.add(mesh(new THREE.TorusGeometry(0.04 - i * 0.004, 0.004, 6, 18), C(0xc8783a, 0.35, 0.9), 0, 0.006 + i * 0.006, 0, Math.PI / 2)); return g; },
+  vest: () => vestM(0x4f5a3c),
+  scrapVest: () => vestM(0x7a6a52),
+  level5Key: () => { const g = new THREE.Group(); const m = C(0xd9d3a0, 0.3, 0.9); g.add(mesh(cyl(0.006, 0.006, 0.09, 8), m, 0, 0.006, 0, Math.PI / 2)); g.add(mesh(new THREE.TorusGeometry(0.018, 0.005, 6, 14), m, 0, 0.006, 0.055, Math.PI / 2)); g.add(mesh(box(0.012, 0.004, 0.02), m, 0.008, 0.006, -0.035)); return g; },
+  snackBar: () => {
+    const g = new THREE.Group();
+    g.add(mesh(box(0.11, 0.02, 0.042), C(0xc9822f, 0.45), 0, 0.01, 0));
+    for (const sx of [-1, 1]) g.add(mesh(box(0.012, 0.012, 0.044), C(0xb87428, 0.5), sx * 0.061, 0.01, 0));   // crimped ends
+    g.add(mesh(box(0.05, 0.0205, 0.025), C(0xf3e8c8, 0.6), 0, 0.01, 0));                                   // label
+    g.add(mesh(box(0.02, 0.021, 0.026), C(0x7b4b18, 0.5), 0.018, 0.01, 0));
+    return g;
+  },
   cannedBeans: () => can(0xb54a32),
   energyDrink: () => can(0x4dbb3f),
   bandage: () => { const g = new THREE.Group(); g.add(mesh(cyl(0.03, 0.03, 0.05, 14), C(0xece6d8, 0.95), 0, 0.025, 0)); g.add(mesh(cyl(0.012, 0.012, 0.052, 10), C(0xc8b8a0), 0, 0.025, 0)); return g; },
   medkit: () => { const g = new THREE.Group(); g.add(mesh(box(0.22, 0.08, 0.14), C(0xc22e22, 0.5), 0, 0.04, 0)); g.add(mesh(box(0.06, 0.082, 0.02), C(0xffffff, 0.5), 0, 0.04, 0)); g.add(mesh(box(0.02, 0.082, 0.06), C(0xffffff, 0.5), 0, 0.04, 0)); g.add(mesh(box(0.06, 0.01, 0.02), C(0x222222), 0, 0.085, 0)); return g; },
   painkillers: () => { const g = new THREE.Group(); g.add(mesh(cyl(0.022, 0.022, 0.07, 12), C(0xe39a2a, 0.3), 0, 0.035, 0)); g.add(mesh(cyl(0.024, 0.024, 0.018, 12), C(0xffffff, 0.5), 0, 0.078, 0)); return g; },
   battery: () => { const g = new THREE.Group(); g.add(mesh(cyl(0.012, 0.012, 0.05, 10), C(0xd6b13a, 0.4, 0.5), 0, 0.025, 0)); g.add(mesh(cyl(0.0122, 0.0122, 0.02, 10), C(0x111111, 0.4), 0, 0.01, 0)); g.add(mesh(cyl(0.004, 0.004, 0.005, 8), M('chrome'), 0, 0.052, 0)); return g; },
-  ammo9: () => { const g = new THREE.Group(); g.add(mesh(box(0.1, 0.05, 0.065), C(0x6b6b3a, 0.7), 0, 0.025, 0)); g.add(mesh(box(0.06, 0.051, 0.066), C(0xc9a640, 0.6), 0, 0.025, 0)); return g; },
+  ammo9: () => ammoBox(0x6b6b3a, 0xc9a640, 0.009),
+  rifleAmmo: () => ammoBox(0x4a5030, 0xb8b060, 0.007),
   shells: () => { const g = new THREE.Group(); g.add(mesh(box(0.1, 0.06, 0.07), C(0x8a1f18, 0.7), 0, 0.03, 0)); g.add(mesh(box(0.101, 0.02, 0.071), C(0xe8e0c8, 0.7), 0, 0.03, 0)); return g; },
   ductTape: () => { const g = new THREE.Group(); g.add(mesh(new THREE.TorusGeometry(0.035, 0.016, 8, 18), C(0x8c9196, 0.6), 0, 0.016, 0, Math.PI / 2)); return g; },
   keycard: () => { const g = new THREE.Group(); g.add(mesh(box(0.085, 0.003, 0.054), C(0xe0a33a, 0.4), 0, 0.002, 0)); g.add(mesh(box(0.085, 0.0035, 0.01), C(0x111111), 0, 0.002, -0.015)); return g; },
@@ -228,7 +326,9 @@ export const GROUND_POSE = {
   pistol: [0, 0, Math.PI / 2, 0.02], shotgun: [0, 0, Math.PI / 2, 0.025], smg: [0, 0, Math.PI / 2, 0.025],
   crowbar: [Math.PI / 2, 0, 0, 0.012], knife: [0, 0, Math.PI / 2, 0.01], flashlight: [0, 0, 0, 0.028],
   glowstick: [Math.PI / 2, 0, 0, 0.01], flare: [Math.PI / 2, 0, 0, 0.015], lighter: [0, 0, 0, 0.025],
-  almondWater: [Math.PI / 2, 0, 0, 0.034], waterBottle: [0, 0, 0, 0],
+  rifle: [0, 0, Math.PI / 2, 0.025], cleanWater: [Math.PI / 2, 0, 0, 0.034], dirtyWater: [Math.PI / 2, 0, 0, 0.034], goanJuice: [Math.PI / 2, 0, 0.6, 0.034],
+  paleDraught: [Math.PI / 2, 0, 0, 0.034], fireSalts: [-Math.PI / 2, 0, 0, 0.015], blueberryFireSalts: [-Math.PI / 2, 0, 0, 0.015], antenna: [Math.PI / 2, 0, 0, 0.02],
+  transmitter: [-Math.PI / 2, 0, 0, 0.018],
 };
 
 // ---------------------------------------------------------------- interactive props
@@ -253,16 +353,17 @@ export function lockerModel(variant = 'metal') {
   return g;
 }
 
-export function containerModel(ctype) {
+// mats: optional per-level material overrides, e.g. { cabinet: 'poolTile', crate: 'rustMetal' }
+export function containerModel(ctype, mats = {}) {
   const g = new THREE.Group();
   if (ctype === 'cardboard') {
-    const m = LIB.dyn('cardboard');
+    const m = LIB.dyn(mats.cardboard || 'cardboard');
     g.add(mesh(box(0.6, 0.42, 0.45), m, 0, 0.21, 0));
     const f1 = new THREE.Group(); f1.position.set(0, 0.42, -0.225); f1.add(mesh(box(0.6, 0.01, 0.22), m, 0, 0, 0.11)); g.add(f1);
     const f2 = new THREE.Group(); f2.position.set(0, 0.42, 0.225); f2.add(mesh(box(0.6, 0.01, 0.22), m, 0, 0, -0.11)); g.add(f2);
     g.userData.flaps = [f1, f2];
   } else if (ctype === 'cabinet') {
-    const m = LIB.dyn('paintedMetal');
+    const m = LIB.dyn(mats.cabinet || 'paintedMetal');
     g.add(mesh(box(0.47, 1.32, 0.6), m, 0, 0.66, 0));
     const drawers = [];
     for (let k = 0; k < 4; k++) {
@@ -282,7 +383,7 @@ export function containerModel(ctype) {
     }
     g.userData.drawers = drawers;
   } else if (ctype === 'crate') {
-    const m = LIB.dyn('woodCrate');
+    const m = LIB.dyn(mats.crate || 'woodCrate');
     g.add(mesh(box(0.8, 0.55, 0.55), m, 0, 0.275, 0));
     const lid = new THREE.Group(); lid.position.set(0, 0.55, -0.275); lid.add(mesh(box(0.82, 0.05, 0.57), m, 0, 0.025, 0.285)); g.add(lid);
     g.userData.lid = lid;

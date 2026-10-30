@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { settings, QUALITY_PRESETS } from '../core/settings.js';
 import { Avatar, SKIN_OPTIONS, randomSkin, normalizeSkin } from '../game/avatar.js';
 import { audio } from '../audio/audio.js';
+import { input, ACTIONS, keyLabel } from '../core/input.js';
 
 const $ = id => document.getElementById(id);
 
@@ -50,7 +51,56 @@ export function buildSettings(container, onChange) {
   toggle('headBob', 'Head bob');
   toggle('flashing', 'Intense visual effects');
   toggle('showFps', 'Show FPS');
+  toggle('prologue', 'Play the prologue (solo)');
+  buildKeybinds(container);
 }
+
+// Rebindable controls: two slots per action; click a slot, then press a key
+// or mouse button (Esc cancels, Backspace clears the slot).
+function buildKeybinds(container) {
+  const h = document.createElement('h3');
+  h.className = 'kb-head';
+  h.innerHTML = 'Controls <button class="small" id="kbReset">Reset to defaults</button>';
+  container.appendChild(h);
+  const grid = document.createElement('div');
+  grid.className = 'kb-grid';
+  container.appendChild(grid);
+  const render = () => {
+    grid.innerHTML = '';
+    for (const [id, label] of ACTIONS) {
+      const r = document.createElement('div');
+      r.className = 'kb-row';
+      r.innerHTML = `<span>${label}</span>`;
+      for (let slot = 0; slot < 2; slot++) {
+        const b = document.createElement('button');
+        b.className = 'kb-key small';
+        const code = input.codes(id)[slot];
+        b.textContent = code ? keyLabel(code) : '—';
+        b.onclick = e => {
+          e.stopPropagation();
+          b.textContent = 'press…'; b.classList.add('listening');
+          const done = code2 => {
+            window.removeEventListener('keydown', onKey, true);
+            window.removeEventListener('mousedown', onMouse, true);
+            if (code2 !== undefined) input.setBind(id, slot, code2);
+            render();
+          };
+          const onKey = ev => {
+            ev.preventDefault(); ev.stopPropagation();
+            if (ev.code === 'Escape') done(); else if (ev.code === 'Backspace') done(null); else done(ev.code);
+          };
+          const onMouse = ev => { if (ev.target === b) return; ev.preventDefault(); ev.stopPropagation(); done('Mouse' + ev.button); };
+          setTimeout(() => { window.addEventListener('keydown', onKey, true); window.addEventListener('mousedown', onMouse, true); }, 0);
+        };
+        r.appendChild(b);
+      }
+      grid.appendChild(r);
+    }
+  };
+  render();
+  h.querySelector('#kbReset').onclick = () => { input.resetBinds(); render(); };
+}
+
 
 export class Customizer {
   constructor(onSave) {

@@ -8,20 +8,21 @@ import { TILE, CS, T_SOLID, T_FLOOR, F_ROOM, F_DARK, F_RESERVED, F_LANDMARK, NO_
 import { openPorts, ensureConnected, carveRect, fillRect, openTile, carveL, portTiles, chunkPorts } from '../gen.js';
 import { placeLandmark } from '../level.js';
 import { addProp, registerProps } from '../props.js';
-import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addHatchExit } from './common.js';
+import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addHatchExit, addLevelDoor, sideExitAt, nearestExit, addPortArrow } from './common.js';
 import { hash01 } from '../../core/rng.js';
 import { registerObjectKind } from '../../game/objects.js';
 import { makeWaterMaterial, makeEnvMap } from '../../gfx/water.js';
 
 const SEWER_F = -3.5, SEWER_C = -0.5, CH_F = -4.3, CH_W = -3.8;
-const COOL = [0.82, 0.9, 1.0], SEWER_LAMP = [0.72, 0.85, 0.5];
+const COOL = [0.82, 0.9, 1.0], SEWER_LAMP = [0.72, 0.85, 0.5], PANEL_I = 3.0;
+const VEND_GOODS = [['snackBar', 5], ['energyDrink', 3], ['cleanWater', 3], ['dirtyWater', 1]];
 
 const LOOT = [
-  ['almondWater', 16], ['waterBottle', 12], ['snackBar', 14], ['energyDrink', 6], ['battery', 18, [1, 2]], ['bandage', 12], ['painkillers', 8],
+  ['dirtyWater', 14], ['cleanWater', 10], ['purifier', 5, [1, 2]], ['wire', 5], ['antenna', 2], ['gpsBoard', 2], ['snackBar', 14], ['energyDrink', 6], ['battery', 18, [1, 2]], ['bandage', 12], ['painkillers', 8],
   ['glowstick', 10, [1, 2]], ['ammo9', 10, [6, 12]], ['shells', 5, [2, 4]], ['decoy', 4], ['pistol', 2], ['knife', 3], ['ductTape', 4], [null, 16],
 ];
 const DESK_LOOT = [
-  ['battery', 22, [1, 2]], ['snackBar', 14], ['painkillers', 10], ['almondWater', 10], ['ammo9', 8, [5, 10]], ['glowstick', 8], ['bandage', 8],
+  ['battery', 22, [1, 2]], ['snackBar', 14], ['painkillers', 10], ['dirtyWater', 10], ['scrap', 5], ['ammo9', 8, [5, 10]], ['glowstick', 8], ['bandage', 8],
   ['decoy', 4], ['flashlight', 3], ['energyDrink', 6], [null, 18],
 ];
 const PUMP_LOOT = [['shells', 14, [3, 6]], ['ammo9', 14, [8, 15]], ['medkit', 6], ['bandage', 10], ['battery', 12, [2, 3]], ['shotgun', 5], ['smg', 3], ['flare', 8, [1, 2]], [null, 8]];
@@ -121,8 +122,25 @@ function zoneFor(level, cx, cz) {
   if (inChunk(by.key)) return 'sewer';
   if (inChunk(by.exit) || inChunk(by.spawn)) return 'office';
   if (Math.abs(cx) + Math.abs(cz) <= 0) return 'office';
+  if (sewerMain(level, cx, cz)) return 'sewer';
   const h = hash01(cx, cz, level.levelSeed, 21) * 0.7 + hash01(Math.floor(cx / 2), Math.floor(cz / 2), level.levelSeed, 22) * 0.3;
-  return h < 0.32 ? 'sewer' : 'office';
+  return h < 0.28 ? 'sewer' : 'office';
+}
+
+// Long straight sewer mains run under the floors every few chunks, so the
+// tunnels go on for a long way instead of forming small pockets.
+function sewerMain(level, cx, cz) {
+  const s = level.levelSeed;
+  const ox = Math.floor(hash01(s, 31) * 5), oz = Math.floor(hash01(s, 32) * 5);
+  if (((cz - oz) % 5 + 5) % 5 === 0 && hash01(Math.floor(cx / 6), cz, s, 33) < 0.7) return true;
+  if (((cx - ox) % 5 + 5) % 5 === 0 && hash01(cx, Math.floor(cz / 6), s, 34) < 0.7) return true;
+  return false;
+}
+
+// Dark office zones: whole blocks of chunks where the lights are dead.
+function darkZone(level, cx, cz) {
+  if (Math.abs(cx) + Math.abs(cz) <= 1) return false;
+  return hash01(Math.floor(cx / 2), Math.floor(cz / 2), level.levelSeed, 41) < 0.2;
 }
 
 // ---------------------------------------------------------------- office chunk
@@ -148,8 +166,9 @@ function genOffice(c, ctx) {
       const rw = cc - a + 1, rh = d - b + 1;
       if (rw < 2 || rh < 2) continue;
       const big = rw * rh;
-      const type = big >= 30 ? rng.weighted([['cubicles', 5], ['conference', 1], ['break', 1]]) : big >= 12 ? rng.weighted([['office', 3], ['conference', 1], ['utility', 2], ['break', 1]]) : rng.weighted([['office', 3], ['utility', 2]]);
-      carveRect(c, a, b, cc, d, T({ flags: F_ROOM, ceil: type === 'conference' ? 3.0 : CE }));
+      const type = big >= 30 ? rng.weighted([['cubicles', 5], ['conference', 1], ['break', 1], ['storage', 1.5], ['maintenance', 1.2]]) : big >= 12 ? rng.weighted([['office', 3], ['conference', 1], ['utility', 2], ['break', 1.3]]) : rng.weighted([['office', 3], ['utility', 2]]);
+      const ceil = type === 'conference' ? 3.0 : type === 'storage' || type === 'maintenance' ? 3.6 : CE;
+      carveRect(c, a, b, cc, d, T({ flags: F_ROOM, ceil, fmat: type === 'maintenance' ? 2 : 0, cmat: type === 'storage' || type === 'maintenance' ? 1 : 0 }));
       rooms.push({ type, x: a, z: b, w: rw, h: rh });
     }
   }
@@ -176,17 +195,25 @@ function genOffice(c, ctx) {
 }
 
 function dressOffice(c, ctx, rooms, def) {
-  const { rng } = ctx;
+  const { rng, level } = ctx;
+  const dz = c.meta.darkZone = darkZone(level, c.cx, c.cz) && !ctx.landmarks.length;
+  const industrial = (lx, lz) => rooms.some(r => (r.type === 'storage' || r.type === 'maintenance') && lx >= r.x && lx < r.x + r.w && lz >= r.z && lz < r.z + r.h);
   // ceiling panels on a grid in corridors and rooms
   for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
     const i = lz * CS + lx;
-    if (c.type[i] !== T_FLOOR || (c.flags[i] & F_LANDMARK)) continue;
+    if (c.type[i] !== T_FLOOR || (c.flags[i] & F_LANDMARK) || c.floor[i] !== 0) continue;
     const tx = c.cx * CS + lx, tz = c.cz * CS + lz;
-    if (tx % 2 !== 0 || tz % 2 !== 0) continue;
+    if (dz) c.flags[i] |= F_DARK;
+    if (tx % 2 !== 0 || tz % 2 !== 0 || industrial(lx, lz)) continue;
+    if (dz) {
+      // a dead floor: the odd tube still stutters
+      if (rng.chance(0.03)) addLight(c, { kind: 'panel', x: c.tx(lx), y: c.ceil[i] - 0.01, z: c.tz(lz), w: 1.2, d: 0.6, color: COOL, intensity: PANEL_I * 0.8, range: 7, flicker: rng.float(0.7, 0.95) });
+      continue;
+    }
     const dark = hash01(Math.floor(tx / 6), Math.floor(tz / 6), ctx.seed, 5) < 0.18;
     if (dark && rng.chance(0.85)) { c.flags[i] |= F_DARK; continue; }
     const r = rng.next();
-    addLight(c, { kind: 'panel', x: c.tx(lx), y: c.ceil[i] - 0.01, z: c.tz(lz), w: 1.2, d: 0.6, color: COOL, intensity: 4.2, range: 8, flicker: r < 0.1 ? rng.float(0.3, 0.9) : 0, broken: r > 0.95 });
+    addLight(c, { kind: 'panel', x: c.tx(lx), y: c.ceil[i] - 0.01, z: c.tz(lz), w: 1.2, d: 0.6, color: COOL, intensity: PANEL_I, range: 8, flicker: r < 0.1 ? rng.float(0.3, 0.9) : 0, broken: r > 0.95 });
   }
   const take = arr => (arr.length ? arr.splice(rng.int(0, arr.length - 1), 1)[0] : null);
   for (const r of rooms) {
@@ -202,6 +229,7 @@ function dressOffice(c, ctx, rooms, def) {
       o.collider = c.addCollider(along === 'x' ? x - 1 : x - 0.05, 0, along === 'z' ? z - 1 : z - 0.05, along === 'x' ? x + 1 : x + 0.05, 2.4, along === 'z' ? z + 1 : z + 0.05, false);
       o.collider.door = true;
     }
+    if (r.door && r.type !== 'cubicles' && rng.chance(0.6)) officeSign(c, r, rng);
     if (r.type === 'cubicles') {
       // rows of 2x2 m cubicles with aisles
       for (let gz = r.z; gz + 1 < r.z + r.h; gz += 2) {
@@ -211,7 +239,9 @@ function dressOffice(c, ctx, rooms, def) {
           if (ox > x0 + W - 1.2 || oz > z0 + H - 1.2) continue;
           addProp(c, 'cubicleWall', ox, 0, oz - 1.45, 0, { len: 2.9 });
           addProp(c, 'cubicleWall', ox - 1.45, 0, oz, Math.PI / 2, { len: 2.9 });
-          addProp(c, 'desk', ox - 0.1, 0, oz - 0.95, 0, { monitor: rng.chance(0.8), papers: rng.chance(0.6) });
+          const mon = rng.chance(0.8);
+          addProp(c, 'desk', ox - 0.1, 0, oz - 0.95, 0, { monitor: mon, papers: rng.chance(0.6) });
+          if (mon && rng.chance(0.22)) addComputer(c, rng, ox - 0.1, oz - 0.95, 0, { x: ox - 0.1, z: oz - 0.2 });
           if (rng.chance(0.85)) addProp(c, rng.chance(0.8) ? 'officeChair' : 'fallenChair', ox + rng.float(-0.3, 0.3), 0, oz - 0.2, rng.float(-0.6, 0.6) + (rng.chance(0.2) ? Math.PI : 0));
           if (rng.chance(0.12)) addContainer(c, rng, 'cardboard', DESK_LOOT, ox + 0.6, 0, oz + 0.4, rng.float(0, 1), [1, 2]);
           if (rng.chance(0.15)) addPickup(c, rng, DESK_LOOT, ox - 0.4, 0.78, oz - 0.9);
@@ -220,7 +250,14 @@ function dressOffice(c, ctx, rooms, def) {
       }
     } else if (r.type === 'office') {
       const s = take(spots);
-      if (s) { const p = wallPos(c, s, 0.6); addProp(c, 'desk', p.x, 0, p.z, yawFor(s.nx, s.nz) + Math.PI, { monitor: true, papers: true }); addProp(c, 'officeChair', p.x + s.nx * 0.9, 0, p.z + s.nz * 0.9, yawFor(s.nx, s.nz) + Math.PI); if (rng.chance(0.3)) addPickup(c, rng, DESK_LOOT, p.x - s.nz * 0.4, 0.78, p.z + s.nx * 0.4); }
+      if (s) {
+        const p = wallPos(c, s, 0.6), R = yawFor(s.nx, s.nz) + Math.PI;
+        addProp(c, 'desk', p.x, 0, p.z, R, { monitor: true, papers: true });
+        addProp(c, 'officeChair', p.x + s.nx * 0.9, 0, p.z + s.nz * 0.9, R);
+        if (rng.chance(0.75)) addComputer(c, rng, p.x, p.z, R, { x: p.x + s.nx * 0.85, z: p.z + s.nz * 0.85 });
+        if (rng.chance(0.3)) addPickup(c, rng, DESK_LOOT, p.x - s.nz * 0.4, 0.78, p.z + s.nx * 0.4);
+      }
+      if (rng.chance(0.3)) { const sp = take(spots); if (sp) { const p = wallPos(c, sp, 0.0); addObject(c, { kind: 'phone', x: p.x, y: 0, z: p.z, ry: yawFor(sp.nx, sp.nz) }); } }
       const s2 = take(spots); if (s2) { const p = wallPos(c, s2, 0.32); addContainer(c, rng, 'cabinet', DESK_LOOT, p.x, 0, p.z, yawFor(s2.nx, s2.nz), [1, 2]); }
       const s3 = take(spots); if (s3) { const p = wallPos(c, s3, 0.3); addProp(c, 'plant', p.x, 0, p.z, 0); }
       if (rng.chance(0.25)) { const s4 = take(spots); if (s4) { const p = wallPos(c, s4, 0.36); addLocker(c, p.x, 0, p.z, yawFor(s4.nx, s4.nz)); } }
@@ -228,10 +265,13 @@ function dressOffice(c, ctx, rooms, def) {
     } else if (r.type === 'conference') {
       addProp(c, 'conferenceTable', cx, 0, cz, W > H ? 0 : Math.PI / 2);
       for (let k = -1; k <= 1; k++) for (const sd of [-1, 1]) {
-        const a = W > H ? 0 : Math.PI / 2;
-        const ox = Math.cos(a) * k * 1.1 - Math.sin(a) * sd * 1.05, oz = Math.sin(a) * k * 1.1 + Math.cos(a) * sd * 1.05;
-        addProp(c, rng.chance(0.85) ? 'officeChair' : 'fallenChair', cx + ox, 0, cz + oz, a + (sd > 0 ? Math.PI : 0) + rng.float(-0.3, 0.3));
+        if (rng.chance(0.12)) continue;
+        // along the table's long axis k, out from its long edge by sd
+        const ox = W > H ? k * 1.1 : sd * 1.22, oz = W > H ? sd * 1.22 : k * 1.1;
+        const px = W > H ? 0 : ox, pz = W > H ? oz : 0;
+        addProp(c, rng.chance(0.88) ? 'officeChair' : 'fallenChair', cx + ox, 0, cz + oz, Math.atan2(px, pz) + rng.float(-0.25, 0.25));
       }
+      if (rng.chance(0.5)) { const sp = take(spots); if (sp) { const p = wallPos(c, sp, 0.0); addObject(c, { kind: 'phone', x: p.x, y: 0, z: p.z, ry: yawFor(sp.nx, sp.nz) }); } }
       addProp(c, 'paperPile', cx + 0.5, 0.79, cz, 0);
     } else if (r.type === 'utility') {
       for (let k = 0; k < 3; k++) { const s = take(spots); if (s) { const p = wallPos(c, s, 0.3); addProp(c, rng.chance(0.5) ? 'shelf' : 'boxes', p.x, 0, p.z, yawFor(s.nx, s.nz)); } }
@@ -240,13 +280,83 @@ function dressOffice(c, ctx, rooms, def) {
       if (rng.chance(0.4)) { const s2 = take(spots); if (s2) { const p = wallPos(c, s2, 0.36); addLocker(c, p.x, 0, p.z, yawFor(s2.nx, s2.nz)); } }
     } else if (r.type === 'break') {
       addProp(c, 'table', cx, 0, cz, 0);
-      for (const [dx, dz, a] of [[-0.9, 0, Math.PI / 2], [0.9, 0, -Math.PI / 2]]) addProp(c, 'chair', cx + dx, 0, cz + dz, a);
-      const s = take(spots); if (s) { const p = wallPos(c, s, 0.42); addProp(c, 'vending', p.x, 0, p.z, yawFor(s.nx, s.nz)); }
+      for (const [dx, dz, a] of [[-1.15, 0, -Math.PI / 2], [1.15, 0, Math.PI / 2], [0, 0.85, 0]]) if (rng.chance(0.85)) addProp(c, 'chair', cx + dx, 0, cz + dz, a + rng.float(-0.2, 0.2));
+      const s = take(spots); if (s) { const p = wallPos(c, s, 0.43); addVendor(c, rng, p.x, 0, p.z, yawFor(s.nx, s.nz)); }
+      if (rng.chance(0.4)) { const s4 = take(spots); if (s4) { const p = wallPos(c, s4, 0.43); addVendor(c, rng, p.x, 0, p.z, yawFor(s4.nx, s4.nz)); } }
+      if (rng.chance(0.45)) { const sp = take(spots); if (sp) { const p = wallPos(c, sp, 0.0); addObject(c, { kind: 'phone', x: p.x, y: 0, z: p.z, ry: yawFor(sp.nx, sp.nz) }); } }
       const s2 = take(spots); if (s2) { const p = wallPos(c, s2, 0.32); addProp(c, 'waterCooler', p.x, 0, p.z, yawFor(s2.nx, s2.nz)); }
       const s3 = take(spots); if (s3) { const p = wallPos(c, s3, 0.36); addProp(c, 'copier', p.x, 0, p.z, yawFor(s3.nx, s3.nz)); }
       if (rng.chance(0.5)) addPickup(c, rng, LOOT, cx, 0.78, cz);
+    } else if (r.type === 'storage') {
+      // long shelving rows with aisles; boxes and crates worth opening
+      const alongX = W >= H;
+      const len = (alongX ? W : H) - 2.4, rows = Math.floor(((alongX ? H : W) - 1.2) / 2.4);
+      for (let k = 0; k < rows; k++) {
+        const off = -((rows - 1) * 2.4) / 2 + k * 2.4;
+        if (len < 2) break;
+        addProp(c, 'storageShelf', alongX ? cx : cx + off, 0, alongX ? cz + off : cz, alongX ? 0 : Math.PI / 2, { len: Math.min(len, 9) });
+        if (rng.chance(0.55)) { const t = rng.float(-0.4, 0.4) * len; addContainer(c, rng, rng.chance(0.6) ? 'cardboard' : 'crate', LOOT, alongX ? cx + t : cx + off + 1.15, 0, alongX ? cz + off + 1.15 : cz + t, rng.float(0, 6), [1, 2]); }
+      }
+      for (let k = 0; k < 2; k++) { const s2 = take(spots); if (s2) { const p = wallPos(c, s2, 0.36); addProp(c, 'boxes', p.x, 0, p.z, yawFor(s2.nx, s2.nz)); } }
+      for (let k = 0; k < Math.max(1, rows); k++) addLight(c, { kind: 'cage', x: cx + (alongX ? rng.float(-2, 2) : 0), y: 3.5, z: cz + (alongX ? 0 : rng.float(-2, 2)), nx: 0, nz: 0, color: [1, 0.92, 0.75], intensity: 3.2, range: 10, flicker: rng.chance(0.2) ? 0.5 : 0, broken: c.meta.darkZone });
+      if (rng.chance(0.25)) addNote(c, rng.pick(def.notes), cx + 0.6, 0.004, cz + 1.0, rng.float(0, 6));
+    } else if (r.type === 'maintenance') {
+      // boiler / pump plant: machines along the walls, pipes overhead
+      const used = [];
+      for (const [prop, inset, opt] of [['machine', 0.7, { w: 1.6 }], ['tank', 0.85], ['generator', 0.8], ['lathe', 0.5], ['workbench', 0.45]]) {
+        if (rng.chance(0.25)) continue;
+        const s2 = take(spots); if (!s2 || used.some(u => Math.abs(u.lx - s2.lx) + Math.abs(u.lz - s2.lz) < 2)) continue;
+        used.push(s2);
+        const p = wallPos(c, s2, inset);
+        addProp(c, prop, p.x, 0, p.z, yawFor(s2.nx, s2.nz), opt);
+      }
+      for (let k = 0; k < 3; k++) addProp(c, 'sewerPipe', cx + (W > H ? 0 : (k - 1) * 1.4), 3.1, cz + (W > H ? (k - 1) * 1.4 : 0), W > H ? 0 : Math.PI / 2, { len: (W > H ? W : H) - 0.4 });
+      const s3 = take(spots); if (s3) { const p = wallPos(c, s3, 0.4); addContainer(c, rng, 'toolbox', PUMP_LOOT, p.x, 0, p.z, yawFor(s3.nx, s3.nz), [1, 2]); }
+      if (rng.chance(0.5)) { const s4 = take(spots); if (s4) { const p = wallPos(c, s4, 0.36); addLocker(c, p.x, 0, p.z, yawFor(s4.nx, s4.nz)); } }
+      if (rng.chance(0.5)) { const sp = take(spots); if (sp) { const p = wallPos(c, sp, 0.0); addObject(c, { kind: 'phone', x: p.x, y: 0, z: p.z, ry: yawFor(sp.nx, sp.nz) }); } }
+      addLight(c, { kind: 'cage', x: cx, y: 3.5, z: cz, nx: 0, nz: 0, color: [1, 0.75, 0.45], intensity: 3.5, range: 10, flicker: rng.chance(0.35) ? 0.4 : 0, broken: c.meta.darkZone && rng.chance(0.7) });
+      addDecal(c, { name: 'stain', x: cx + rng.float(-1, 1), y: 0.005, z: cz + rng.float(-1, 1), nx: 0, ny: 1, nz: 0, size: 1.6, rot: rng.float(0, 6) });
     }
   }
+}
+
+// Office number plate beside a room's door, on the corridor side.
+function officeSign(c, r, rng) {
+  const d = r.door;
+  const px = Math.abs(d.nz), pz = Math.abs(d.nx);
+  for (const side of [1, -1]) {
+    const wx = d.lx + px * side, wz = d.lz + pz * side, fx = wx + d.nx, fz = wz + d.nz;
+    if (wx < 0 || wz < 0 || wx >= CS || wz >= CS || fx < 0 || fz < 0 || fx >= CS || fz >= CS) continue;
+    if (c.type[wz * CS + wx] !== T_SOLID || c.type[fz * CS + fx] !== T_FLOOR) continue;
+    const n = 200 + Math.floor(hash01(c.cx, c.cz, d.lx * 16 + d.lz, 61) * 99);
+    const text = r.type === 'utility' ? 'UTILITY' : r.type === 'conference' ? `CONF ${String.fromCharCode(65 + (n % 6))}` : r.type === 'storage' ? `STORE ${n % 20}` : r.type === 'maintenance' ? 'PLANT' : r.type === 'break' ? 'BREAK RM' : String(n);
+    const x = c.tx(d.lx) + d.nx * (TILE / 2 + 0.012) + px * side * 1.35, z = c.tz(d.lz) + d.nz * (TILE / 2 + 0.012) + pz * side * 1.35;
+    addObject(c, { kind: 'sign', text, x, y: 0, z, ry: yawFor(d.nx, d.nz), size: text.length > 4 ? 34 : 50, h: 1.62 });
+    return;
+  }
+}
+
+// A desk computer: a glowing screen you can sit down at.
+function addComputer(c, rng, dx, dz, R, seat) {
+  // monitor sits at desk-local (-0.15, -0.12)
+  const lx = -0.15, lz = -0.12;
+  const x = dx + lx * Math.cos(R) + lz * Math.sin(R), z = dz - lx * Math.sin(R) + lz * Math.cos(R);
+  const yaw = Math.atan2(-(x - seat.x), -(z - seat.z));
+  return addObject(c, { kind: 'computer', x, y: 0, z, ry: R, infected: rng.chance(0.22), seat: { x: seat.x, z: seat.z, yaw } });
+}
+
+// A vending machine with a few things left in it — once in a while, a pale bottle.
+function addVendor(c, rng, x, y, z, ry) {
+  const stock = rng.int(2, 5);
+  const goods = [];
+  for (let k = 0; k < stock; k++) goods.push(rng.weighted(VEND_GOODS));
+  if (rng.chance(0.3)) goods[rng.int(0, stock - 1)] = 'paleDraught';
+  const shelf = [...new Set(goods)];
+  const o = addObject(c, { kind: 'vendor', x, y, z, ry, stock, goods, shelf, label: 'vending machine', color: rng.pick([0x8a2a24, 0x24448a, 0x2a2a2a]) });
+  const side = Math.abs(Math.sin(ry)) > 0.5;
+  const hx = side ? 0.42 : 0.47, hz = side ? 0.47 : 0.42;
+  c.addCollider(x - hx, y, z - hz, x + hx, y + 1.95, z + hz, true);
+  return o;
 }
 
 // ---------------------------------------------------------------- sewer chunk
@@ -273,21 +383,39 @@ function genSewer(c, ctx, zoneOf) {
     if (!list.length) continue;
     const top = { floor: 0, ceil: 2.6, fmat: 2, cmat: 1 };
     const idx = list.flatMap(p => Array.from({ length: p.w }, (_, j) => p.i + j));
-    const lo = Math.min(7, ...idx), hi = Math.max(7, ...idx);
+    const A = 6; // the way down lands on the hub walkway, not in the channel
+    const lo = Math.min(A, ...idx), hi = Math.max(A, ...idx);
     // tile mapping: along = index along edge, depth = distance from edge
     const T = (along, depth) => side === 'n' ? [along, depth] : side === 's' ? [along, CS - 1 - depth] : side === 'w' ? [depth, along] : [CS - 1 - depth, along];
     for (const i of idx) { const [x, z] = T(i, 0); openTile(c, x, z, top); }
     for (let a = lo; a <= hi; a++) { const [x, z] = T(a, 1); openTile(c, x, z, top); }
-    // stairs at along=7: depth 2 and 3
-    const dir = side === 'n' ? 3 : side === 's' ? 1 : side === 'w' ? 2 : 0; // rises toward the edge
-    const [ax, az] = T(7, 2), [bx, bz] = T(7, 3);
-    openTile(c, ax, az, { floor: -1.75, ceil: 2.2, fmat: 2, cmat: 1, flags: F_RESERVED });
-    openTile(c, bx, bz, { floor: SEWER_F, ceil: 0.5, fmat: 2, cmat: 1, flags: F_RESERVED });
-    c.ramp[az * CS + ax] = dir; c.rampH[az * CS + ax] = 1.75;
-    c.ramp[bz * CS + bx] = dir; c.rampH[bz * CS + bx] = 1.75;
-    for (let d = 4; d <= 5; d++) { const [x, z] = T(7, d); if (c.type[z * CS + x] !== T_FLOOR) openTile(c, x, z, walk); }
+    const [ax, az] = T(A, 2), [bx, bz] = T(A, 3);
     c.meta.stairs = c.meta.stairs || [];
-    c.meta.stairs.push({ x: c.tx(ax), z: c.tz(az) });
+    if (hash01(c.cx, c.cz, level.levelSeed, side.charCodeAt(0)) < 0.3) {
+      // stairs: depth 2 and 3
+      const dir = side === 'n' ? 3 : side === 's' ? 1 : side === 'w' ? 2 : 0; // rises toward the edge
+      openTile(c, ax, az, { floor: -1.75, ceil: 2.2, fmat: 2, cmat: 1, flags: F_RESERVED });
+      openTile(c, bx, bz, { floor: SEWER_F, ceil: 0.5, fmat: 2, cmat: 1, flags: F_RESERVED });
+      c.ramp[az * CS + ax] = dir; c.rampH[az * CS + ax] = 1.75;
+      c.ramp[bz * CS + bx] = dir; c.rampH[bz * CS + bx] = 1.75;
+      c.meta.stairs.push({ x: c.tx(ax), z: c.tz(az) });
+    } else {
+      // a ladder hole: an open shaft at depth 2 dropping to the walkway
+      openTile(c, ax, az, { floor: SEWER_F, ceil: 2.6, fmat: 2, cmat: 1, flags: F_RESERVED });
+      openTile(c, bx, bz, { ...walk, flags: F_RESERVED });
+      const [tx0, tz0] = T(A, 1);
+      // ladder bolted to the shaft wall on the side away from the hub channel
+      const [wx, wz] = T(A - 1, 2);
+      const px = (wx - ax), pz = (wz - az);
+      const lx = c.tx(ax) + px * 0.86, lz = c.tz(az) + pz * 0.86;
+      const [ex, ez] = T(A, 0);
+      const inYaw = Math.atan2(-(c.tx(bx) - c.tx(ax)), -(c.tz(bz) - c.tz(az)));
+      const upYaw = Math.atan2(-(c.tx(ex) - c.tx(ax)), -(c.tz(ez) - c.tz(az)));
+      addObject(c, { kind: 'ladder', x: lx, y: SEWER_F, z: lz, ry: yawFor(-px, -pz), visual: true, len: -SEWER_F + 1.1, up: true, dest: { x: c.tx(tx0), y: 0, z: c.tz(tz0), yaw: upYaw } });
+      addObject(c, { kind: 'ladder', x: c.tx(tx0) + (c.tx(ax) - c.tx(tx0)) * 0.55, y: 0, z: c.tz(tz0) + (c.tz(az) - c.tz(tz0)) * 0.55, ry: 0, up: false, dest: { x: c.tx(ax) - px * 0.2, y: SEWER_F, z: c.tz(az) - pz * 0.2, yaw: inYaw } });
+      c.meta.stairs.push({ x: c.tx(ax), z: c.tz(az), ladder: true });
+    }
+    for (let d = 4; d <= 5; d++) { const [x, z] = T(A, d); if (c.type[z * CS + x] !== T_FLOOR) openTile(c, x, z, walk); }
   }
   return { n, s, w, e };
 }
@@ -309,7 +437,7 @@ function dressSewer(c, ctx, def, isKey) {
   // the hub junction gets a hanging work lamp
   addLight(c, { kind: 'bulb', cord: 0.5, shade: true, x: c.x0 + 8 * TILE, y: 0.6 - 0.6, z: c.z0 + 8 * TILE, color: [0.9, 1, 0.7], intensity: 5, range: 11, flicker: rng.chance(0.4) ? 0.35 : 0 });
   // stair landings get a light
-  for (const st of c.meta.stairs || []) addLight(c, { kind: 'cage', x: st.x, y: 1.9, z: st.z, nx: 0, nz: 0, color: SEWER_LAMP, intensity: 2.5, range: 6 });
+  for (const st of c.meta.stairs || []) addLight(c, { kind: 'cage', x: st.x, y: st.ladder ? 2.5 : 1.9, z: st.z, nx: 0, nz: 0, color: SEWER_LAMP, intensity: st.ladder ? 3 : 2.5, range: st.ladder ? 8 : 6 });
   c.meta.drips = [];
   for (let k = 0; k < 4; k++) c.meta.drips.push({ x: c.x0 + rng.float(10, 22), z: c.z0 + rng.float(10, 22), y: SEWER_C, t: rng.float(0, 3) });
   // loot on walkways
@@ -321,9 +449,10 @@ function dressSewer(c, ctx, def, isKey) {
   const ws = wallSpots(c, (lx, lz, i) => c.floor[i] === SEWER_F);
   for (let k = rng.int(0, 2); k > 0 && ws.length; k--) { const s = rng.pick(ws), p = wallPos(c, s); addDecal(c, { name: rng.pick(['drip', 'stain', 'scratch', 'hand']), x: p.x, y: SEWER_F + rng.float(0.6, 2), z: p.z, nx: s.nx, ny: 0, nz: s.nz, size: rng.float(0.8, 1.3) }); }
   // the pump room with the fuse
+  let pumpSide = -1;
   if (isKey) {
     // carve a side room off the hub
-    const side = rng.int(0, 3);
+    const side = pumpSide = rng.int(0, 3);
     const rect = [[1, 1, 4, 4], [11, 1, 14, 4], [1, 11, 4, 14], [11, 11, 14, 14]][side];
     carveRect(c, rect[0], rect[1], rect[2], rect[3], { floor: SEWER_F, ceil: 0.2, fmat: 1, cmat: 1, flags: F_ROOM | F_RESERVED });
     const ccx = (rect[0] + rect[2]) >> 1, ccz = (rect[1] + rect[3]) >> 1;
@@ -338,6 +467,51 @@ function dressSewer(c, ctx, def, isKey) {
     addLight(c, { kind: 'bulb', cord: 0.4, x: cxw, y: 0.2 - 0.5, z: czw, color: [1, 0.85, 0.6], intensity: 4, range: 8, flicker: 0.25 });
     addDecal(c, { name: 'text2', x: cxw, y: SEWER_F + 0.005, z: czw - 0.8, nx: 0, ny: 1, nz: 0, size: 1.3, rot: 0 });
   }
+  // now and then a rusted door off the tunnels, to somebody's old room
+  if (rng.chance(0.3)) {
+    const order = [0, 1, 2, 3].sort(() => rng.next() - 0.5);
+    for (const corner of order) if (corner !== pumpSide && rustRoom(c, rng, corner, def)) break;
+  }
+}
+
+// A small rusted room behind a door in one corner of a sewer chunk.
+function rustRoom(c, rng, corner, def) {
+  const mx = corner & 1, mz = corner >> 1;
+  const X = x => (mx ? CS - 1 - x : x), Z = z => (mz ? CS - 1 - z : z);
+  const room = []; for (let z = 1; z <= 3; z++) for (let x = 1; x <= 3; x++) room.push([x, z]);
+  const path = [[2, 4], [2, 5], [3, 5], [4, 5]];
+  // everything around must still be rock (no stairs, tunnels or other rooms)
+  for (let z = 0; z <= 4; z++) for (let x = 0; x <= 4; x++) if (c.type[Z(z) * CS + X(x)] !== T_SOLID) return false;
+  for (const [x, z] of path.slice(1)) if (c.type[Z(z) * CS + X(x)] !== T_SOLID) return false;
+  if (c.type[Z(5) * CS + X(5)] !== T_FLOOR) return false;
+  const roomT = { floor: SEWER_F, ceil: SEWER_F + 2.9, fmat: 1, cmat: 1, flags: F_ROOM };
+  for (const [x, z] of room) openTile(c, X(x), Z(z), roomT);
+  openTile(c, X(2), Z(4), { floor: SEWER_F, ceil: SEWER_F + 2.45, fmat: 1, cmat: 1, flags: F_RESERVED });
+  for (const [x, z] of path.slice(1)) openTile(c, X(x), Z(z), { floor: SEWER_F, ceil: SEWER_C, fmat: 1, cmat: 1, flags: F_RESERVED });
+  // rusted plate walls
+  for (let z = 0; z <= 4; z++) for (let x = 0; x <= 4; x++) { const i = Z(z) * CS + X(x); if (c.type[i] === T_SOLID) c.wmat[i] = 2; }
+  const dx = c.tx(X(2)), dz = c.tz(Z(4));
+  const o = addObject(c, { kind: 'door', x: dx, y: SEWER_F, z: dz, ry: 0, mat: 'rustMetal' });
+  o.collider = c.addCollider(dx - 1, SEWER_F, dz - 0.05, dx + 1, SEWER_F + 2.4, dz + 0.05, false);
+  o.collider.door = true;
+  const cx = c.tx(X(2)), cz = c.tz(Z(2));
+  const at = (u, v) => [cx + (mx ? -u : u), cz + (mz ? -v : v)];
+  if (rng.chance(0.55)) {
+    // someone lived here
+    const [bx, bz] = at(-1.6, -0.6); addProp(c, 'camp', bx, SEWER_F, bz, 0);
+    const [kx, kz] = at(1.5, -1.6); addContainer(c, rng, 'backpack', LOOT, kx, SEWER_F, kz, rng.float(0, 6), [2, 3]);
+    for (let k = 0; k < 3; k++) { const [tx, tz] = at(rng.float(-2, 2), -2.9); addDecal(c, { name: 'tally', x: tx, y: SEWER_F + rng.float(0.8, 1.8), z: tz, nx: 0, ny: 0, nz: mz ? -1 : 1, size: 0.8 }); }
+    addNote(c, rng.pick(def.notes), cx + 0.4, SEWER_F + 0.005, cz + 0.3, rng.float(0, 6));
+  } else {
+    // an old valve room
+    const [mx0, mz0] = at(-1.2, -1.9); addProp(c, 'machine', mx0, SEWER_F, mz0, mz ? Math.PI : 0, { w: 1.6 });
+    const [tx, tz] = at(1.7, 1.0); addProp(c, 'tank', tx, SEWER_F, tz, 0);
+    const [kx, kz] = at(1.6, -1.8); addContainer(c, rng, 'crate', PUMP_LOOT, kx, SEWER_F, kz, 0, [1, 3]);
+    addProp(c, 'sewerPipe', cx, SEWER_F + 2.5, cz, 0, { len: 5.6 });
+  }
+  addLight(c, { kind: 'bulb', cord: 0.3, x: cx, y: SEWER_F + 2.9 - 0.35, z: cz, color: [1, 0.7, 0.45], intensity: 2.6, range: 7, flicker: rng.chance(0.5) ? 0.45 : 0, broken: rng.chance(0.2) });
+  addDecal(c, { name: 'drip', x: dx + 1.2, y: SEWER_F + 1.6, z: dz + (mz ? -1 : 1) * 1.01, nx: 0, ny: 0, nz: mz ? -1 : 1, size: 1 });
+  return true;
 }
 
 export default {
@@ -353,28 +527,33 @@ export default {
   subtitle: 'Somewhere below the carpet, water is running.',
   palette: {
     floor: [{ mat: 'officeCarpet', scale: 2 }, { mat: 'sewerFloor', scale: 2.5 }, { mat: 'concrete', scale: 3, stairMat: 'concrete' }, { mat: 'black', scale: 2 }],
-    wall: [{ mat: 'drywall', scaleU: 2.4, scaleV: 2.8, trim: 'trim', trimH: 0.1 }, { mat: 'sewerBrick', scaleU: 2.4, scaleV: 2.4, vBase: 'abs' }],
+    wall: [{ mat: 'drywall', scaleU: 2.4, scaleV: 2.8, trim: 'trim', trimH: 0.1 }, { mat: 'sewerBrick', scaleU: 2.4, scaleV: 2.4, vBase: 'abs' }, { mat: 'rustMetal', scaleU: 2, scaleV: 2, vBase: 'abs' }],
     ceil: [{ mat: 'ceilingTile', scale: 2 }, { mat: 'concrete', scale: 3 }],
     ledge: { mat: 'sewerBrick', scale: 2.4 },
     soffit: { mat: 'concrete', scaleU: 3, scaleV: 3 },
   },
   materials: ['officeCarpet', 'drywall', 'trim', 'ceilingTile', 'lightPanel', 'sewerFloor', 'sewerBrick', 'concrete', 'fabric', 'laminate', 'plastic', 'plasticDark', 'monitorOff', 'paper', 'darkMetal', 'paintedMetal', 'chrome', 'cardboard', 'woodCrate', 'rustMetal', 'glass', 'glowWhite', 'glowRed', 'glowAmber', 'glowGreen', 'bulbWarm', 'hazard', 'black', 'rubber', 'pillarPaint'],
-  ambient: [0.022, 0.026, 0.03],
+  ambient: [0.02, 0.024, 0.028],
   bakeGain: 0.1,
-  dynGain: 1.6,
-  exposure: 1.15,
+  dynGain: 1.3,
+  exposure: 1.08,
   fog: { color: 0x0b0f12, density: 0.05 },
   background: 0x05070a,
-  grade: { lift: [0.0, 0.01, 0.02], gamma: [1.02, 1.0, 0.98], gain: [0.95, 1.0, 1.06], saturation: 0.78, tint: [0.95, 1, 1.04], vignette: 0.55, grain: 0.05, bloomStrength: 0.5, bloomThreshold: 0.82 },
+  grade: { lift: [0.0, 0.01, 0.02], gamma: [1.02, 1.0, 0.98], gain: [0.95, 1.0, 1.06], saturation: 0.78, tint: [0.95, 1, 1.04], vignette: 0.55, grain: 0.05, bloomStrength: 0.38, bloomThreshold: 0.85 },
   hemi: { sky: 0x3a4450, ground: 0x0a0c0e, intensity: 0.16 },
   dust: { color: 0xdfe8ff, opacity: 0.25 },
   waterMat: 'water',
   waterFog: 0.25, waterFogColor: 0x1a2412,
   portConfig: { min: 1, max: 3, wMin: 1, wMax: 2 },
   ambience: 'offices',
-  notes: ['l2_a', 'l2_b', 'l2_c', 'l2_d', 'l2_e', 'gen_a', 'gen_c'],
+  notes: ['l2_a', 'l2_b', 'l2_c', 'l2_d', 'l2_e', 'gen_a', 'gen_c', 'lore_tuff'],
   decalTexts: ['STAIRWELL', 'LIGHT ITS SKULL', 'DON\'T PICK UP', 'IT FOLLOWS'],
-  entities: { primary: 'inkwalker', max: 1, spawnCd: 75, minDist: 28, maxDist: 44, rare: ['lookalike'] },
+  entities: {
+    primary: 'inkwalker', max: 1, spawnCd: 75, minDist: 28, maxDist: 44, rare: ['lookalike'],
+    // the sewers are where they come from: a second one hunts down there
+    secondary: [{ type: 'inkwalker', max: 1, spawnCd: 110, chance: 0, boost: ctx => ctx.players.some(p => p.y < -2) }],
+  },
+  exitStyle: 'emergency',
   eventSounds: ['phoneRing', 'knock', 'distantThud', 'inkStep', 'scrape', 'whisper'],
 
   landmarks(level) {
@@ -412,10 +591,9 @@ export default {
       // spawn: a note on the floor where you land
       if (landmarks.some(l => l.type === 'spawn')) addNote(c, 'l2_b', c.tx(8) + 0.6, 0.004, c.tz(8) + 0.4, 0.8);
       // stairs down marked on office walls near sewer access
-      const exitL = level.byType.exit;
-      const exitW = { x: (exitL.tx + 0.5) * TILE, z: (exitL.tz + 0.5) * TILE };
+      const goal = nearestExit(level, c.x0 + 16, c.z0 + 16);
       const ws = wallSpots(c, (lx, lz, i) => !(c.flags[i] & F_ROOM));
-      if (rng.chance(0.45)) addWayfinding(c, rng, ws, exitW, { name: 'arrow2' });
+      if (!addPortArrow(c, rng, ctx.ports, goal, { count: 1 }) && rng.chance(0.5)) addWayfinding(c, rng, ws, goal, { name: 'arrow' });
       if (rng.chance(0.25) && ws.length) { const s = rng.pick(ws), p = wallPos(c, s); addDecal(c, { name: rng.pick(['text1', 'text2', 'text3', 'hand', 'eye']), x: p.x, y: rng.float(1.1, 1.7), z: p.z, nx: s.nx, ny: 0, nz: s.nz, size: 0.9 }); }
       // ink trails
       for (let k = rng.int(0, 2); k > 0; k--) {
@@ -429,7 +607,12 @@ export default {
         addPickup(c, rng, LOOT, c.tx(lx) + rng.float(-0.5, 0.5), 0, c.tz(lz) + rng.float(-0.5, 0.5));
       }
     }
-    addHatchExit(c, level, { label: zone === 'sewer' ? 'manhole' : 'access hatch', mat: zone === 'sewer' ? 'rustMetal' : 'paintedMetal' });
+    // the alternate way on: a door marked LEVEL 3, wherever this chunk holds a side exit
+    const floorY = zone === 'sewer' ? SEWER_F : 0;
+    if (sideExitAt(level, c.cx, c.cz) && !addLevelDoor(c, level, rng, 'L3', { p: 1, minR: 0, salt: 1201, floor: floorY, label: 'LEVEL 3', near: sideExitAt(level, c.cx, c.cz) }))
+      addHatchExit(c, level, { label: zone === 'sewer' ? 'manhole' : 'access hatch', mat: zone === 'sewer' ? 'rustMetal' : 'paintedMetal' });
+    // and rarely, one back to the Lobby
+    addLevelDoor(c, level, rng, 'L0', { p: 0.03, minR: 3, salt: 1301, floor: floorY, label: 'LEVEL 0' });
   },
 
   buildStairwell(c, ctx, lx, lz) {
@@ -498,20 +681,6 @@ export default {
     if (o.collider) o.collider.disabled = false;
     game.hostEvent(levelId, { k: 'sound', name: 'doorClose', x: o.x, y: 1, z: o.z, volume: 1.4 });
     return true;
-  },
-
-  // entities open office doors they walk into
-  hostUpdate(game, ctx) {
-    for (const e of game.entities.byLevel('L2')) {
-      if (e.state === 'dead' || (e.speedNow || 0) < 0.3) continue;
-      const ch = ctx.level.chunk(Math.floor(e.x / 32), Math.floor(e.z / 32));
-      for (const o of ch.objects) {
-        if (o.kind !== 'door') continue;
-        if (Math.hypot(o.x - e.x, o.z - e.z) > 1.6) continue;
-        const s = game.world.get('L2', o.id);
-        if (!s?.open) { game.hostBroadcast({ t: 'os', l: 'L2', id: o.id, s: { ...(s || {}), open: true } }); if (o.collider) o.collider.disabled = true; }
-      }
-    }
   },
 
   clientUpdate(game, dt) {

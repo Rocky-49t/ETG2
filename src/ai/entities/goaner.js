@@ -18,6 +18,7 @@ const dormantY = st => (st.s === 'dormant' ? 0.9 : 1.6);
 
 export default {
   type: 'goaner',
+  noPush: true,
   name: 'The Goaner',
   hp: 2400,
   radius: 2.2,

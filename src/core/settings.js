@@ -57,6 +57,8 @@ const DEFAULTS = {
   sensitivity: 1.0,
   fov: 75,
   brightness: 1.0,
+  binds: {},
+  prologue: true,
   invertY: false,
   flashing: true,
   headBob: true,

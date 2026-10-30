@@ -5,7 +5,7 @@
 // "Killing" it only makes it collapse into ink for a while. Difficulty: hard.
 import * as THREE from 'three';
 import { canSee, hearNoise, goTo, setState, faceToward, lightOn, nearestPlayer, wander } from '../brain.js';
-import { joint, limb, ball, boxm } from './rig.js';
+import { joint, limb, ball, boxm, attackPose } from './rig.js';
 
 export default {
   type: 'inkwalker',
@@ -24,7 +24,10 @@ export default {
   init(e) { e.state = 'stalk'; e.stunCd = 0; e.lightAcc = 0; e.seenHide = null; },
 
   think(e, dt, ctx) {
-    const { level, players } = ctx;
+    const { level } = ctx;
+    // the pale draught makes a drinker invisible to it: it neither hunts nor hears them
+    const players = ctx.players.filter(p => !p.ward);
+    const noises = players.length === ctx.players.length ? ctx.noises : ctx.noises.filter(n => players.some(p => p.id === n.pid));
     const diffK = ctx.difficulty === 'easy' ? 0.85 : ctx.difficulty === 'hard' ? 1.12 : 1;
     e.stunCd = Math.max(0, e.stunCd - dt);
     if (e.state === 'collapsed') {
@@ -40,7 +43,7 @@ export default {
     // flashlight on the skull
     if (e.state !== 'stunned' && e.stunCd <= 0) {
       let lit = 0;
-      for (const p of players) if (!p.dead) lit = Math.max(lit, lightOn(p, e.x, e.y + 2.4, e.z, level, 14));
+      for (const p of ctx.players) if (!p.dead) lit = Math.max(lit, lightOn(p, e.x, e.y + 2.4, e.z, level, 14));
       e.lightAcc = lit > 0 ? e.lightAcc + dt * lit : Math.max(0, e.lightAcc - dt * 0.5);
       if (e.lightAcc > 0.9) { setState(e, 'stunned'); e.lightAcc = 0; e.stunCd = 9; }
     }
@@ -57,7 +60,7 @@ export default {
     if (sees) { e.lastSeen = { x: p.x, z: p.z, t: ctx.time, id: p.id }; if (e.state !== 'attack') setState(e, 'chase'); }
     // watched someone climb into a locker
     if (p.hidden && e.lastSeen?.id === p.id && ctx.time - e.lastSeen.t < 1.5) e.seenHide = { id: p.id, x: p.x, z: p.z };
-    const heard = hearNoise(e, ctx.noises, level, 1.2);
+    const heard = hearNoise(e, noises, level, 1.2);
     if (heard && !sees) e.lastSeen = { x: heard.x, z: heard.z, t: ctx.time };
 
     switch (e.state) {
@@ -187,9 +190,22 @@ export default {
       const sw = Math.sin(w + i * Math.PI) * 0.6 * run;
       A.sh.rotation.set(sw + tw[i] * 0.4, 0, A.s * 0.15);
       A.el.rotation.x = -0.55 - run * 0.4;
-      if (st.s === 'attack') { const k = Math.min(1, v.stateT * 3); A.sh.rotation.x = -2.2 * k; A.el.rotation.x = -0.2; }
+      if (st.s === 'attack') {
+        // both claws drawn back over the shoulders, then a lunging double swipe
+        const a = attackPose(v.stateT, 0.5);
+        A.sh.rotation.x = -3.0 * a.w - 1.1 * a.s;
+        A.sh.rotation.z = A.s * (0.5 * a.w - 0.35 * a.s);
+        A.el.rotation.x = -1.6 * a.w - 0.1 * a.s;
+      }
       if (stunned) { A.sh.rotation.set(-2.5, 0, A.s * -0.5); A.el.rotation.x = -1.8; }
     });
+    if (st.s === 'attack') {
+      const a = attackPose(v.stateT, 0.5);
+      R.spine.rotation.x += a.s * 0.7 - a.w * 0.35;
+      R.pelvis.position.z = a.s * 0.55;
+      R.jaw.rotation.x = 0.2 + a.w * 0.6 + a.s * 0.3;
+      R.head.rotation.x += -a.w * 0.4 + a.s * 0.2;
+    } else R.pelvis.position.z = 0;
     for (const e of R.eyes) e.visible = !collapsed && !(stunned && Math.sin(t * 30) > 0);
     if (collapsed) v.group.scale.y = Math.max(0.15, 1 - v.stateT * 0.8);
     else v.group.scale.y = Math.min(1, (v.group.scale.y || 1) + dt * 0.5);
@@ -198,7 +214,7 @@ export default {
   onState(v, s, prev, game) {
     if (s === 'chase' && prev !== 'attack' && prev !== 'stunned') { game.sfx('inkScreech', v.pos, { volume: 1, ref: 5 }); game.stats.scare(5); }
     if (s === 'stunned') { game.sfx('stunned', v.pos, { volume: 1 }); game.subtitle('The Inkwalker reels from the light!', 2); }
-    if (s === 'attack') game.sfx('inkMoan', v.pos, { volume: 0.8 });
+    if (s === 'attack') { game.sfx('inkAttack', v.pos, { volume: 1.3, ref: 6 }); game.stats.scare(6); }
     if (s === 'collapsed') { game.sfx('stunned', v.pos, {}); game.subtitle('The Inkwalker collapses into a puddle of ink. It won\'t stay down.', 3.5); }
   },
 

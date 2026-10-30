@@ -68,16 +68,16 @@ export class PlayerController {
     if (this.frozen) { this.updateCamera(dt, level); return; }
 
     // ---- intent
-    const fwd = (input.isDown('KeyW') ? 1 : 0) - (input.isDown('KeyS') ? 1 : 0);
-    const str = (input.isDown('KeyD') ? 1 : 0) - (input.isDown('KeyA') ? 1 : 0);
-    const wantCrouch = input.isDown('KeyC') || input.isDown('ControlLeft') || this.downed;
-    const wantSprint = input.isDown('ShiftLeft') && fwd > 0 && !wantCrouch && !this.downed && this.staminaOk;
+    const fwd = (input.act('forward') ? 1 : 0) - (input.act('back') ? 1 : 0);
+    const str = (input.act('right') ? 1 : 0) - (input.act('left') ? 1 : 0);
+    const wantCrouch = input.act('crouch') || this.downed;
+    const wantSprint = input.act('sprint') && fwd > 0 && !wantCrouch && !this.downed && this.staminaOk;
 
     // crouch height (blocked by low ceiling when standing up)
     const head = level.headAt(this.body);
     const canStand = head - this.pos.y >= STAND_H + 0.02;
     this.crouching = !this.fly && (wantCrouch || (!canStand && !this.swimming));
-    const targetH = this.downed ? 0.6 : this.crouching ? CROUCH_H : STAND_H;
+    const targetH = this.downed ? 0.6 : this.seated ? 1.25 : this.crouching ? CROUCH_H : STAND_H;
     this.height = damp(this.height, targetH, 12, dt);
 
     // water
@@ -90,7 +90,8 @@ export class PlayerController {
 
     let speed = this.downed ? 0.9 : this.swimming ? 2.3 : this.crouching ? 1.7 : wantSprint ? 5.7 : 3.3;
     if (wading) speed *= 0.65;
-    speed *= this.speedMul * (this.fly ? 2.2 : 1);
+    if (this.staggerT > 0) { this.staggerT -= dt; speed *= 0.45; }
+    speed *= this.speedMul * (this.fly ? 2.2 : 1) * (this.classSpeed || 1) * (this.armorSlow || 1);
     this.sprinting = wantSprint && !this.swimming && (fwd !== 0 || str !== 0);
 
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
@@ -99,12 +100,12 @@ export class PlayerController {
     if (ml > 0) { mx /= ml; mz /= ml; }
     this.moving = ml > 0;
 
-    const accel = this.grounded || this.swimming ? 14 : 2.5;
+    const accel = this.grounded || this.swimming ? 14 : 4.5;
     this.vel.x = damp(this.vel.x, mx * speed, accel, dt);
     this.vel.z = damp(this.vel.z, mz * speed, accel, dt);
 
     if (this.noclip) {
-      const up = (input.isDown('Space') ? 1 : 0) - (input.isDown('KeyC') ? 1 : 0);
+      const up = (input.act('jump') ? 1 : 0) - (input.act('crouch') ? 1 : 0);
       const cp = Math.cos(this.pitch);
       this.pos.x += (-sin * fwd * cp + cos * str) * 12 * dt;
       this.pos.z += (-cos * fwd * cp - sin * str) * 12 * dt;
@@ -116,12 +117,12 @@ export class PlayerController {
 
     // ---- vertical
     if (this.fly) {
-      const up = (input.isDown('Space') ? 1 : 0) - (input.isDown('KeyC') || input.isDown('ControlLeft') ? 1 : 0);
+      const up = (input.act('jump') ? 1 : 0) - (input.act('crouch') ? 1 : 0);
       this.vel.y = damp(this.vel.y, up * 6, 8, dt);
       this.grounded = false;
       this.fallStartY = this.pos.y;
     } else if (this.swimming) {
-      const up = (input.isDown('Space') ? 1 : 0) - (wantCrouch ? 1 : 0);
+      const up = (input.act('jump') ? 1 : 0) - (wantCrouch ? 1 : 0);
       // look-direction diving when moving forward
       const dive = fwd > 0 ? Math.sin(this.pitch) * 2.0 : 0;
       const buoy = depth > 1.35 ? 0.6 : 0; // gently float up toward the surface
@@ -130,20 +131,59 @@ export class PlayerController {
       if (up === 0 && Math.abs(dive) < 0.1 && depth < 1.6 && depth > 1.2) this.vel.y = damp(this.vel.y, 0, 6, dt);
       this.grounded = false;
     } else {
-      if (this.grounded && input.pressed('Space') && !this.crouching && !this.downed && stats?.canJump?.() !== false) {
-        this.vel.y = 4.6;
+      // jump buffering + coyote time: a press slightly early (before landing)
+      // or slightly late (just after walking off an edge) still counts
+      if (input.actPressed('jump')) this.jumpBuf = 0.14;
+      this.jumpBuf = Math.max(0, (this.jumpBuf || 0) - dt);
+      this.coyote = this.grounded ? 0.12 : Math.max(0, (this.coyote || 0) - dt);
+      if (this.jumpBuf > 0 && this.coyote > 0 && !this.crouching && !this.downed && stats?.canJump?.() !== false) {
+        this.vel.y = 5.1;
         this.grounded = false;
+        this.coyote = 0; this.jumpBuf = 0;
+        this.jumpHeld = true;
         this.events.push({ type: 'jump' });
         stats?.onJump?.();
       }
-      this.vel.y -= 19 * dt;
+      // releasing early cuts the jump short; holding floats a touch longer at the top
+      if (this.jumpHeld && !input.act('jump')) { this.jumpHeld = false; if (this.vel.y > 1.5) this.vel.y *= 0.6; }
+      this.vel.y -= (this.vel.y > 0 && this.jumpHeld ? 16 : 21) * dt;
       if (wading) this.vel.y = Math.max(this.vel.y, -6);
+    }
+
+    // ---- haul out of the water onto an edge in front (swim into it holding jump)
+    if (!this.fly && !this.downed && depth > 0.45 && fwd > 0 && input.act('jump') && !this.hauling) {
+      // find the lip within reach, then land a little past it
+      let reach = 0;
+      for (const r of [0.6, 0.85, 1.1]) { const fr = level.floorAt(this.pos.x - sin * r, this.pos.z - cos * r); if (isFinite(fr) && fr > this.pos.y + 0.45) { reach = r; break; } }
+      const ax = this.pos.x - sin * (reach + 0.7), az = this.pos.z - cos * (reach + 0.7);
+      const f = reach ? level.floorAt(ax, az) : NaN;
+      if (isFinite(f) && f > this.pos.y + 0.45 && f <= water + 1.1 && level.ceilAt(ax, az) - f > 1.9) {
+        const tmp = { x: this.pos.x, y: f + 0.01, z: this.pos.z, r: this.body.r, h: 1.0, step: 0.3 };
+        level.move(tmp, ax - this.pos.x, az - this.pos.z);
+        if (Math.hypot(tmp.x - ax, tmp.z - az) < 0.2 && Math.abs(level.floorAt(tmp.x, tmp.z) - f) < 0.05) {
+          this.hauling = 0.35;
+          this.haulFrom = this.pos.clone(); this.haulTo = { x: tmp.x, y: f, z: tmp.z };
+          this.events.push({ type: 'splash' });
+        }
+      }
+    }
+    if (this.hauling) {
+      // a short climb animation: up first, then over the lip
+      this.hauling = Math.max(0, this.hauling - dt);
+      const k = 1 - this.hauling / 0.35, A = this.haulFrom, B = this.haulTo;
+      const up = Math.min(1, k * 1.8), over = Math.max(0, (k - 0.35) / 0.65);
+      this.pos.set(A.x + (B.x - A.x) * over, A.y + (B.y - A.y) * up, A.z + (B.z - A.z) * over);
+      this.vel.set(0, 0, 0);
+      if (!this.hauling) { this.pos.set(B.x, B.y, B.z); this.grounded = true; this.fallStartY = B.y; }
+      this.updateCamera(dt, level);
+      return;
     }
 
     // ---- integrate horizontal with collision
     this.body.x = this.pos.x; this.body.y = this.pos.y; this.body.z = this.pos.z;
     this.body.h = this.height;
     this.body.step = this.grounded || this.swimming ? 0.5 : 0.18;
+    if (wading && this.grounded) this.body.step = 0.9; // climb out of channels and shallow pools
     if (this.swimming) this.body.step = Math.max(0.5, water - this.pos.y - 0.6 + 0.5);
     level.move(this.body, this.vel.x * dt, this.vel.z * dt);
     const moved = Math.hypot(this.body.x - this.pos.x, this.body.z - this.pos.z);

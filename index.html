@@ -35,7 +35,7 @@
   <div id="menu" class="screen">
     <div class="menu-left">
       <h1 class="title"><span class="t1">ESCAPE THE</span><span class="t2" data-text="GOANROOMS">GOANROOMS</span><span class="t3">II</span></h1>
-      <div class="tagline">You noclipped out of reality. Again.</div>
+      <div class="tagline">The machine was supposed to bring you back.</div>
       <nav class="menu-buttons">
         <button id="btnSolo" class="big primary">Play Solo</button>
         <button id="btnHost" class="big">Host Co-op</button>
@@ -99,6 +99,7 @@
           </div>
           <div class="field host-only">
             <label for="friendlyFire"><input type="checkbox" id="friendlyFire" /> Friendly fire</label>
+            <label for="prologueToggle"><input type="checkbox" id="prologueToggle" checked /> Prologue</label>
           </div>
           <div id="lobbyStatus" class="status"></div>
         </div>
@@ -158,7 +159,7 @@
           <ul class="rules">
             <li><b>Sound travels.</b> Sprinting, gunfire and slamming doors draw things toward you. Crouch to move silently.</li>
             <li><b>Darkness eats your mind.</b> Sanity drains in the dark and near entities. Low sanity shows you things that aren't there — usually.</li>
-            <li><b>Drink, eat, patch up.</b> Almond water restores thirst and calms nerves. Bandages heal over time.</li>
+            <li><b>Drink, eat, patch up.</b> Water restores thirst and calms nerves (clean water more than dirty). Bandages heal over time.</li>
             <li><b>Every thing has a weakness.</b> Fire scares the hounds. Light stuns what walks in ink. Water hides what you should fear.</li>
             <li><b>Hide.</b> Lockers and wardrobes keep you out of sight — if nothing saw you climb in.</li>
             <li><b>Read the walls.</b> Spray-painted EXIT arrows sit beside the doorway that leads toward the nearest way out. Follow them from room to room.</li>
@@ -183,6 +184,7 @@
     <div id="vitals">
       <div class="bar-row"><span class="ic">✚</span><div class="bar health"><div id="hpFill"></div><div id="hpLag"></div></div></div>
       <div class="bar-row thin"><span class="ic">≫</span><div class="bar stamina"><div id="stFill"></div></div></div>
+      <div class="bar-row thin hidden" id="armorRow"><span class="ic">⛨</span><div class="bar armor"><div id="armorFill"></div></div></div>
       <div class="bar-row thin hidden" id="o2Row"><span class="ic">○</span><div class="bar oxygen"><div id="o2Fill"></div></div></div>
       <div class="gauges">
         <div class="gauge" id="gThirst" title="Thirst"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" class="bg"/><circle cx="18" cy="18" r="15" class="fg"/></svg><span>💧</span></div>
@@ -191,9 +193,10 @@
       </div>
     </div>
     <div id="hotbar"></div>
+    <div id="statusFx"></div>
+    <div id="transmitterPanel" class="hidden"></div>
     <div id="heldInfo"><div id="heldName"></div><div id="heldAmmo"></div></div>
     <div id="lightInfo" class="hidden"><span class="ic">🔦</span><div class="bar battery"><div id="batFill"></div></div></div>
-    <div id="chat"><div id="chatLog" class="chat-log"></div><input id="chatInput" class="hidden" maxlength="200" autocomplete="off" placeholder="Say something…" /></div>
     <div id="teamList"></div>
     <div id="damageDirs"></div>
     <div id="fpsMeter" class="hidden"></div>
@@ -201,7 +204,16 @@
   </div>
 
   <!-- ============================== HIDING OVERLAY -->
-  <div id="hideOverlay" class="hidden"><div class="slats"></div><div class="hide-hint">Hidden · hold breath with <b>Shift</b> · <b>E</b> to leave</div></div>
+  <div id="hideOverlay" class="hidden"><div class="locker-in"><div class="lk-top"></div><div class="lk-bot"></div><div class="lk-l"></div><div class="lk-r"></div><div class="lk-vent"></div><div class="lk-rivets"></div><div class="lk-breath"></div></div><div class="hide-hint">Hidden · hold breath with <b>Shift</b> · <b>E</b> to leave</div></div>
+
+  <!-- ============================== ROLE SELECT -->
+  <div id="roleSelect" class="screen modal-screen">
+    <section class="panel wide role-panel">
+      <h2>Choose your role</h2>
+      <p class="muted">US Expedition Team · scouting mission into the Goanrooms. Each role carries a different kit.</p>
+      <div id="roleCards" class="role-cards"></div>
+    </section>
+  </div>
 
   <!-- ============================== INVENTORY -->
   <div id="inventory" class="screen modal-screen">
@@ -210,8 +222,9 @@
         <div class="inv-main">
           <h2>Backpack</h2>
           <div id="invGrid" class="inv-grid"></div>
-          <h3>Hotbar</h3>
+          <h3>Hotbar <span class="muted small-note">click an item, then click an empty slot to move it · drag also works · right-click to use</span></h3>
           <div id="invHotbar" class="inv-grid hot"></div>
+          <div id="wornBox" class="worn-box hidden"></div>
         </div>
         <div class="inv-side">
           <div id="containerBox" class="hidden">
@@ -229,9 +242,13 @@
               <button id="btnSplitItem" class="small">Split</button>
             </div>
           </div>
+          <div id="craftBox" class="craft-box">
+            <h3>Crafting</h3>
+            <div id="craftList" class="craft-list"></div>
+          </div>
         </div>
       </div>
-      <div class="inv-help">Click to select · drag to move · right-click to use · shift-click to quick-move · Tab to close</div>
+      <div class="inv-help">Click to select, click an empty slot to move · drag also works · right-click to use · shift-click to quick-move · Tab / E to close</div>
     </section>
   </div>
 
@@ -254,6 +271,7 @@
       <p id="pauseInfo" class="muted"></p>
       <div class="stack">
         <button id="btnResume" class="primary">Resume</button>
+        <button id="btnSkipPrologue" class="hidden">Skip prologue ▸</button>
         <button id="btnPauseJournal">Journal</button>
         <button id="btnPauseSettings">Settings</button>
         <button id="btnPauseHelp">Controls</button>
@@ -268,14 +286,14 @@
     <section class="panel center">
       <h2 class="blood" id="deathTitle">YOU WERE LOST</h2>
       <p id="deathText" class="muted"></p>
-      <div class="row center"><button id="btnRespawn" class="primary">Wake up again</button><button id="btnSpectate">Spectate</button><button id="btnDeathQuit">Quit</button></div>
+      <div class="row center"><button id="btnRespawn" class="primary">Wake up again</button><button id="btnDeathQuit">Quit</button></div>
     </section>
   </div>
   <div id="spectate" class="hidden"><div>Spectating <b id="specName"></b></div><div class="muted">Click to switch · you return when the team reaches the next level</div></div>
   <div id="victory" class="screen modal-screen">
     <section class="panel center wide">
       <h1 class="victory-title">THE GOANER FALLS</h1>
-      <p class="muted" id="victoryText">The bridge stops screaming. Somewhere below the void, a door you did not build swings open — and through it, a corridor that smells faintly of almonds.</p>
+      <p class="muted" id="victoryText">The bridge stops screaming. Somewhere below the void, a door you did not build swings open — and through it, a corridor that smells of salt, rain and machine oil.</p>
       <div id="victoryStats" class="victory-stats"></div>
       <p class="muted small">This is a temporary ending for the prototype. The Goanrooms go deeper.</p>
       <div class="row center"><button id="btnVictoryMenu" class="primary">Return to Menu</button></div>
@@ -284,6 +302,9 @@
   <div id="fade"></div>
 
   <script type="module" src="src/main.js"></script>
+  <!-- chat lives outside the HUD so it can sit above loading screens -->
+  <div id="chat" class="hidden"><div id="chatLog" class="chat-log"></div><input id="chatInput" class="hidden" maxlength="200" autocomplete="off" placeholder="Say something…" /></div>
+
   <!-- ============================== CHEAT CONSOLE (` key) -->
   <div id="console" class="hidden">
     <div id="consoleLog"></div>

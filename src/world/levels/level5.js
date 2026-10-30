@@ -12,7 +12,7 @@ import { CHUNK } from '../chunk.js';
 
 const ARENA = { x: 221, z: 17, r: 26 };
 const BRIDGE_Z0 = 5, BRIDGE_Z1 = 10;           // tile rows of the main bridge
-const BRIDGE_X0 = -40;
+const BRIDGE_X0 = -48;                          // the bridge runs west to the edge of the core
 const GATE_X0 = 84, GATE_X1 = 92;              // gatehouse / checkpoint tiles
 const FAR_X0 = 124, FAR_X1 = 130;              // landing beyond the arena (exit gate)
 const TOWER_R = 21;
@@ -24,7 +24,7 @@ const SECTORS = 8;
 const COLLAPSE_ORDER = [1, 6, 3, 5, 2, 7]; // never 0 (exit side) or 4 (bridge side)
 const LANTERN = [1, 0.78, 0.5];
 
-const LOOT = [['almondWater', 16], ['waterBottle', 10], ['cannedBeans', 10], ['bandage', 14], ['medkit', 6], ['battery', 14, [1, 2]], ['flare', 14, [1, 2]], ['ammo9', 12, [8, 15]], ['shells', 8, [3, 6]], ['painkillers', 8], [null, 8]];
+const LOOT = [['cleanWater', 16], ['goanJuice', 8], ['rifleAmmo', 4, [6, 12]], ['cannedBeans', 10], ['bandage', 14], ['medkit', 6], ['battery', 14, [1, 2]], ['flare', 14, [1, 2]], ['ammo9', 12, [8, 15]], ['shells', 8, [3, 6]], ['painkillers', 8], [null, 8]];
 const ARMORY = [['shotgun', 10], ['smg', 10], ['pistol', 6], ['shells', 18, [4, 8]], ['ammo9', 18, [12, 24]], ['flare', 16, [2, 3]], ['medkit', 10]];
 
 registerProps({
@@ -62,6 +62,17 @@ registerProps({
       B.box('rustMetal', 0, -1.6, 5.2, 2.05, 0.5, 0.3, 1);
       B.tube('rustMetal', -1, -1.4, -5.2, 1, -2.6, 0, 0.06, 5);
       B.tube('rustMetal', -1, -1.4, 5.2, 1, -2.6, 0, 0.06, 5);
+    },
+  },
+  // a free-standing stone wall with a doorway, for doors on open platforms
+  doorStand: {
+    colliders: [[-1.6, 0, -0.35, -0.62, 3.4, 0.25], [0.62, 0, -0.35, 1.6, 3.4, 0.25], [-1.6, 2.35, -0.35, 1.6, 3.4, 0.25]],
+    build(p, B) {
+      B.box('stone', -1.11, 1.7, -0.05, 0.98, 3.4, 0.6, 1.5);
+      B.box('stone', 1.11, 1.7, -0.05, 0.98, 3.4, 0.6, 1.5);
+      B.box('stone', 0, 2.88, -0.05, 1.24, 1.04, 0.6, 1.5);
+      B.box('stone', 0, 0.1, -0.35, 3.6, 0.2, 1.6, 1);
+      B.box('stone', 0, -0.15, 0.6, 1.6, 0.3, 1.1, 1);
     },
   },
   floodBase: {
@@ -123,12 +134,13 @@ function sectorOf(x, z) {
 function branches(seed) {
   const rng = new RNG(hash4(seed, 555));
   const out = [];
-  for (const bx of [22, 46, 68]) {
-    const x = bx + rng.int(-3, 3);
-    const dir = rng.chance(0.5) ? 1 : -1;
+  [22, 46, 68].forEach((bx, k) => {
+    let x = bx + rng.int(-3, 3);
+    if (x % CS === CS - 1) x--; // keep the 2-wide spur inside one chunk
+    const dir = k === 0 ? -1 : k === 1 ? 1 : (rng.chance(0.5) ? 1 : -1);
     const len = rng.int(9, 16);
     out.push({ x, dir, len });
-  }
+  });
   return out;
 }
 
@@ -139,14 +151,128 @@ function tileKind(tx, tz, br) {
   if (tz >= BRIDGE_Z0 && tz <= BRIDGE_Z1 && tx >= BRIDGE_X0 && tx <= 100) return { fmat: 0, zone: 'bridge' };
   if (tx >= GATE_X0 && tx <= GATE_X1 && tz >= BRIDGE_Z0 - 2 && tz <= BRIDGE_Z1 + 2) return { fmat: 0, zone: 'gate' };
   if (tx >= FAR_X0 - 2 && tx <= FAR_X1 && tz >= 6 && tz <= 9) return { fmat: 1, zone: 'far' };
+  // a narrow spur on past the far landing, out to the edge of the core
+  if (tx > FAR_X1 && tx <= (MAIN.cx1 + 1) * CS - 1 && tz >= 7 && tz <= 8) return { fmat: 0, zone: 'spur' };
   for (const b of br) {
     const zs = b.dir > 0 ? BRIDGE_Z1 + 1 : BRIDGE_Z0 - b.len;
     const ze = b.dir > 0 ? BRIDGE_Z1 + b.len : BRIDGE_Z0 - 1;
     if (tx >= b.x && tx <= b.x + 1 && tz >= zs && tz <= ze) return { fmat: 0, zone: 'branch' };
     const pz = b.dir > 0 ? ze + 1 : zs - 5;
     if (tx >= b.x - 2 && tx <= b.x + 3 && tz >= pz && tz <= pz + 4) return { fmat: 1, zone: 'platform', b };
+    // spur from the platform out to the edge of the core, into the sky network
+    if (tx >= b.x && tx <= b.x + 1 && (b.dir > 0 ? tz > pz + 4 && tz <= (MAIN.cz1 + 1) * CS - 1 : tz < pz && tz >= MAIN.cz0 * CS)) return { fmat: 0, zone: 'spur' };
   }
   return null;
+}
+
+// ------------------------------------------------------------------ sky network
+// Outside the core (bridge, arena, landings) the level goes on forever: every
+// chunk holds a platform or pillar-top at its own height, joined to its
+// neighbours by bridges with stairs. A few links are forced so everything
+// connects back to the core.
+const MAIN = { cx0: -3, cx1: 8, cz0: -1, cz1: 1 };
+const inMain = (cx, cz) => cx >= MAIN.cx0 && cx <= MAIN.cx1 && cz >= MAIN.cz0 && cz <= MAIN.cz1;
+const SIDES = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] };
+const OPP = { n: 's', s: 'n', w: 'e', e: 'w' };
+
+function smooth(seed, x, z) {
+  const x0 = Math.floor(x), z0 = Math.floor(z), fx = x - x0, fz = z - z0;
+  const h = (a, b) => hash01(a, b, seed, 991);
+  const sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
+  return (h(x0, z0) * (1 - sx) + h(x0 + 1, z0) * sx) * (1 - sz) + (h(x0, z0 + 1) * (1 - sx) + h(x0 + 1, z0 + 1) * sx) * sz;
+}
+function hubH(seed, cx, cz) { return 1.5 * Math.round((smooth(seed, cx * 0.4, cz * 0.4) - 0.5) * 5); }
+
+// the spur (if any) that leaves the core through this network chunk's edge
+function spurInto(seed, cx, cz, side) {
+  if (cx === MAIN.cx0 - 1 && cz === 0 && side === 'e') return 7;
+  if (cx === MAIN.cx1 + 1 && cz === 0 && side === 'w') return 7;
+  for (const b of branches(seed)) {
+    if (Math.floor(b.x / CS) !== cx) continue;
+    if (b.dir < 0 && cz === MAIN.cz0 - 1 && side === 's') return b.x - cx * CS;
+    if (b.dir > 0 && cz === MAIN.cz1 + 1 && side === 'n') return b.x - cx * CS;
+  }
+  return null;
+}
+// which way this chunk is guaranteed to link (toward the core)
+function forcedSide(seed, cx, cz) {
+  if (cz < MAIN.cz0 - 1) return 's';
+  if (cz > MAIN.cz1 + 1) return 'n';
+  if (cz === MAIN.cz0 - 1 || cz === MAIN.cz1 + 1) {
+    // the rows hugging the core run sideways to the branch spur (or toward the core's x range)
+    const b = branches(seed).find(q => (cz < 0 ? q.dir < 0 : q.dir > 0));
+    const tcx = b ? Math.floor(b.x / CS) : 0;
+    if (cx === tcx) return cz < 0 ? 's' : 'n';
+    return cx < tcx ? 'e' : 'w';
+  }
+  // beside the core: toward row 0, then into the core's ends
+  if (cz !== 0) return cz < 0 ? 's' : 'n';
+  return cx < MAIN.cx0 ? 'e' : 'w';
+}
+export function chunkLinks(seed, cx, cz) {
+  const out = {};
+  const H = hubH(seed, cx, cz);
+  for (const side of ['n', 's', 'w', 'e']) {
+    const [dx, dz] = SIDES[side];
+    const nx = cx + dx, nz = cz + dz;
+    if (inMain(nx, nz)) { const o = spurInto(seed, cx, cz, side); out[side] = o === null ? null : { o, h: 0 }; continue; }
+    const a = side === 'n' || side === 'w' ? [nx, nz] : [cx, cz]; // canonical edge key
+    const forced = forcedSide(seed, cx, cz) === side || forcedSide(seed, nx, nz) === OPP[side];
+    if (!forced && hash01(a[0], a[1], seed, side === 'n' || side === 's' ? 1201 : 1202) > 0.55) { out[side] = null; continue; }
+    const o = 3 + Math.floor(hash01(a[0], a[1], seed, side === 'n' || side === 's' ? 1203 : 1204) * 9);
+    const Hn = hubH(seed, nx, nz);
+    out[side] = { o, h: 1.5 * Math.round((H + Hn) / 3) };
+  }
+  return out;
+}
+function netEdgeFloor(seed, tx, tz) {
+  const cx = Math.floor(tx / CS), cz = Math.floor(tz / CS);
+  if (inMain(cx, cz)) return false;
+  const lx = tx - cx * CS, lz = tz - cz * CS;
+  const L = chunkLinks(seed, cx, cz);
+  if (lz === 0 && L.n && (lx === L.n.o || lx === L.n.o + 1)) return true;
+  if (lz === CS - 1 && L.s && (lx === L.s.o || lx === L.s.o + 1)) return true;
+  if (lx === 0 && L.w && (lz === L.w.o || lz === L.w.o + 1)) return true;
+  if (lx === CS - 1 && L.e && (lz === L.e.o || lz === L.e.o + 1)) return true;
+  return false;
+}
+
+// Lay out one network chunk: a hub, then a bridge (with stairs) to each linked edge.
+function genNetwork(c, rng, seed) {
+  const H = hubH(seed, c.cx, c.cz);
+  const links = chunkLinks(seed, c.cx, c.cz);
+  for (let i = 0; i < CS * CS; i++) { c.type[i] = T_VOID; c.ceil[i] = OPEN_SKY; }
+  const hx = 5 + Math.floor(hash01(c.cx, c.cz, seed, 71) * 5), hz = 5 + Math.floor(hash01(c.cx, c.cz, seed, 72) * 5);
+  const kind = hash01(c.cx, c.cz, seed, 73) < 0.55 ? 'pillar' : 'plaza';
+  const r = kind === 'pillar' ? 2.2 + hash01(c.cx, c.cz, seed, 74) * 1.2 : 0;
+  const set = (x, z, f, fmat = 0) => { if (x < 0 || z < 0 || x >= CS || z >= CS) return; const i = z * CS + x; c.type[i] = T_FLOOR; c.floor[i] = f; c.ceil[i] = OPEN_SKY; c.fmat[i] = fmat; c.ramp[i] = -1; };
+  if (kind === 'pillar') { for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) if (Math.hypot(x - hx - 0.5, z - hz - 0.5) <= r) set(x, z, H, 1); }
+  else { const w = 2 + Math.floor(hash01(c.cx, c.cz, seed, 75) * 2), d = 1 + Math.floor(hash01(c.cx, c.cz, seed, 76) * 2); for (let z = hz - d; z <= hz + d + 1; z++) for (let x = hx - w; x <= hx + w + 1; x++) set(x, z, H, 1); }
+  c.meta.hub = { x: c.x0 + (hx + 1) * TILE, z: c.z0 + (hz + 1) * TILE, r: (r || 3) * TILE, H, kind };
+  for (const side of ['n', 's', 'w', 'e']) {
+    const L = links[side];
+    if (!L) continue;
+    const vertical = side === 'n' || side === 's';
+    // lateral run along the hub, then straight out to the edge
+    if (vertical) { for (let x = Math.min(hx, L.o); x <= Math.max(hx, L.o) + 1; x++) for (const z of [hz, hz + 1]) set(x, z, H); }
+    else { for (let z = Math.min(hz, L.o); z <= Math.max(hz, L.o) + 1; z++) for (const x of [hx, hx + 1]) set(x, z, H); }
+    const span = side === 'n' ? hz : side === 's' ? CS - 1 - (hz + 1) : side === 'w' ? hx : CS - 1 - (hx + 1);
+    const dH = H - L.h, k = Math.ceil(Math.abs(dH) / 1.5);
+    const inward = side === 'n' ? 1 : side === 's' ? 3 : side === 'w' ? 0 : 2; // ramp dir that rises toward the hub
+    for (let d = 0; d < span; d++) {
+      const hAt = j => L.h + dH * Math.min(j, k) / Math.max(1, k);
+      for (const a of [L.o, L.o + 1]) {
+        const x = vertical ? a : side === 'w' ? d : CS - 1 - d, z = vertical ? (side === 'n' ? d : CS - 1 - d) : a;
+        if (d >= 1 && d <= k) {
+          const lo = Math.min(hAt(d - 1), hAt(d)), rise = Math.abs(hAt(d) - hAt(d - 1));
+          set(x, z, lo);
+          const i = z * CS + x;
+          c.ramp[i] = dH > 0 ? inward : (inward + 2) % 4; c.rampH[i] = rise;
+        } else set(x, z, hAt(d));
+      }
+    }
+  }
+  return links;
 }
 
 export default {
@@ -189,6 +315,7 @@ export default {
   portConfig: { min: 1, max: 1 },
   ambience: 'bridge',
   surface: 'concrete',
+  containerMats: { crate: 'rustMetal', cabinet: 'stone' },
   notes: ['l5_a', 'l5_b', 'l5_c', 'l5_d'],
   decalTexts: ['NO BOTTOM', 'LIGHT IT UP', 'STAY CENTER', 'IT OWNS THIS'],
   entities: { primary: null, max: 0, rare: ['lookalike'] },
@@ -198,8 +325,11 @@ export default {
 
   generate(c, ctx) {
     const { rng, level } = ctx;
-    const br = branches(level.levelSeed);
-    for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
+    const seed = level.levelSeed;
+    const br = branches(seed);
+    const net = !inMain(c.cx, c.cz);
+    if (net) genNetwork(c, rng, seed);
+    else for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
       const i = lz * CS + lx;
       const tx = c.cx * CS + lx, tz = c.cz * CS + lz;
       const k = tileKind(tx, tz, br);
@@ -207,27 +337,29 @@ export default {
       c.type[i] = T_FLOOR; c.floor[i] = 0; c.ceil[i] = OPEN_SKY; c.fmat[i] = k.fmat; c.cmat[i] = 0;
       if (k.zone === 'arena') c.flags[i] |= F_ROOM;
     }
-    // railings along void edges of bridges (not the arena)
-    const at = (lx, lz) => (lx < 0 || lz < 0 || lx >= CS || lz >= CS) ? (tileKind(c.cx * CS + lx, c.cz * CS + lz, br) ? T_FLOOR : T_VOID) : c.type[lz * CS + lx];
+    const zoneAt = (tx, tz) => (net ? 'net' : tileKind(tx, tz, br)?.zone);
+    // railings along void edges of bridges and platforms (not the arena, not stairs)
+    const at = (lx, lz) => (lx < 0 || lz < 0 || lx >= CS || lz >= CS) ? ((tileKind(c.cx * CS + lx, c.cz * CS + lz, br) || netEdgeFloor(seed, c.cx * CS + lx, c.cz * CS + lz)) ? T_FLOOR : T_VOID) : c.type[lz * CS + lx];
     for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
       const i = lz * CS + lx;
       if (c.type[i] !== T_FLOOR) continue;
       const tx = c.cx * CS + lx, tz = c.cz * CS + lz;
-      const kind = tileKind(tx, tz, br);
-      if (kind.zone === 'arena') continue;
-      const x = c.tx(lx), z = c.tz(lz);
-      const gap = hash01(tx, tz, level.levelSeed, 7) < 0.12;
+      const zone = zoneAt(tx, tz);
+      if (zone === 'arena') continue;
+      const x = c.tx(lx), z = c.tz(lz), f = c.floor[i];
+      const gap = hash01(tx, tz, seed, 7) < (net ? 0.2 : 0.12);
       for (const [dx, dz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
         if (at(lx + dx, lz + dz) !== T_VOID) continue;
-        if (!gap) addProp(c, 'railing', x + dx * 0.95, 0, z + dz * 0.95, dz !== 0 ? 0 : Math.PI / 2, { len: 2.0, mat: 'rustMetal' });
-        if ((tx % 6 === 0 && dz !== 0) || (tz % 6 === 0 && dx !== 0)) {
-          addProp(c, 'lanternPost', x + dx * 0.75, 0, z + dz * 0.75, 0);
-          if (rng.chance(0.85)) addLight(c, { kind: 'lantern', x: x + dx * 0.75, y: 3.18, z: z + dz * 0.75, color: LANTERN, intensity: 9, range: 12, flicker: rng.chance(0.12) ? 0.5 : 0 });
+        if (!gap && c.ramp[i] < 0) addProp(c, 'railing', x + dx * 0.95, f, z + dz * 0.95, dz !== 0 ? 0 : Math.PI / 2, { len: 2.0, mat: 'rustMetal' });
+        if (c.ramp[i] < 0 && ((tx % 6 === 0 && dz !== 0) || (tz % 6 === 0 && dx !== 0))) {
+          addProp(c, 'lanternPost', x + dx * 0.75, f, z + dz * 0.75, 0);
+          if (rng.chance(net ? 0.6 : 0.85)) addLight(c, { kind: 'lantern', x: x + dx * 0.75, y: f + 3.18, z: z + dz * 0.75, color: LANTERN, intensity: 9, range: 12, flicker: rng.chance(0.12) ? 0.5 : 0 });
         }
       }
       // under-bridge trusses on the main span
-      if (kind.zone === 'bridge' && tz === 8) addProp(c, 'bridgeTruss', x, 0, (BRIDGE_Z0 + BRIDGE_Z1 + 1) / 2 * TILE, 0);
+      if (zone === 'bridge' && tz === 8) addProp(c, 'bridgeTruss', x, 0, (BRIDGE_Z0 + BRIDGE_Z1 + 1) / 2 * TILE, 0);
     }
+    if (net) { this.dressNetwork(c, rng, seed); return; }
     // scatter debris, cracks and the occasional loot
     for (let k = rng.int(0, 3); k > 0; k--) {
       const lx = rng.int(0, CS - 1), lz = rng.int(0, CS - 1), i = lz * CS + lx;
@@ -239,6 +371,7 @@ export default {
       if (c.type[i] !== T_FLOOR) continue;
       const tx = c.cx * CS + lx, tz = c.cz * CS + lz;
       const kind = tileKind(tx, tz, br);
+      if (!kind) continue;
       if (kind.zone === 'platform' && tx === kind.b.x && (tz === (kind.b.dir > 0 ? BRIDGE_Z1 + kind.b.len + 3 : BRIDGE_Z0 - kind.b.len - 3))) {
         const x = c.tx(lx), z = c.tz(lz);
         addProp(c, 'brokenPillar', x + 2.5, 0, z, 0, { h: rng.float(2, 5) });
@@ -254,7 +387,7 @@ export default {
       const gx = (GATE_X0 + 4) * TILE, gz = 17;
       addProp(c, 'gateArch', gx, 0, gz, Math.PI / 2, { w: 14 });
       addContainer(c, rng, 'crate', ARMORY, gx + 3, 0, gz - 6.5, 0, [3, 4]);
-      addContainer(c, rng, 'crate', [['flare', 20, [2, 3]], ['medkit', 8], ['battery', 10, [2, 3]], ['almondWater', 10]], gx - 3, 0, gz + 6.5, Math.PI, [3, 3]);
+      addContainer(c, rng, 'crate', [['flare', 20, [2, 3]], ['medkit', 8], ['battery', 10, [2, 3]], ['cleanWater', 10]], gx - 3, 0, gz + 6.5, Math.PI, [3, 3]);
       addNote(c, 'l5_d', gx + 1, 0.005, gz - 5.5, 0.4);
       addLight(c, { kind: 'bulb', cord: 0.2, shade: true, x: gx, y: 7.6, z: gz, color: LANTERN, intensity: 9, range: 16, flicker: 0.15 });
     }
@@ -282,6 +415,28 @@ export default {
     }
   },
 
+  // decorate a sky-network chunk: lanterns, ruins, the odd cache and door
+  dressNetwork(c, rng, seed) {
+    const hub = c.meta.hub;
+    if (!hub) return;
+    const { x, z, H } = hub;
+    if (hub.kind === 'pillar' && rng.chance(0.5)) addProp(c, 'brokenPillar', x + rng.float(-1.5, 1.5), H, z + rng.float(-1.5, 1.5), rng.float(0, 6), { h: rng.float(2, 7) });
+    addProp(c, 'lanternPost', x - 1.6, H, z + 1.2, 0);
+    if (rng.chance(0.75)) addLight(c, { kind: 'lantern', x: x - 1.6, y: H + 3.18, z: z + 1.2, color: LANTERN, intensity: 8, range: 12, flicker: rng.chance(0.2) ? 0.5 : 0 });
+    if (rng.chance(0.3)) addContainer(c, rng, 'crate', LOOT, x + 1.4, H, z - 1.0, rng.float(0, 6), [1, 3]);
+    if (rng.chance(0.12)) addNote(c, rng.pick(this.notes), x + 0.5, H + 0.005, z + 0.5, rng.float(0, 6));
+    if (rng.chance(0.15)) addPickup(c, rng, LOOT, x - 0.6, H, z - 0.6);
+    for (let k = rng.int(0, 2); k > 0; k--) addDecal(c, { name: rng.pick(['stain', 'scratch', 'blood2']), x: x + rng.float(-2, 2), y: H + 0.005, z: z + rng.float(-2, 2), nx: 0, ny: 1, nz: 0, size: rng.float(1, 2), rot: rng.float(0, 6) });
+    // rarely, a doorway standing alone on the platform: a way back up
+    if (Math.max(Math.abs(c.cx - 2), Math.abs(c.cz)) > 5 && hash01(c.cx, c.cz, seed, 1601) < 0.07) {
+      const to = ['L0', 'L1', 'L3'][Math.floor(hash01(c.cx, c.cz, seed, 1602) * 3)];
+      const ry = Math.floor(hash01(c.cx, c.cz, seed, 1603) * 4) * Math.PI / 2;
+      addProp(c, 'doorStand', x, H, z, ry);
+      addObject(c, { kind: 'levelDoor', to, label: 'LEVEL ' + to.slice(1), x: x + Math.sin(ry) * 0.27, y: H, z: z + Math.cos(ry) * 0.27, ry });
+      addLight(c, { kind: 'none', x: x + Math.sin(ry) * 1.5, y: H + 2.2, z: z + Math.cos(ry) * 1.5, color: [1, 0.9, 0.7], intensity: 3, range: 6 });
+    }
+  },
+
   // under-slab geometry and support pillars dropping into the void
   buildExtra(level, c, B, rng) {
     let any = false;
@@ -289,10 +444,18 @@ export default {
       const i = lz * CS + lx;
       if (c.type[i] !== T_FLOOR) continue;
       any = true;
-      const x0 = c.x0 + lx * TILE, z0 = c.z0 + lz * TILE, y = -1.3;
+      const x0 = c.x0 + lx * TILE, z0 = c.z0 + lz * TILE, y = c.floor[i] - 1.3;
       B.quad('stone', [x0, y, z0], [x0 + TILE, y, z0], [x0 + TILE, y, z0 + TILE], [x0, y, z0 + TILE], [0, -1, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);
     }
     if (!any) return;
+    // sky network: a colossal column under every pillar-top
+    const hub = c.meta.hub;
+    if (hub?.kind === 'pillar') {
+      B.anchor = [0.04, 0.045, 0.055]; B.anchorY = -200;
+      B.cyl('stone', hub.x, hub.H - 1.3 - 220, hub.z, hub.r * 0.72, 220, 18, false, hub.r * 0.6);
+      B.cyl('stone', hub.x, hub.H - 4.5, hub.z, hub.r * 0.95, 3.2, 18, false, hub.r * 0.72);
+      B.anchor = null;
+    }
     // a support pier every 24 m along the main bridge
     for (let lx = 0; lx < CS; lx++) {
       const tx = c.cx * CS + lx;

@@ -40,6 +40,25 @@ function scheduler(A, events) {
 }
 
 export const AMBIENCE = {
+  lab(A, out) {
+    // clean HVAC, server fans, distant machine room whir and an occasional PA chime
+    const hvac = noiseLayer(A, out, 'pink', 'lowpass', 520, 0.5, 0.1);
+    const fans = noiseLayer(A, out, 'white', 'bandpass', 2400, 1.2, 0.012);
+    const whir = oscLayer(A, out, 'triangle', 92, 0.02);
+    const l1 = lfo(A, whir.o.frequency, 0.08, 3);
+    const hum = oscLayer(A, out, 'sine', 60, 0.02);
+    const sched = scheduler(A, [
+      { name: 'beepAlert', min: 14, max: 30, dist: [6, 16], volume: 0.25 },
+      { name: 'paper', min: 18, max: 40, dist: [4, 10], volume: 0.3 },
+      { name: 'click', min: 6, max: 14, dist: [3, 9], volume: 0.3 },
+    ]);
+    return {
+      reverb: [1.2, 3.0, 0.25],
+      update: dt => sched(dt),
+      stop: () => { hvac.stop(); fans.stop(); whir.stop(); l1.stop(); hum.stop(); },
+    };
+  },
+
   lobby(A, out) {
     // mains hum + harmonics, buzzy ballast, room tone
     const hum = [oscLayer(A, out, 'sine', 60, 0.05), oscLayer(A, out, 'sine', 120, 0.035, 3), oscLayer(A, out, 'sine', 180, 0.012, -4), oscLayer(A, out, 'sine', 240, 0.006)];
@@ -108,6 +127,26 @@ export const AMBIENCE = {
         A.setReverbMix(info?.sewer ? 0.55 : 0.35);
       },
       stop: () => { hvac.stop(); hum.stop(); hum2.stop(); water.stop(); wl.stop(); },
+    };
+  },
+
+  // Level 4: the quiet rooms. Soft air handling, rain you can hear on windows
+  // that aren't there, the building settling.
+  quiet(A, out) {
+    const air = noiseLayer(A, out, 'pink', 'lowpass', 260, 0.5, 0.08);
+    const rain = noiseLayer(A, out, 'white', 'bandpass', 2400, 0.4, 0.018);
+    const rl = lfo(A, rain.g.gain, 0.05, 0.01);
+    const hum = oscLayer(A, out, 'sine', 50, 0.018);
+    const sched = scheduler(A, [
+      { name: 'distantThud', min: 40, max: 110, dist: [25, 45], volume: 0.3 },
+      { name: 'knock', min: 70, max: 160, dist: [12, 30], volume: 0.35 },
+      { name: 'scrape', min: 45, max: 120, dist: [15, 35], volume: 0.3 },
+      { name: 'whisper', min: 120, max: 240, dist: [6, 14], volume: 0.22 },
+    ]);
+    return {
+      reverb: [2.4, 2.2, 0.4],
+      update: dt => sched(dt),
+      stop: () => { air.stop(); rain.stop(); rl.stop(); hum.stop(); },
     };
   },
 

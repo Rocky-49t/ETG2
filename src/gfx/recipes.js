@@ -5,6 +5,60 @@ import { N1, N2, N3, W1, W2, f, brickCell, stain, hash01, clamp, smoothstep } fr
 const fract = x => x - Math.floor(x);
 
 export const RECIPES = {
+  // ------------------------------------------------------------- Prologue lab
+  labPanel(s) {
+    // white composite wall panels on a 2x3 grid with seams, screws and a kick strip
+    s.each((u, v, i) => {
+      const pu = fract(u * 2), pv = fract(v * 3);
+      const seam = Math.min(pu, 1 - pu) < 0.008 || Math.min(pv, 1 - pv) < 0.006;
+      const n = f(N1, u, v, 8, 3) - 0.5, fine = f(N2, u, v, 140, 2) - 0.5;
+      let r = 0.86, g = 0.87, b = 0.88;
+      r += n * 0.03 + fine * 0.02; g += n * 0.03 + fine * 0.02; b += n * 0.025 + fine * 0.02;
+      let h = 0.55 + fine * 0.05;
+      if (seam) { r -= 0.3; g -= 0.3; b -= 0.3; h = 0.2; }
+      const sx = Math.min(pu, 1 - pu), sy = Math.min(pv, 1 - pv);
+      if (Math.hypot(sx - 0.03, sy - 0.03) < 0.008) { r = g = b = 0.6; h = 0.75; }
+      if (v < 0.07) { r = 0.32; g = 0.34; b = 0.36; h = 0.6; }          // kick strip
+      else if (v < 0.075) { r = 0.2; g = 0.2; b = 0.22; h = 0.3; }
+      s.set(i, r, g, b);
+      s.h[i] = h;
+      s.rough[i] = v < 0.07 ? 0.5 : 0.35;
+    });
+    return { normal: 0.6 };
+  },
+  labFloor(s) {
+    // grey epoxy floor with large tiles, scuffs and yellow-black safety stripe edges
+    s.each((u, v, i) => {
+      const tu = fract(u * 2), tv = fract(v * 2);
+      const seam = Math.min(tu, 1 - tu) < 0.004 || Math.min(tv, 1 - tv) < 0.004;
+      const n = f(N1, u, v, 6, 4) - 0.5, sc = f(N2, u * 3, v, 40, 3);
+      let r = 0.46, g = 0.48, b = 0.5;
+      r += n * 0.06; g += n * 0.06; b += n * 0.06;
+      const scuff = smoothstep(0.72, 0.8, sc) * 0.08;
+      r -= scuff; g -= scuff; b -= scuff;
+      if (seam) { r -= 0.1; g -= 0.1; b -= 0.1; }
+      s.set(i, r, g, b);
+      s.h[i] = seam ? 0.3 : 0.5 + n * 0.05;
+      s.rough[i] = 0.32 + scuff * 2;
+    });
+    return { normal: 0.5 };
+  },
+  labCeil(s) {
+    // clean ceiling grid with perforated tiles
+    const grid = 4;
+    s.each((u, v, i) => {
+      const c = brickCell(u, v, grid, grid, 0);
+      let r = 0.88, g = 0.89, b = 0.9, h = 0.45;
+      const holes = (Math.sin(u * Math.PI * 2 * 96) * Math.sin(v * Math.PI * 2 * 96)) > 0.8;
+      if (holes) { r -= 0.12; g -= 0.12; b -= 0.12; h = 0.35; }
+      if (c.d < 0.007) { r = 0.75; g = 0.76; b = 0.78; h = 0.8; }
+      s.set(i, r, g, b);
+      s.h[i] = h;
+      s.rough[i] = c.d < 0.007 ? 0.4 : 0.9;
+    });
+    return { normal: 0.6 };
+  },
+
   // ------------------------------------------------------------- Level 0
   wallpaper(s) {
     const stripes = 8;
@@ -38,7 +92,7 @@ export const RECIPES = {
       const wick = smoothstep(0.22, 0.0, v) * (0.55 + 0.45 * f(N3, u, 0.1, 6, 3));
       r -= wick * 0.22; g -= wick * 0.25; b -= wick * 0.2;
       // tide-mark stains
-      const st = stain(u, v, 2, 0.8);
+      const st = { t: 0, rim: 0, n: 0.5 }; // stains come from the world-space shader term
       r -= st.t * 0.10 + st.rim * 0.12; g -= st.t * 0.12 + st.rim * 0.14; b -= st.t * 0.12 + st.rim * 0.1;
       // ceiling smoke yellowing (top)
       const top = smoothstep(0.8, 1.0, v);
@@ -137,7 +191,7 @@ export const RECIPES = {
       const w = W1(u * 6, v * 6, 6);
       const crack = smoothstep(0.03, 0.0, w.f2 - w.f1) * smoothstep(0.55, 0.68, f(N3, u, v, 5, 3));
       let c = 0.52 + (n - 0.5) * 0.18 + (spk - 0.5) * 0.08 - crack * 0.18;
-      const st = stain(u, v, 2, 0.64, N3);
+      const st = { t: 0, rim: 0, n: 0.5 }; // stains come from the world-space shader term
       c -= st.t * 0.08;
       s.set(i, c, c * 0.98, c * 0.95);
       s.h[i] = 0.5 + (spk - 0.5) * 0.3 + (n - 0.5) * 0.2 - crack * 0.6;
@@ -317,7 +371,7 @@ export const RECIPES = {
       const seam = slab.d < 0.004;
       let c = 0.36 + (n - 0.5) * 0.14 + (spk - 0.5) * 0.06 + (slab.id - 0.5) * 0.04;
       // oil stains
-      const st = stain(u, v, 2.5, 0.6, N3);
+      const st = { t: 0, rim: 0, n: 0.5 }; // stains come from the world-space shader term
       c -= st.t * 0.14 + st.rim * 0.06;
       // painted hazard line on one edge
       let r = c, g = c * 0.97, b = c * 0.93;
@@ -357,7 +411,7 @@ export const RECIPES = {
       let r = 0.25, g = 0.28, b = 0.33;
       const k = (fib - 0.5) * 0.08 + (stripe - 0.5) * 0.03 + (t.id - 0.5) * 0.03;
       r += k; g += k; b += k;
-      const st = stain(u, v, 2, 0.64, N3);
+      const st = { t: 0, rim: 0, n: 0.5 }; // stains come from the world-space shader term
       r -= st.t * 0.06; g -= st.t * 0.06; b -= st.t * 0.07;
       if (t.d < 0.002) { r *= 0.8; g *= 0.8; b *= 0.8; }
       s.set(i, r, g, b);
@@ -365,6 +419,19 @@ export const RECIPES = {
       s.rough[i] = 0.97;
     });
     return { normal: 1.3 };
+  },
+
+  // Level 4: flat gray loop-pile carpet
+  grayCarpet(s) {
+    s.each((u, v, i) => {
+      const loop = Math.sin(u * Math.PI * 2 * 96) * Math.sin(v * Math.PI * 2 * 96);
+      const fib = f(N1, u, v, 200, 2), mott = f(N2, u, v, 5, 3);
+      let k = 0.37 + (fib - 0.5) * 0.07 + loop * 0.02 + (mott - 0.5) * 0.05;
+      s.set(i, k * 0.98, k, k * 1.01);
+      s.h[i] = fib * 0.5 + loop * 0.25 + 0.3;
+      s.rough[i] = 0.98;
+    });
+    return { normal: 1.1 };
   },
 
   drywall(s) {
@@ -478,6 +545,26 @@ export const RECIPES = {
     return { normal: 1.6 };
   },
 
+  // deep-end tiles: dark navy with the odd lighter tile, for the blue halls
+  poolTileDeep(s) {
+    const tiles = 16;
+    s.each((u, v, i) => {
+      const c = brickCell(u, v, tiles, tiles, 0);
+      const grout = c.d < 0.0045;
+      let r, g, b, h;
+      if (grout) { r = 0.3; g = 0.38; b = 0.46; h = 0.1; }
+      else {
+        const t = (c.id - 0.5) * 0.06;
+        r = 0.08 + t; g = 0.2 + t; b = 0.42 + t * 1.5;
+        if (c.id2 > 0.9) { r += 0.1; g += 0.16; b += 0.14; }
+        h = 0.6 + smoothstep(0.0045, 0.008, c.d) * 0.3;
+      }
+      s.set(i, r, g, b);
+      s.h[i] = h;
+      s.rough[i] = grout ? 0.7 : 0.1;
+    });
+    return { normal: 1.6 };
+  },
   poolTileBlue(s) {
     const tiles = 16;
     s.each((u, v, i) => {

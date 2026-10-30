@@ -66,6 +66,7 @@ export class EntityManager {
       }
       e.def.think(e, dt, ctx);
       e.anim += dt;
+      this.separate(e, ctx);
       // despawn if very far from every player (keeps the world lively elsewhere)
       if (!e.def.persistent && ctx.players.length) {
         let near = Infinity;
@@ -73,6 +74,36 @@ export class EntityManager {
         if (near > (e.def.despawnDist ?? 70)) { e.farT = (e.farT || 0) + dt; if (e.farT > 6) this.list.delete(e.id); }
         else e.farT = 0;
       }
+    }
+  }
+
+  // Keep bodies apart: an entity never stands inside a player (it stops at
+  // arm's length and attacks from there).
+  separate(e, ctx) {
+    if (e.def.flying || e.def.noPush || e.state === 'dead' || e.flying) return;
+    const r = (e.def.radius ?? 0.4) + 0.36;
+    for (const p of ctx.players) {
+      if (p.dead && !p.downed) continue;
+      if (p.hidden || Math.abs(p.y - e.y) > 1.6) continue;
+      const dx = e.x - p.x, dz = e.z - p.z, d = Math.hypot(dx, dz);
+      if (d >= r) continue;
+      const nx = d > 1e-3 ? dx / d : Math.sin(e.yaw), nz = d > 1e-3 ? dz / d : Math.cos(e.yaw);
+      const body = e.body;
+      body.x = e.x; body.y = e.y; body.z = e.z;
+      ctx.level.move(body, nx * (r - d), nz * (r - d));
+      e.x = body.x; e.z = body.z;
+    }
+    // and apart from each other
+    for (const o of this.list.values()) {
+      if (o === e || o.levelId !== e.levelId || o.state === 'dead' || o.def.flying || o.flying) continue;
+      const rr = (e.def.radius ?? 0.4) + (o.def.radius ?? 0.4);
+      const dx = e.x - o.x, dz = e.z - o.z, d = Math.hypot(dx, dz);
+      if (d >= rr || d < 1e-4 || Math.abs(o.y - e.y) > 1.5) continue;
+      const k = (rr - d) * 0.5;
+      const body = e.body;
+      body.x = e.x; body.y = e.y; body.z = e.z;
+      ctx.level.move(body, dx / d * k, dz / d * k);
+      e.x = body.x; e.z = body.z;
     }
   }
 

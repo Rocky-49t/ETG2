@@ -63,6 +63,18 @@ export class Director {
           s.spawnCd = (ent.spawnCd ?? 40) / diffK;
         } else s.spawnCd = 5;
       }
+      // --- secondary (rarer) entities: [{ type, max, spawnCd, chance, boost(ctx) }]
+      for (const sec of ent.secondary || []) {
+        s.sec = s.sec || {};
+        s.sec[sec.type] = (s.sec[sec.type] ?? sec.spawnCd * 0.6) - dt;
+        if (s.sec[sec.type] > 0) continue;
+        const boosted = sec.boost?.(ctx) || false;
+        s.sec[sec.type] = (boosted ? sec.spawnCd * 0.4 : sec.spawnCd) / diffK;
+        const n = ents.filter(e => e.type === sec.type).length;
+        if (n >= (boosted ? sec.max + 1 : sec.max) || s.phase === 'calm' && !boosted || Math.random() > (boosted ? 0.9 : sec.chance)) continue;
+        const pos = this.findSpawn(ctx, 22, 38, ent.spawnFilter);
+        if (pos) g.entities.spawn(sec.type, levelId, pos.x, pos.z);
+      }
       // --- environmental events
       s.eventCd -= dt;
       if (s.eventCd <= 0) {

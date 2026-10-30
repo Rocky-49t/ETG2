@@ -6,8 +6,11 @@ import marrowhound from './marrowhound.js';
 import inkwalker from './inkwalker.js';
 import undertow from './undertow.js';
 import goaner from './goaner.js';
+import scuttler from './scuttler.js';
+import deedee from './deedee.js';
+import platsnake from './platsnake.js';
 
 export const ENTITY_TYPES = {};
-for (const d of [hush, lookalike, marrowhound, inkwalker, undertow, goaner]) ENTITY_TYPES[d.type] = d;
+for (const d of [hush, lookalike, marrowhound, inkwalker, undertow, goaner, scuttler, deedee, platsnake]) ENTITY_TYPES[d.type] = d;
 
 export function registerEntity(def) { ENTITY_TYPES[def.type] = def; }

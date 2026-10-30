@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { noise1 } from '../core/rng.js';
 import { settings } from '../core/settings.js';
+const CLASS_BATTERY = { engineer: 0.67 };
 
 function cookieTexture() {
   const c = document.createElement('canvas'); c.width = c.height = 256;
@@ -60,8 +61,37 @@ export class PlayerLights {
       scene.add(l);
       this.pool.push(l);
     }
+    // other players' flashlights: a few real (shadowless) spotlights handed to
+    // the nearest remote beams so their light lands on walls and floors
+    this.remote = [];
+    const nRemote = settings.get('quality') === 'low' ? 1 : 3;
+    for (let i = 0; i < nRemote; i++) {
+      const l = new THREE.SpotLight(0xfff1dc, 0, 26, 0.48, 0.6, 1.7);
+      scene.add(l); scene.add(l.target);
+      this.remote.push(l);
+    }
     this.lowWarned = false;
     this._p = new THREE.Vector3();
+  }
+
+  updateRemote(remotes, levelId, cam) {
+    const list = [];
+    for (const r of remotes) {
+      if (!r.lightOn || r.levelId !== levelId || r.st.dead || r.st.hidden) continue;
+      list.push({ r, d: Math.hypot(r.st.x - cam.x, r.st.z - cam.z) });
+    }
+    list.sort((a, b) => a.d - b.d);
+    for (let i = 0; i < this.remote.length; i++) {
+      const l = this.remote[i], e = list[i];
+      if (!e || e.d > 45) { l.intensity = 0; continue; }
+      const st = e.r.st, cp = Math.cos(st.pitch);
+      const ey = st.y + (e.r.crouch ? 1.0 : 1.45);
+      const fx = -Math.sin(st.yaw) * cp, fy = Math.sin(st.pitch), fz = -Math.cos(st.yaw) * cp;
+      l.position.set(st.x + fx * 0.45, ey + fy * 0.45, st.z + fz * 0.45);
+      l.target.position.set(st.x + fx * 6, ey + fy * 6, st.z + fz * 6);
+      l.angle = e.r.focus ? 0.24 : 0.48;
+      l.intensity = (e.r.focus ? 150 : 60) * Math.min(1, (45 - e.d) / 10);
+    }
   }
 
   get item() {
@@ -94,7 +124,7 @@ export class PlayerLights {
     const it = this.item;
     if (this.on && !it) this.on = false;
     if (this.on) {
-      const drain = (this.focus ? 1.4 : 0.42) * dt;
+      const drain = (this.focus ? 1.4 : 0.42) * dt * (CLASS_BATTERY[this.game.classId] || 1);
       it.data.charge = Math.max(0, it.data.charge - drain);
       if (it.data.charge <= 0) { this.on = false; g.subtitle('The flashlight dies.', 2); g.sfx('click', null, {}); }
       if (it.data.charge < 15 && !this.lowWarned) { this.lowWarned = true; g.subtitle('The beam is turning yellow. Battery low.', 2.2); }

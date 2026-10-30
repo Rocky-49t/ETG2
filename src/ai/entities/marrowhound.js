@@ -4,7 +4,7 @@
 // Difficulty: medium.
 import * as THREE from 'three';
 import { canSee, hearNoise, goTo, wander, setState, faceToward, stepToward, fleeFrom, lightOn, nearestPlayer } from '../brain.js';
-import { joint, limb, ball, boxm } from './rig.js';
+import { joint, limb, ball, boxm, attackPose } from './rig.js';
 
 function fearFrom(e, ctx) {
   // returns the strongest fire source near the hound {x,z,r} or null
@@ -196,6 +196,13 @@ export default {
     R.head.rotation.x = stalk ? -0.3 : 0;
     const biting = st.s === 'bite' || st.s === 'charge';
     R.jaw.rotation.x = biting ? 0.35 + Math.sin(t * 25) * 0.25 : stalk ? 0.15 + Math.sin(t * 8) * 0.05 : 0.05;
+    if (st.s === 'bite') {
+      const a = attackPose(v.stateT, 0.2);
+      R.body.position.z = a.s * 0.4 - a.w * 0.15;
+      R.neck.rotation.x = -0.1 + a.w * 0.5 - a.s * 0.6;
+      R.head.rotation.x = a.s * -0.3;
+      R.jaw.rotation.x = 0.1 + a.w * 0.8 * (1 - a.s);
+    } else R.body.position.z = 0;
     R.tail.rotation.x = -0.3 + Math.sin(t * 3) * 0.1;
     R.tail.rotation.y = Math.sin(t * (stalk ? 10 : 2)) * 0.3;
     if (st.s === 'dead') { v.group.rotation.z = Math.min(1.5, v.stateT * 3); R.body.position.y = Math.max(0.25, 0.66 - v.stateT); }
@@ -205,7 +212,7 @@ export default {
   onState(v, s, prev, game) {
     if (s === 'stalk' && prev !== 'retreat' && prev !== 'flinch') game.sfx('growl', v.pos, { volume: 0.9, ref: 3, dur: 1.6 });
     if (s === 'charge') game.sfx('bark', v.pos, { volume: 1, ref: 4 });
-    if (s === 'bite') game.sfx('bark', v.pos, { volume: 0.8, ref: 3 });
+    if (s === 'bite') { game.sfx('bark', v.pos, { volume: 0.8, ref: 3 }); setTimeout(() => game.sfx('boneCrunch', v.pos, { volume: 1, ref: 3 }), 220); }
     if (s === 'flee' || s === 'flinch') game.sfx('growl', v.pos, { volume: 0.6, dur: 0.6 });
     if (s === 'dead') game.sfx('boneRattle', v.pos, { volume: 1 });
   },

@@ -7,6 +7,7 @@ import { NOISE } from '../ai/brain.js';
 
 export const WEAPONS = {
   pistol: { kind: 'gun', damage: 26, rate: 0.16, auto: false, mag: 12, ammo: 'ammo9', spread: 0.014, adsSpread: 0.003, range: 70, recoil: 0.035, reload: 1.35, noise: NOISE.pistol, sound: 'pistol', pellets: 1, flash: 0.45 },
+  rifle: { kind: 'gun', damage: 34, rate: 0.1, auto: true, mag: 30, ammo: 'rifleAmmo', spread: 0.02, adsSpread: 0.0025, range: 95, recoil: 0.03, reload: 2.1, noise: NOISE.rifle, sound: 'rifle', pellets: 1, flash: 0.55 },
   smg: { kind: 'gun', damage: 15, rate: 0.072, auto: true, mag: 30, ammo: 'ammo9', spread: 0.035, adsSpread: 0.014, range: 55, recoil: 0.02, reload: 1.9, noise: NOISE.smg, sound: 'smg', pellets: 1, flash: 0.4 },
   shotgun: { kind: 'gun', damage: 14, rate: 0.9, auto: false, mag: 6, ammo: 'shells', spread: 0.075, adsSpread: 0.055, range: 30, recoil: 0.1, reload: 0.55, perShell: true, noise: NOISE.shotgun, sound: 'shotgun', pellets: 9, flash: 0.75 },
   crowbar: { kind: 'melee', damage: 40, rate: 0.62, range: 2.2, hitAt: 0.3, durCost: 3, noise: NOISE.melee, swing: 'crowbar' },
@@ -53,22 +54,25 @@ export class HeldController {
     this.ads = false;
     if (!def) {
       // empty hands: RMB focuses the flashlight beam
-      g.lights.focus = canAct && input.isDown('Mouse2');
+      g.lights.focus = canAct && input.act('aim');
       return;
     }
     g.lights.focus = false;
 
     if (def.type === 'weapon') this.updateWeapon(dt, it, WEAPONS[def.weapon], canAct);
     else if (def.type === 'consumable') this.updateUse(dt, it, def, canAct);
-    else if (def.type === 'battery') { if (canAct && input.pressed('Mouse0')) this.useBattery(); }
+    else if (def.type === 'battery') { if (canAct && input.actPressed('use')) this.useBattery(); }
     else if (def.type === 'flashlight') {
-      if (canAct && input.pressed('Mouse0')) g.lights.toggle();
-      g.lights.focus = canAct && input.isDown('Mouse2');
+      if (canAct && input.actPressed('use')) g.lights.toggle();
+      g.lights.focus = canAct && input.act('aim');
     } else if (def.type === 'throwable') this.updateThrow(dt, it, def, canAct);
     else if (def.type === 'tool' && def.tool === 'lighter') this.updateLighter(dt, it, canAct);
-    else if (def.type === 'repair') { if (canAct && input.pressed('Mouse0')) this.useRepair(); }
+    else if (def.type === 'repair') { if (canAct && input.actPressed('use')) this.useRepair(); }
+    else if (def.type === 'transmitter') { if (canAct && input.actPressed('use')) g.toggleTransmitter(it); }
+    else if (def.type === 'armor') { if (canAct && input.actPressed('use')) g.wearArmor(g.inventory.selected); }
+    else if (def.type === 'part') { if (canAct && input.actPressed('use')) g.subtitle('A crafting part. Open the inventory to see recipes.', 2); }
     else if (def.type === 'key' || def.type === 'ammo') {
-      if (canAct && input.pressed('Mouse0')) g.subtitle(def.type === 'key' ? 'Use it at the right door: look at it and press E.' : 'Ammo loads automatically when you reload (R).', 2.5);
+      if (canAct && input.actPressed('use')) g.subtitle(def.type === 'key' ? 'Use it at the right door: look at it and press E.' : 'Ammo loads automatically when you reload (R).', 2.5);
     }
   }
 
@@ -77,7 +81,7 @@ export class HeldController {
     const g = this.game;
     if (!W) return;
     if (W.kind === 'melee') return this.updateMelee(dt, it, W, canAct);
-    this.ads = canAct && input.isDown('Mouse2') && this.reloading <= 0;
+    this.ads = canAct && input.act('aim') && this.reloading <= 0;
     g.player.zoom = this.ads ? -12 : 0;
     // reloading
     if (this.reloading > 0) {
@@ -93,7 +97,7 @@ export class HeldController {
           }
         }
         // allow interrupting shell reload by firing
-        if (canAct && input.pressed('Mouse0') && it.data.ammo > 0) this.reloading = 0;
+        if (canAct && input.actPressed('use') && it.data.ammo > 0) this.reloading = 0;
         else return;
       } else {
         if (this.reloading <= 0) {
@@ -106,7 +110,9 @@ export class HeldController {
       }
     }
     if (!canAct) return;
-    if (input.pressed('KeyR') && it.data.ammo < W.mag) {
+    // auto-reload: pulling the trigger on an empty gun with rounds in reserve
+    const autoReload = input.actPressed('use') && it.data.ammo <= 0 && g.inventory.has(W.ammo);
+    if ((input.actPressed('reload') || autoReload) && it.data.ammo < W.mag) {
       if (g.inventory.has(W.ammo)) {
         this.reloading = W.reload;
         g.viewmodel.startReload(W.reload, W.perShell ? 'shell' : 'mag');
@@ -115,10 +121,10 @@ export class HeldController {
       } else g.subtitle(`No ${ITEMS[W.ammo].name.toLowerCase()} left.`, 1.6);
       return;
     }
-    const trigger = W.auto ? input.isDown('Mouse0') : input.pressed('Mouse0');
+    const trigger = W.auto ? input.act('use') : input.actPressed('use');
     if (trigger && this.cooldown <= 0) {
       if (it.data.ammo <= 0) {
-        if (input.pressed('Mouse0')) { g.sfx('dryfire', null, {}); this.cooldown = 0.25; }
+        if (input.actPressed('use')) { g.sfx('dryfire', null, {}); this.cooldown = 0.25; }
         return;
       }
       it.data.ammo--;
@@ -140,6 +146,7 @@ export class HeldController {
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
     let hitAny = false, killed = false;
+    const impacts = [];
     for (let i = 0; i < W.pellets; i++) {
       const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * spread;
       const dir = fwd.clone().addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
@@ -150,6 +157,11 @@ export class HeldController {
         g.requestHit(res.entity.view.id, W.damage * falloff, 'bullet', res.entity.part, res.point);
       }
       if (i < 3 || W.pellets === 1) g.effects.tracer(muzzle, res.point);
+      if (impacts.length < 4) {
+        const p = res.point, n = res.normal;
+        impacts.push(res.entity ? [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), 'e', res.entity.view.def?.blood || 'blood']
+          : n ? [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2), +n.x.toFixed(2), +n.y.toFixed(2), +n.z.toFixed(2)] : [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)]);
+      }
     }
     g.viewmodel.kick(W.recoil * 1.6);
     g.player.addRecoil(W.recoil * (this.ads ? 0.6 : 1), (Math.random() - 0.5) * W.recoil * 0.6);
@@ -159,7 +171,7 @@ export class HeldController {
     g.lights.muzzle(muzzle);
     g.sfx(W.sound, null, { volume: 1 });
     g.emitNoise(W.noise);
-    g.netFx('shot', { w: W.sound, x: muzzle.x, y: muzzle.y, z: muzzle.z });
+    g.netFx('shot', { w: W.sound, x: +muzzle.x.toFixed(2), y: +muzzle.y.toFixed(2), z: +muzzle.z.toFixed(2), fx: +fwd.x.toFixed(2), fy: +fwd.y.toFixed(2), fz: +fwd.z.toFixed(2), im: impacts, fl: W.flash });
     if (hitAny) g.hud.hitmarker(killed);
   }
 
@@ -173,7 +185,7 @@ export class HeldController {
       if (this.swingT > W.rate) this.swingT = -1;
       return;
     }
-    if (canAct && input.isDown('Mouse0') && this.cooldown <= 0 && g.stats.stamina > 5) {
+    if (canAct && input.act('use') && this.cooldown <= 0 && g.stats.stamina > 5) {
       this.swingT = 0;
       this.cooldown = W.rate;
       g.viewmodel.swing(W.swing);
@@ -206,12 +218,14 @@ export class HeldController {
         if (diff > 2.2) { dmg *= W.backstab; g.subtitle('Backstab.', 0.8); }
       }
       g.requestHit(res.entity.view.id, dmg, 'melee', res.entity.part, res.point);
+      g.netFx('melee', { x: +res.point.x.toFixed(2), y: +res.point.y.toFixed(2), z: +res.point.z.toFixed(2), b: res.entity.view.def?.blood || 'blood' });
       g.player.shake = Math.min(1, g.player.shake + 0.25);
       g.hud.hitmarker(false);
       this.wear(it, W.durCost);
     } else if (res.dist < W.range) {
       g.sfx('hitWall', res.point, { volume: 0.7 });
       g.effects.burst('impact', res.point, res.normal || { x: 0, y: 1, z: 0 }, 0.5);
+      g.netFx('melee', { x: +res.point.x.toFixed(2), y: +res.point.y.toFixed(2), z: +res.point.z.toFixed(2) });
       g.player.shake = Math.min(1, g.player.shake + 0.15);
       this.wear(it, W.durCost * 0.5);
     }
@@ -233,18 +247,17 @@ export class HeldController {
   // ---------------------------------------------------------------- consumables
   updateUse(dt, it, def, canAct) {
     const g = this.game;
-    if (canAct && input.isDown('Mouse0')) {
+    if (canAct && input.act('use')) {
       if (this.useT === 0) {
-        if (!this.canConsume(def)) { if (input.pressed('Mouse0')) g.subtitle('You don\'t need that right now.', 1.4); return; }
+        if (!this.canConsume(def)) { if (input.actPressed('use')) g.subtitle('You don\'t need that right now.', 1.4); return; }
         this.useSlot = g.inventory.selected;
         g.viewmodel.startUse();
-        g.sfx(def.sound || 'pickup', null, {});
+        g.sfx(def.sound || 'pickup', null, { volume: 0.6 });
       }
       this.useT += dt;
       g.hud.progress(this.useT / def.useTime, def.name);
       if (this.useT >= def.useTime) {
-        g.stats.applyEffects(def.effects);
-        g.inventory.takeFrom(g.inventory.selected, 1);
+        g.consumeNow(def, g.inventory.selected);
         g.onConsumed?.(def);
         this.useT = 0;
         g.viewmodel.stopUse();
@@ -259,6 +272,8 @@ export class HeldController {
 
   canConsume(def) {
     const s = this.game.stats, fx = def.effects;
+    if (fx.revive) return this.game.downed;
+    if (fx.status) return true;
     if (fx.health || fx.regen) return s.health < 100 || s.bleeding > 0;
     if (fx.thirst && !fx.sanity) return s.thirst < 98;
     if (fx.hunger && !fx.health) return s.hunger < 98;
@@ -269,9 +284,10 @@ export class HeldController {
     const g = this.game;
     const inv = g.inventory;
     let best = -1, low = 101;
-    inv.slots.forEach((s, i) => { if (s && s.id === 'flashlight' && s.data.charge < low) { low = s.data.charge; best = i; } });
+    // flashlights first, then transmitters — whichever is lowest
+    inv.slots.forEach((s, i) => { if (s && (s.id === 'flashlight' || s.id === 'transmitter') && s.data.charge < low) { low = s.data.charge; best = i; } });
     if (best < 0) { g.subtitle('You have nothing to put it in.', 1.5); return; }
-    if (low > 95) { g.subtitle('Your flashlight is already full.', 1.5); return; }
+    if (low > 95) { g.subtitle('Everything is already charged.', 1.5); return; }
     inv.slots[best].data.charge = 100;
     inv.takeFrom(inv.selected, 1);
     g.sfx('battery', null, {});
@@ -284,7 +300,7 @@ export class HeldController {
     let best = -1, low = 101;
     inv.slots.forEach((s, i) => { if (s && ITEMS[s.id].type === 'weapon' && WEAPONS[ITEMS[s.id].weapon]?.kind === 'melee' && s.data.dur < low) { low = s.data.dur; best = i; } });
     if (best < 0 || low > 90) { g.subtitle('Nothing needs tape right now.', 1.5); return; }
-    inv.slots[best].data.dur = Math.min(100, low + 55);
+    inv.slots[best].data.dur = g.classId === 'engineer' ? 100 : Math.min(100, low + 55);
     inv.takeFrom(inv.selected, 1);
     g.sfx('bandage', null, {});
     g.subtitle(`You tape up the ${ITEMS[inv.slots[best]?.id]?.name.toLowerCase() || 'handle'}.`, 1.6);
@@ -310,7 +326,7 @@ export class HeldController {
       if (this.throwT > 0.5) this.throwT = -1;
       return;
     }
-    if (canAct && input.pressed('Mouse0')) {
+    if (canAct && input.actPressed('use')) {
       this.throwT = 0;
       g.viewmodel.startThrow();
     }
@@ -319,7 +335,7 @@ export class HeldController {
   // ---------------------------------------------------------------- lighter
   updateLighter(dt, it, canAct) {
     const g = this.game;
-    if (canAct && input.pressed('Mouse0')) {
+    if (canAct && input.actPressed('use')) {
       if (it.data.fuel <= 0) { g.subtitle('The lighter is out of fuel.', 1.5); this.lighterLit = false; }
       else { this.lighterLit = !this.lighterLit; g.sfx('lighterFlick', null, {}); }
     }

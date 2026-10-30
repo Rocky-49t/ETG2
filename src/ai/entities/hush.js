@@ -2,6 +2,7 @@
 // Crouch-walking past it is the intended answer; sprinting and gunfire bring
 // it running. Difficulty: easy.
 import * as THREE from 'three';
+import { attackPose } from './rig.js';
 import { hearNoise, goTo, wander, setState, faceToward, stepToward } from '../brain.js';
 import { limb, joint, ball, boxm, leg } from './rig.js';
 
@@ -181,17 +182,25 @@ export default {
       A.sh.rotation.set(sw + 0.15, 0, A.s * 0.08);
       A.el.rotation.x = -0.25 - Math.sin(t * 1.1 + i) * 0.05;
       if (st.s === 'attack') {
-        const k = Math.min(1, v.stateT * 4);
-        A.sh.rotation.x = -1.6 * k + 0.15 * (1 - k);
-        A.el.rotation.x = -0.1;
+        // rear back with both arms high, then rake down and forward
+        const a = attackPose(v.stateT, 0.45);
+        A.sh.rotation.x = -2.9 * a.w + -1.0 * a.s + 0.15 * (1 - a.w - a.s);
+        A.sh.rotation.z = A.s * (0.25 * a.w - 0.2 * a.s);
+        A.el.rotation.x = -1.3 * a.w - 0.05 * a.s;
       }
     });
+    if (st.s === 'attack') {
+      const a = attackPose(v.stateT, 0.45);
+      R.pelvis.position.z = a.s * 0.45 - a.w * 0.1;
+      R.neck.rotation.x += a.s * 0.5 - a.w * 0.4;
+      R.head.rotation.x += a.s * 0.3;
+    } else R.pelvis.position.z = 0;
     if (st.s === 'dead') { v.group.rotation.x = Math.min(1.45, v.stateT * 2.5); }
   },
 
   onState(v, s, prev, game) {
     if (s === 'hunt') game.sfx('hushShriek', v.pos, { volume: 0.9, ref: 5 });
-    if (s === 'attack') game.sfx('hushInhale', v.pos, { volume: 1 });
+    if (s === 'attack') { game.sfx('hushInhale', v.pos, { volume: 1 }); setTimeout(() => game.sfx('hushShriek', v.pos, { volume: 0.9, ref: 4 }), 380); }
     if (s === 'listen') game.sfx('hushClick', v.pos, { volume: 0.8, ref: 3 });
     if (s === 'dead') game.sfx('hushShriek', v.pos, { volume: 0.6 });
   },

@@ -28,6 +28,7 @@ const GradeShader = {
     saturation: { value: 1 },
     tint: { value: new THREE.Vector3(1, 1, 1) },
     downed: { value: 0 },
+    warp: { value: 0 },
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -35,7 +36,7 @@ const GradeShader = {
   `,
   fragmentShader: /* glsl */`
     uniform sampler2D tDiffuse;
-    uniform float time, sanity, damage, underwater, vignette, grain, aberration, fade, flash, saturation, downed;
+    uniform float time, sanity, damage, underwater, vignette, grain, aberration, fade, flash, saturation, downed, warp;
     uniform vec2 resolution;
     uniform vec3 lift, gamma, gain, tint;
     varying vec2 vUv;
@@ -51,7 +52,13 @@ const GradeShader = {
       float breathe = sanity * sanity * 0.018 * sin(time * 0.9);
       uv = 0.5 + (uv - 0.5) * (1.0 - breathe);
 
-      float ab = aberration + sanity * 0.007 + damage * 0.012 + downed * 0.006;
+      // Goaning transfer: the world swirls toward the centre
+      if (warp > 0.0) {
+        float ang = warp * warp * 1.6 * (1.0 - length(cc) * 1.2);
+        float cs = cos(ang), sn = sin(ang);
+        uv = 0.5 + mat2(cs, -sn, sn, cs) * (uv - 0.5) * (1.0 - warp * 0.12);
+      }
+      float ab = aberration + sanity * 0.007 + damage * 0.012 + downed * 0.006 + warp * 0.03;
       vec2 off = cc * ab;
       vec3 col;
       col.r = texture2D(tDiffuse, uv + off).r;
@@ -87,6 +94,12 @@ const GradeShader = {
       col += (n - 0.5) * (grain + sanity * 0.05);
       col *= 1.0 - sanity * 0.06 * (0.5 + 0.5 * sin(vUv.y * resolution.y * 0.9 + time * 14.0));
 
+      if (warp > 0.0) {
+        vec3 acc = vec3(0.0);
+        for (int i = 0; i < 8; i++) acc += texture2D(tDiffuse, uv - cc * (float(i) / 8.0) * warp * 0.16).rgb;
+        col = mix(col, acc / 8.0, min(1.0, warp * 1.4));
+        col += vec3(0.12, 0.32, 0.95) * warp * (0.3 + 0.2 * sin(time * 37.0)) * smoothstep(0.1, 0.7, d);
+      }
       col = mix(col, vec3(1.0, 0.97, 0.9), flash);
       col *= 1.0 - fade;
       gl_FragColor = vec4(col, 1.0);

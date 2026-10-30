@@ -5,7 +5,13 @@ Sequel to *Escape the Goanrooms*. Built with Three.js and the Web Audio API,
 no build step, hosted as a static site (GitHub Pages). Peer-to-peer co-op over
 WebRTC (PeerJS), with no game server needed.
 
-> You noclipped out of reality. Again.
+> The machine was supposed to bring you back.
+
+**Story.** The Goanrooms sit in a dimensional web alongside Earth and the
+Tufferverse. In 2013 the Ririqian Brotherhood, led by Supreme Leader Rucky Rucky,
+fled into them to escape Tufflandia. Tufflandia quietly told the United States,
+and the US now sends expeditions in through the **Goaning Machine** at Site
+Kestrel. You are on one of them. The transfer went wrong.
 
 ## Play
 
@@ -18,7 +24,7 @@ WebRTC (PeerJS), with no game server needed.
 
   (Opening `index.html` straight from disk won't work: ES modules and workers need HTTP.)
 
-Dev shortcuts: `?solo=1&level=L3&seed=MYSEED&difficulty=hard` jumps straight into a level. `&god=1` disables damage.
+Dev shortcuts: `?solo=1&level=L3&seed=MYSEED&difficulty=hard` jumps straight into a level. `&class=scout` picks a role, `&god=1` disables damage, `&quality=low` for slow machines.
 
 ## Controls
 
@@ -29,25 +35,45 @@ Dev shortcuts: `?solo=1&level=L3&seed=MYSEED&difficulty=hard` jumps straight int
 | F | Toggle flashlight |
 | E | Interact · hide in lockers · hold to revive teammates |
 | R | Reload |
-| 1–6 / wheel | Hotbar |
-| Tab / I | Inventory (drag & drop, right-click to use, shift-click to quick-move) |
+| 1–8 / wheel | Hotbar (7–8 are holster slots for roles that have them) |
+| Tab / I | Inventory and crafting (click to select then click a slot to move, drag & drop, right-click to use, shift-click to quick-move). E or Tab closes it |
 | G | Drop held item (Shift+G drops the whole stack) |
 | J | Journal (collected notes) |
 | T / Enter | Chat (co-op) |
-| Esc | Pause / settings |
+| X (hold) | Respawn now when downed or dead (skip waiting for a revive) |
+| Esc | Pause / settings · closes chat |
 | ` | Cheat console (see below) |
+
+Every binding can be changed in **Settings → Controls**.
 
 ## The run
 
+**Prologue (Site Kestrel).** A short playable intro: walk through the lab,
+pick your role in the equipment bay, step into the Goaning Machine and ride the
+transfer down into Level 0. Skippable in solo; toggle it in the co-op lobby.
+
+**Roles.** Soldier (rifle and pistol in two gun-only holsters, a ballistic vest
+that slows you), Field Medic (stronger healing, faster revives, self-revive
+shots), Scout (two ready-made Location Transmitters, faster and quieter),
+Engineer (crowbar, parts, longer batteries, full repairs), Researcher (slower
+sanity loss, senses exits from farther away, decrypts corrupted files).
+
+**Crafting.** The inventory has a crafting panel with clear requirements. The
+key recipe is the **Location Transmitter** (GPS board + antenna + battery): it
+shows your coordinates and every teammate's, refreshed every few seconds.
+Other recipes include clean water, bandages, medkits, knives, decoys,
+glowsticks, a scrap vest and duct tape.
+
 | Level | Atmosphere | Threat | Exit |
 | --- | --- | --- | --- |
-| **0: The Lobby** | Mono-yellow office space: wallpaper, damp carpet, humming fluorescents; partitions, room clusters, halls and tall pillar halls | **The Hush**: blind, hunts by sound. Crouch past it. *(easy)* | Pits "where the carpet forgets to hold": one guaranteed 2–3 chunks out, plus more scattered through the level. Follow the spray-painted EXIT arrows and the sound of the draft. |
-| **1: Industrial Tunnels** | Brick service corridors, pipes, steam vents (they scald), machine halls, boiler rooms with furnaces | **Marrowhounds**: bone dogs in packs. They circle, dart in and retreat. Fire (lighters, flares, furnaces) keeps them off; focused light makes them flinch. *(medium)* | The **service door**, opened with a keycard from the foreman's office or a break room. |
-| **2: Offices & Sewers** | Cubicle farms, offices with doors, conference rooms; stairs down into a connected sewer tunnel network | **The Inkwalker**: a persistent black skeleton. A flashlight held on its skull stuns it (focus the beam). It drags you out of lockers if it saw you go in. *(hard)* | The **stairwell**. Find a fuse in a sewer pump room and power the fuse box. |
-| **3: Pool Rooms** | White-tiled halls, clear pools with caustics, flooded corridors, skylights onto a sky that isn't there | **The Undertow**: hunts swimmers and lunges at people standing at the pool edge. It gurgles as it closes in. *(hard if it gets you, easy to avoid)* | The **main drain** at the bottom of the deepest pool. Unlock it with the drain valve key from a pump room, then swim down. |
-| **5: The Sky Bridge** | A colossal bridge over an endless fog void, colossal pillars, wind gusts, lanterns | **The Goaner**: three-phase boss (see below) | Defeat the Goaner. The gate beyond the arena opens. |
+| **0: The Lobby** | Mono-yellow office space: wallpaper, damp carpet, humming fluorescents; partitions, rare rooms with doors, tall-ceilinged atrium halls, storerooms. You arrive in the wrecked Goaning Machine | **The Hush**: blind, hunts by sound. Crouch past it. *(easy)* | Round pits "where the carpet forgets to hold", shafts that fade to black: one guaranteed 2–3 chunks out, plus more scattered through the level. Follow the spray-painted EXIT arrows and the sound of the draft. |
+| **1: Industrial Tunnels** | Brick service corridors, pipes, steam vents (they scald), machine halls, generator and workshop rooms, and abandoned train stations with long tunnels | **Marrowhounds**: bone dogs in packs; fire keeps them off. **The Scuttler**: a fast spider with a dozen red eyes that freezes while a flashlight is held on it, most common near stations. *(medium)* | The **service door**, opened with a keycard from the foreman's office or a break room. |
+| **2: Offices & Sewers** | Cubicle farms, numbered offices, conference, break, storage and plant rooms, dark office blocks; usable corrupted computers and wall phones; long sewers reached by ladder holes and stairs, with rusted side rooms | **The Inkwalker**: a persistent black skeleton (more of them in the sewers). A flashlight held on its skull stuns it. A rare pale draught from the vending machines makes it ignore you for 10 minutes. Dial **1143141967** on a wall phone and something pale comes to see you; do not hurt it. *(hard)* | The **stairwell** (find a fuse in a sewer pump room), or rare doors marked **LEVEL 3**. |
+| **3: Pool Rooms** | White-tiled halls, clear pools with caustics and railings, raised ledges, flooded corridors, blue halls of deep dark water, skylights onto a sky that isn't there | **The Undertow**: hunts swimmers and lunges at people standing at the pool edge. It gurgles as it closes in. *(hard if it gets you, easy to avoid)* | The **main drain** at the bottom of the deepest pool (drain valve key from a pump room), or a rare long spiral staircase up to a hatch. Both lead to Level 4. |
+| **4: The Quiet Rooms** | Beige walls, gray carpet, a gray-green ceiling; windows onto a painted sky throwing daylight across the floor, and darkness everywhere else. Empty rooms, dead restaurants, storage units, staircases to nowhere | **Platinum snakes**: strike only when you're close, and speed up each time a bullet hits them (knives don't). Harmless figures stand behind the windows when your sanity is low. | **Toll rooms**: press the plates in the order the lock hums or lists, and the vault opens onto the LEVEL 5 door. They re-seal with a new order when you come back. |
+| **5: The Sky Bridge** | A colossal bridge over an endless fog void, wind gusts, lanterns, and around it an endless network of platforms on giant columns joined by bridges and stairs | **The Goaner**: three-phase boss (see below) | Defeat the Goaner. The gate beyond the arena opens. |
 
-**More than one way out.** Every level except the Sky Bridge has secondary exits generated with the rest of the map. Level 0 scatters extra pits; Levels 1–3 scatter floor hatches (maintenance hatches, manholes, service hatches) that skip the key puzzle: force one open in three loud heaves, or pry it with a crowbar. Exits breathe a cold draft you can hear from about 40 m away, EXIT arrows are painted beside the doorway that leads toward the nearest exit (so they chain room to room), and objective items (keycard, fuse, valve key) chirp softly when you're close.
+**More than one way out.** Every level except the Sky Bridge has secondary exits generated with the rest of the map: extra pits on Level 0, maintenance hatches on Level 1 (force one open, or pry it with a crowbar), LEVEL 3 doors on Level 2, the spiral staircase on Level 3 and several toll rooms on Level 4. Rare **back doors** lead up a level (L1→L0, L2→L0, L3→L2, L4→L3), and lone doorways on far Sky Bridge platforms lead to Levels 0, 1 and 3. Each level paints its exit signs in its own style. Exits breathe a cold draft you can hear from about 40 m away, EXIT arrows are painted beside the doorway that leads toward the nearest exit (so they chain room to room), and objective items (keycard, fuse, valve key) chirp softly when you're close.
 
 **Rare:** **The Lookalike** wears a teammate's shape (yours, when you're alone). It only moves while nobody is looking at it, and a sustained flashlight beam makes it come apart.
 
@@ -62,10 +88,12 @@ A goat-headed, wasp-bodied chimera on six bone legs, faithful to the original's 
 ## Survival
 
 - **Health, stamina, hunger, thirst, sanity, oxygen.** Hunger and thirst drain slowly (about 30 and 18 minutes). Bandages heal over time and stop bleeding.
-- **Sanity** drains in darkness and near entities. Low sanity brings whispers, phantom footsteps, a heartbeat, shadow figures that vanish when stared at, and visual distortion. Light, teammates, almond water and painkillers help.
+- **Sanity** drains in darkness and near entities. Low sanity brings whispers, phantom footsteps, a heartbeat, shadow figures that vanish when stared at, and visual distortion. Light, teammates, water (clean more than dirty) and painkillers help.
 - **Noise** is a resource. Crouching is silent; walking, sprinting, landing, doors, reloading and gunfire all emit noise that entities hear, muffled by walls.
-- **Inventory:** 6-slot hotbar plus a 20-slot backpack. Items stack. Weapons have ammo or durability (repair with duct tape); flashlights use batteries; lighters use fuel. You can search containers (boxes, filing cabinets, crates, toolboxes) and store items in them.
-- **Death:** solo, you wake at the last checkpoint and keep your inventory. In co-op you're downed first (45 s to be revived with E). If nobody revives you, you spectate until a teammate goes through an exit.
+- **Food and drink:** dirty and clean water, Fire Salts (L1), Blueberry Fire Salts (L3), Goan Juice and Vigor Tonic (L4), and more. Item counts scale with the number of players.
+- **Inventory:** 6-slot hotbar (+2 holster slots for some roles) plus a 20-slot backpack. Items stack. Weapons have ammo or durability (repair with duct tape); flashlights use batteries; lighters use fuel. You can search containers (boxes, filing cabinets, crates, toolboxes) and store items in them.
+- **Death:** you wake up again on the same level and keep your inventory, just farther from the team. In co-op you're downed first (45 s to be revived with E); hold **X** to give up and respawn straight away.
+- **Movement:** jumps are buffered and forgiving at ledges; hold jump while swimming into a pool edge to haul yourself out.
 
 ## Co-op multiplayer
 
@@ -74,7 +102,7 @@ Host-authoritative, star topology. The host simulates entities, the director, wo
 - **Host Co-op:** choose a connection, create the room, share the 5-letter code. Set seed, difficulty and friendly fire, then start when everyone is ready.
 - **Join Co-op:** enter the code. Late joining works: you spawn next to the host with the current world state.
 - Players can be in **different levels** at once. The host keeps simulating every occupied level.
-- There's text chat in the lobby and in game, plus nameplates, a team list, downing and reviving, and spectating.
+- There's text chat in the lobby, in game and on loading screens, plus nameplates (with roles), a team list, downing and reviving. Flashlights, gunfire effects, bullet holes and eating/drinking are visible to everyone.
 
 **Connection modes**
 - **Online (PeerJS):** WebRTC data channels. Signalling uses the free public PeerJS cloud server (`0.peerjs.com`) and Google's public STUN servers. **Limitations:** you need internet access to the signalling server (only for the handshake). There's no TURN relay, so players behind symmetric NATs or strict corporate firewalls may fail to connect. The public server can be rate-limited or down; you can self-host a `peerjs-server` and pass its host to `new Peer()` in `src/net/session.js`. The host's upload bandwidth carries everyone, which is fine for small groups (1–6 is the sweet spot; there's no hard cap).
@@ -120,15 +148,18 @@ src/
                       materials (baked-light patch, decal atlas), postfx, lights (pool), water
   world/              chunk data, level instance (collision, raycasts, A*), generation helpers,
                       mesher (geometry + baking), builder, props, renderer (streaming)
-  world/levels/       level0..level5 + common helpers + registry (index.js)
+  world/levels/       prologue, level0..level5 + common helpers + registry (index.js)
+  world/machine.js    the Goaning Machine (prologue and Level 0 wreck)
   game/               game session (host/client logic), player controller, stats, inventory,
                       items + icons, weapons, viewmodel, models, objects, world state,
-                      effects, player lights, sanity, avatar, remote players, notes (lore)
+                      effects, player lights, sanity, avatar, remote players, notes (lore),
+                      classes (roles), crafting
   ai/                 brain (perception/steering), manager (host sim), views (client),
                       director (tension), entities/* (one module per creature)
   audio/              engine, sfx recipes, ambience profiles
   net/session.js      PeerJS + BroadcastChannel transports
-  ui/                 HUD, screens/modals, menus (settings, customization), lobby, cheat console
+  ui/                 HUD, screens/modals, menus (settings, keybinds, customization), lobby,
+                      cheat console, computer.js (L2 computers and phones)
 tools/                dev harnesses (screenshots, multiplayer smoke test, syntax check)
 ```
 
@@ -159,7 +190,7 @@ Two-tab co-op smoke test over the local transport.
 
 ## Status and known limitations
 This is a prototype of the full game.
-- Level 4 is intentionally absent, matching the planned progression (0 → 1 → 2 → 3 → 5). The victory screen is a temporary ending.
+- The victory screen after the Goaner is a temporary ending.
 - Online play relies on the public PeerJS signalling server and has no TURN fallback (see above).
 - Client hit detection is trusted by the host (fine for co-op, not cheat-proof).
 - Thrown objects are simulated independently on each peer from the same initial state. They settle in the same place almost always, but aren't strictly synchronized.

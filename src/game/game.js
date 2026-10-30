@@ -202,6 +202,7 @@ export class Game {
     this.transitioning = true;
     const def = LEVELS[id];
     if (!def) { this.transitioning = false; return; }
+    this.waterFogNow = this.waterFogColorNow = undefined;
     const first = !this.levelId;
     if (!first) {
       this.ui.fade(true);
@@ -351,7 +352,7 @@ export class Game {
       } else if (ev.type === 'land') {
         this.sfx('land', null, { volume: Math.min(1, ev.impact / 9) });
         this.emitNoise(NOISE.land);
-        if (ev.impact > 9.5) this.stats.damage((ev.impact - 9.5) * 9, 'fall');
+        if (ev.impact > 10.5) this.stats.damage((ev.impact - 10.5) * 9, 'fall');
         P.shake = Math.min(1, P.shake + ev.impact / 14);
       } else if (ev.type === 'splash') {
         this.sfx('splash', P.pos, { volume: ev.strength });
@@ -1015,9 +1016,9 @@ export class Game {
     audio.setTension(Math.max(this.threat || 0, this.boss ? 0.7 : 0, this.sanityFx.level * 0.4), dt);
     const water = this.engine.scene.fog;
     if (water && this.def.fog) {
-      const target = this.player.underwater ? (this.def.waterFog || 0.14) : this.def.fog.density * (1 + this.lightMgr.blackout * 0.6);
+      const target = this.player.underwater ? (this.waterFogNow ?? this.def.waterFog ?? 0.14) : this.def.fog.density * (1 + this.lightMgr.blackout * 0.6);
       water.density = damp(water.density, target, 4, dt);
-      if (this.player.underwater) water.color.set(this.def.waterFogColor || 0x0d3a40);
+      if (this.player.underwater) water.color.set(this.waterFogColorNow ?? this.def.waterFogColor ?? 0x0d3a40);
       else water.color.set(this.def.fog.color);
     }
   }

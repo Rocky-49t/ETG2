@@ -171,9 +171,16 @@ export function buildChunkMesh(level, c, lib) {
           const nf = nt === T_VOID ? f - (def.voidLedge ?? 1.2) : nc.floor[ni];
           const nRamp = nt === T_FLOOR ? nc.ramp[ni] : -1;
           if (type === T_FLOOR && ramp < 0 && f > nf + 0.01 && (nRamp < 0 || (nRamp !== d && (nRamp + 2) % 4 !== d) || f > nf + nc.rampH[ni] + 0.01)) {
+            // the face sits on the shared edge facing the LOWER neighbour (it
+            // must be visible from below, e.g. a pool's side walls)
             const L = pal.ledge || pal.floor[0];
-            const lowTop = nRamp >= 0 ? nf : nf;
-            edge(lowTop, f, L.mat, L.scale || 2, L.scale || 2, 0);
+            const y0 = nf, h = f - nf, sc = L.scale || 2;
+            let origin, euv, nn, uF;
+            if (d === 0) { origin = [x1, y0, z1]; euv = [0, 0, -TILE]; nn = [1, 0, 0]; uF = (z, x) => -z; }
+            else if (d === 2) { origin = [x0, y0, z0]; euv = [0, 0, TILE]; nn = [-1, 0, 0]; uF = (z, x) => z; }
+            else if (d === 1) { origin = [x0, y0, z1]; euv = [TILE, 0, 0]; nn = [0, 0, 1]; uF = (z, x) => x; }
+            else { origin = [x1, y0, z0]; euv = [-TILE, 0, 0]; nn = [0, 0, -1]; uF = (z, x) => -x; }
+            B.grid(L.mat, origin, euv, [0, h, 0], 2, Math.max(1, Math.round(h / 1.0)), nn, (x, y, z) => [uF(z, x) / sc, y / sc]);
           }
           // soffit: our ceiling lower than neighbour's
           if (hasCeil && nt === T_FLOOR) {
@@ -197,9 +204,9 @@ export function buildChunkMesh(level, c, lib) {
       }
 
       // water surface
-      if (c.water[i] > NO_WATER + 1 && c.water[i] > f - 0.01 && def.waterMat) {
+      if (c.water[i] > NO_WATER + 1 && c.water[i] > f - 0.01 && (c.meta.waterMat || def.waterMat)) {
         const w = c.water[i];
-        B.quad(def.waterMat, [x0, w, z1], [x1, w, z1], [x1, w, z0], [x0, w, z0], [0, 1, 0], [[x0 / 2.5, z1 / 2.5], [x1 / 2.5, z1 / 2.5], [x1 / 2.5, z0 / 2.5], [x0 / 2.5, z0 / 2.5]]);
+        B.quad(c.meta.waterMat || def.waterMat, [x0, w, z1], [x1, w, z1], [x1, w, z0], [x0, w, z0], [0, 1, 0], [[x0 / 2.5, z1 / 2.5], [x1 / 2.5, z1 / 2.5], [x1 / 2.5, z0 / 2.5], [x0 / 2.5, z0 / 2.5]]);
       }
     }
   }

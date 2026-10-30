@@ -532,6 +532,26 @@ export const RECIPES = {
     return { normal: 1.6 };
   },
 
+  // deep-end tiles: dark navy with the odd lighter tile, for the blue halls
+  poolTileDeep(s) {
+    const tiles = 16;
+    s.each((u, v, i) => {
+      const c = brickCell(u, v, tiles, tiles, 0);
+      const grout = c.d < 0.0045;
+      let r, g, b, h;
+      if (grout) { r = 0.3; g = 0.38; b = 0.46; h = 0.1; }
+      else {
+        const t = (c.id - 0.5) * 0.06;
+        r = 0.08 + t; g = 0.2 + t; b = 0.42 + t * 1.5;
+        if (c.id2 > 0.9) { r += 0.1; g += 0.16; b += 0.14; }
+        h = 0.6 + smoothstep(0.0045, 0.008, c.d) * 0.3;
+      }
+      s.set(i, r, g, b);
+      s.h[i] = h;
+      s.rough[i] = grout ? 0.7 : 0.1;
+    });
+    return { normal: 1.6 };
+  },
   poolTileBlue(s) {
     const tiles = 16;
     s.each((u, v, i) => {

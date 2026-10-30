@@ -7,14 +7,15 @@ import { TILE, CS, T_SOLID, T_FLOOR, F_ROOM, F_DARK, F_RESERVED, F_LANDMARK, NO_
 import { openPorts, ensureConnected, carveRect, fillRect, openTile, carveL, portTiles } from '../gen.js';
 import { placeLandmark } from '../level.js';
 import { addProp, registerProps, LIGHT_VISUALS } from '../props.js';
-import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette, addHatchExit } from './common.js';
+import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, wallSpots, wallPos, yawFor, freeTile, addWayfinding, addVignette, addLevelDoor, sideExitAt, nearestExit, addPortArrow, clearArea } from './common.js';
 import { hash01 } from '../../core/rng.js';
 import { registerObjectKind } from '../../game/objects.js';
 import { makeWaterMaterial, makeEnvMap } from '../../gfx/water.js';
 import { worldUniforms } from '../../gfx/materials.js';
 
 const WL = -0.25; // water level everywhere in this level
-const WHITE = [0.9, 0.97, 1.0];
+const WHITE = [0.9, 0.97, 1.0], DEEPBLUE = [0.62, 0.8, 1.0];
+const STAIR = { side: 6, band: 1.6, rise: 0.25, steps: 8, H: 30 };
 
 const LOOT = [
   ['cleanWater', 14], ['dirtyWater', 10], ['blueberryFireSalts', 12], ['purifier', 4, [1, 2]], ['cloth', 5], ['snackBar', 12], ['cannedBeans', 6], ['battery', 14, [1, 2]], ['bandage', 12], ['medkit', 3], ['painkillers', 8],
@@ -56,13 +57,105 @@ registerProps({
     },
   },
   floatRing: {
+    // a proper life ring: four red/white bands, a grab line looped round it
     colliders: null,
     build(p, B) {
-      const g = new THREE.TorusGeometry(0.32, 0.1, 8, 16);
-      g.rotateX(Math.PI / 2);
-      B.geometry(p.alt ? 'glowRed' : 'plastic', g, null);
+      for (let k = 0; k < 4; k++) {
+        const g = new THREE.TorusGeometry(0.32, 0.095, 10, 10, Math.PI / 2);
+        g.rotateZ(k * Math.PI / 2 + (p.alt ? Math.PI / 4 : 0));
+        g.rotateX(Math.PI / 2);
+        B.geometry(k % 2 ? 'ringWhite' : 'ringRed', g, null);
+      }
+      const rope = new THREE.TorusGeometry(0.33, 0.012, 4, 40);
+      rope.rotateX(Math.PI / 2); rope.translate(0, 0.07, 0);
+      B.geometry('rope', rope, null);
+      for (let k = 0; k < 4; k++) {
+        const a = k * Math.PI / 2 + Math.PI / 4;
+        const loop = new THREE.TorusGeometry(0.1, 0.012, 4, 10);
+        loop.rotateY(-a); loop.translate(Math.cos(a) * 0.32, 0, Math.sin(a) * 0.32);
+        B.geometry('rope', loop, null);
+      }
     },
   },
+  poolRail: {
+    // chrome handrail along a pool or ledge edge (len along local x)
+    colliders: p => [[-(p.len || 2) / 2, 0, -0.05, (p.len || 2) / 2, 1.05, 0.05]],
+    navBlock: false,
+    build(p, B) {
+      const len = p.len || 2;
+      for (let x = -len / 2 + 0.1; x <= len / 2 - 0.09; x += (len - 0.2) / Math.max(1, Math.round(len - 0.2))) B.tube('railSteel', x, 0, 0, x, 1.0, 0, 0.022, 6);
+      B.tube('railSteel', -len / 2 + 0.1, 1.0, 0, len / 2 - 0.1, 1.0, 0, 0.026, 6);
+      B.tube('railSteel', -len / 2 + 0.1, 0.55, 0, len / 2 - 0.1, 0.55, 0, 0.018, 6);
+    },
+  },
+  spiralStair: {
+    // square spiral staircase climbing round a tiled core inside a 6 m shaft:
+    // flights along each wall, landings in the corners
+    colliders: p => spiralParts(p.h || STAIR.H).boxes,
+    build(p, B) {
+      const { boxes, top } = spiralParts(p.h || STAIR.H);
+      const S = STAIR.side, half = S / 2, core = half - STAIR.band;
+      for (const b of boxes) {
+        if (b.core) { B.box('poolTile', 0, b[4] / 2, 0, core * 2, b[4], core * 2, 1); continue; }
+        const w = b[3] - b[0], d = b[5] - b[2];
+        B.box(b.land ? 'poolTileBlue' : 'poolTile', (b[0] + b[3]) / 2, b[4] - 0.15, (b[2] + b[5]) / 2, w, 0.3, d, 1);
+        B.box('chrome', (b[0] + b[3]) / 2, b[4] + 0.004, (b[2] + b[5]) / 2, w * 0.98, 0.008, d * 0.98, 0.3);
+      }
+      // handrail on the core, a band of blue tile every turn
+      for (let y = 1; y < top; y += 2) B.box('poolTileBlue', 0, y, 0, core * 2 + 0.02, 0.18, core * 2 + 0.02, 0.4);
+    },
+  },
+});
+
+// Stair geometry (prop-local, origin at the shaft centre). Each step is a
+// slab collider; the player walks round and up. Returns {boxes, top, land}.
+function spiralParts(H) {
+  const S = STAIR.side, half = S / 2, band = STAIR.band, rise = STAIR.rise, n = STAIR.steps;
+  const boxes = [];
+  const core = [-(half - band), 0, -(half - band), half - band, H + 3, half - band];
+  core.core = true; boxes.push(core);
+  // walk the band clockwise: corners NW -> NE -> SE -> SW
+  const corners = [[-half, -half], [half - band, -half], [half - band, half - band], [-half, half - band]];
+  let y = 0, k = 0, lastLanding = null;
+  while (y + rise * n <= H) {
+    const [cx, cz] = corners[k % 4];
+    const land = [cx, y - 0.3, cz, cx + band, y, cz + band]; land.land = true;
+    if (y > 0) boxes.push(land);
+    lastLanding = { x: cx + band / 2, z: cz + band / 2, y, side: k % 4 };
+    // flight from this corner to the next
+    const tread = (S - 2 * band) / n;
+    for (let s = 0; s < n; s++) {
+      const top = y + rise * (s + 1);
+      let b;
+      if (k % 4 === 0) b = [-half + band + s * tread, top - 0.3, -half, -half + band + (s + 1) * tread, top, -half + band];
+      else if (k % 4 === 1) b = [half - band, top - 0.3, -half + band + s * tread, half, top, -half + band + (s + 1) * tread];
+      else if (k % 4 === 2) b = [half - band - (s + 1) * tread, top - 0.3, half - band, half - band - s * tread, top, half];
+      else b = [-half, top - 0.3, half - band - (s + 1) * tread, -half + band, top, half - band - s * tread];
+      boxes.push(b);
+    }
+    y += rise * n; k++;
+  }
+  const [cx, cz] = corners[k % 4];
+  const land = [cx, y - 0.3, cz, cx + band, y, cz + band]; land.land = true; boxes.push(land);
+  lastLanding = { x: cx + band / 2, z: cz + band / 2, y, side: k % 4 };
+  return { boxes, top: y, land: lastLanding };
+}
+
+// Hatch in the ceiling at the top of the spiral staircase.
+registerObjectKind('roofHatch', {
+  build(o, game) {
+    const g = new THREE.Group();
+    const frame = game.lib.dyn('darkMetal');
+    for (const [x, z, w, d] of [[0, -0.6, 1.3, 0.1], [0, 0.6, 1.3, 0.1], [-0.6, 0, 0.1, 1.3], [0.6, 0, 0.1, 1.3]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, d), frame); m.position.set(x, 2.55, z); g.add(m); }
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.06, 1.1), game.lib.dyn('paintedMetal')); lid.position.set(0, 2.58, 0); g.add(lid);
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.025, 6, 14), game.lib.dyn('chrome')); wheel.rotation.x = Math.PI / 2; wheel.position.set(0, 2.5, 0); g.add(wheel);
+    // a short ladder up to it
+    for (const sx of [-0.22, 0.22]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.6, 0.04), frame); r.position.set(sx, 1.3, 0.62); g.add(r); }
+    for (let y = 0.3; y < 2.5; y += 0.3) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.44, 5), frame); r.rotation.z = Math.PI / 2; r.position.set(0, y, 0.62); g.add(r); }
+    return g;
+  },
+  prompt: () => 'Climb through the hatch',
+  radius: 1.1, centerY: 1.6,
 });
 
 LIGHT_VISUALS.skylight = (l, B) => {
@@ -109,6 +202,8 @@ function zoneFor(level, cx, cz) {
   if (inChunk(by.exit)) return 'deep';
   if (inChunk(by.key)) return 'corridors';
   if (cx === 0 && cz === 0) return 'hall';
+  // the blue halls: whole districts of darker, deeper pools
+  if (Math.max(Math.abs(cx), Math.abs(cz)) > 1 && hash01(Math.floor(cx / 3), Math.floor(cz / 3), level.levelSeed, 35) < 0.22) return 'blue';
   const h = hash01(cx, cz, level.levelSeed, 31) * 0.65 + hash01(Math.floor(cx / 2), Math.floor(cz / 2), level.levelSeed, 32) * 0.35;
   return h < 0.45 ? 'hall' : h < 0.75 ? 'corridors' : 'flooded';
 }
@@ -136,11 +231,96 @@ function carvePool(c, x0, z0, x1, z1, depth, rng, opts = {}) {
   }
 }
 
+// Chrome rails along some edges of a pool (never the steps end).
+function railPool(c, rng, x0, z0, x1, z1, steps) {
+  const alongX = x1 - x0 >= z1 - z0;
+  const dry = (x, z) => x >= 0 && z >= 0 && x < CS && z < CS && c.type[z * CS + x] === T_FLOOR && c.floor[z * CS + x] === 0 && c.ramp[z * CS + x] < 0;
+  const sides = [['n', 0, -1], ['s', 0, 1], ['w', -1, 0], ['e', 1, 0]];
+  for (const [side, dx, dz] of sides) {
+    if (steps && (alongX ? side === 'w' : side === 'n')) continue;
+    if (!rng.chance(0.6)) continue;
+    const gap = rng.int(0, 3);
+    const len = dx ? z1 - z0 + 1 : x1 - x0 + 1;
+    for (let k = 0; k < len; k++) {
+      if (k === gap) continue; // a way in
+      const px = dx ? (dx < 0 ? x0 : x1) : x0 + k, pz = dz ? (dz < 0 ? z0 : z1) : z0 + k;
+      if (!dry(px + dx, pz + dz)) continue;
+      const wx = c.x0 + (px + 0.5) * TILE + dx * (TILE / 2 + 0.07), wz = c.z0 + (pz + 0.5) * TILE + dz * (TILE / 2 + 0.07);
+      addProp(c, 'poolRail', wx, 0, wz, dx ? Math.PI / 2 : 0, { len: TILE });
+    }
+  }
+}
+
+// A raised tiled ledge with a stair and railings, inside a hall.
+function raisedLedge(c, rng, ceil) {
+  const H = 1.75;
+  for (let tries = 0; tries < 8; tries++) {
+    const w = rng.int(2, 4), h = rng.int(3, 5);
+    const x0 = rng.int(2, CS - 3 - w), z0 = rng.int(2, CS - 3 - h);
+    let ok = true;
+    for (let z = z0 - 1; z <= z0 + h && ok; z++) for (let x = x0 - 1; x <= x0 + w && ok; x++) {
+      const i = z * CS + x;
+      if (c.type[i] !== T_FLOOR || c.floor[i] !== 0 || (c.flags[i] & F_RESERVED) || c.ramp[i] >= 0) ok = false;
+    }
+    if (!ok) continue;
+    for (let z = z0; z < z0 + h; z++) for (let x = x0; x < x0 + w; x++) { const i = z * CS + x; c.floor[i] = H; c.fmat[i] = 1; c.flags[i] |= F_RESERVED; }
+    // a stair tile on the south side, rising north onto the ledge
+    const sx = x0 + rng.int(0, w - 1), sz = z0 + h;
+    const si = sz * CS + sx;
+    c.floor[si] = 0; c.ramp[si] = 3; c.rampH[si] = H; c.flags[si] |= F_RESERVED;
+    // railings on the open edges (not where the stair arrives)
+    for (let z = z0; z < z0 + h; z++) for (let x = x0; x < x0 + w; x++) {
+      for (const [dx, dz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+        const nx = x + dx, nz = z + dz;
+        if (nx >= x0 && nx < x0 + w && nz >= z0 && nz < z0 + h) continue;
+        if (nx === sx && nz === sz) continue;
+        if (c.type[nz * CS + nx] !== T_FLOOR) continue;
+        addProp(c, 'poolRail', c.x0 + (x + 0.5) * TILE + dx * (TILE / 2 - 0.08), H, c.z0 + (z + 0.5) * TILE + dz * (TILE / 2 - 0.08), dx ? Math.PI / 2 : 0, { len: TILE });
+      }
+    }
+    // a few things up there: a lounger, the lifeguard's kit
+    const cx = c.x0 + (x0 + w / 2) * TILE, cz = c.z0 + (z0 + h / 2) * TILE;
+    addProp(c, 'lounger', cx - 0.6, H, cz, rng.float(-0.3, 0.3));
+    if (rng.chance(0.7)) addContainer(c, rng, rng.chance(0.5) ? 'cabinet' : 'crate', LOOT, c.x0 + (x0 + 0.5) * TILE, H, c.z0 + (z0 + 0.4) * TILE, 0, [1, 3]);
+    if (rng.chance(0.5)) addPickup(c, rng, LOOT, cx + 0.7, H, cz + 0.6);
+    return { x0, z0, w, h };
+  }
+  return null;
+}
+
+// The rare way to Level 4: a tall square shaft with a staircase spiralling up
+// round a tiled core, and a hatch in the ceiling at the very top.
+function spiralExit(c, rng, se, level) {
+  const lx = Math.max(2, Math.min(CS - 5, se.lx - 1)), lz = Math.max(2, Math.min(CS - 5, se.lz - 1));
+  const H = STAIR.H;
+  clearArea(c, c.x0 + (lx - 1) * TILE, c.z0 + (lz - 1) * TILE, c.x0 + (lx + 4) * TILE, c.z0 + (lz + 4) * TILE);
+  fillRect(c, lx - 1, lz - 1, lx + 3, lz + 3, 0);
+  const { top, land } = spiralParts(H);
+  carveRect(c, lx, lz, lx + 2, lz + 2, { floor: 0, ceil: top + 2.8, fmat: 0, cmat: 1, water: NO_WATER, flags: F_ROOM | F_RESERVED | F_LANDMARK | F_DARK });
+  // doorway on the west side at the foot of the first flight (NW corner), then a corridor out
+  openTile(c, lx - 1, lz, { floor: 0, ceil: 3, fmat: 0, cmat: 0, water: NO_WATER, flags: F_RESERVED });
+  for (let x = lx - 2; x >= 0; x--) {
+    const i = lz * CS + x;
+    const wasOpen = c.type[i] === T_FLOOR;
+    if (wasOpen && c.floor[i] === 0 && !(c.water[i] > NO_WATER + 1)) break;
+    openTile(c, x, lz, { floor: 0, ceil: 3, fmat: 0, cmat: 0, water: NO_WATER });
+  }
+  const ox = c.x0 + (lx + 1.5) * TILE, oz = c.z0 + (lz + 1.5) * TILE;
+  addProp(c, 'spiralStair', ox, 0, oz, 0, { h: H });
+  addObject(c, { kind: 'roofHatch', x: ox + land.x, y: top, z: oz + land.z, ry: 0, to: level.def.next });
+  addDecal(c, { name: 'text3', x: c.x0 + (lx - 1) * TILE + 0.01, y: 2.2, z: c.z0 + (lz + 0.5) * TILE, nx: 1, ny: 0, nz: 0, size: 1 });
+  // bare bulbs every turn, and a cold light at the top
+  for (let y = 2.8; y < top; y += 4) addLight(c, { kind: 'bulb', cord: 0.15, x: ox + (y % 8 < 4 ? -2.2 : 2.2), y: y + 1.6, z: oz + (y % 8 < 4 ? -2.2 : 2.2), color: [0.8, 0.95, 1], intensity: 2.6, range: 7, flicker: rng.chance(0.25) ? 0.4 : 0, broken: rng.chance(0.15) });
+  addLight(c, { kind: 'none', x: ox + land.x, y: top + 2.2, z: oz + land.z, color: [1, 0.95, 0.85], intensity: 3, range: 6 });
+  addNote(c, 'l3_d', ox - 2.3, 0.005, oz - 1.6, 0.4);
+  return true;
+}
+
 export default {
   id: 'L3',
   name: 'Level 3',
   title: 'Pool Rooms',
-  next: 'L5',
+  next: 'L4',
   objective: 'Find the drain valve key in a pump room, then open the MAIN DRAIN in the deepest pool.',
   objectiveText(game) {
     if (game.world.flag('L3', 'drainOpen')) return 'The main drain is open. Swim down through it.';
@@ -148,20 +328,20 @@ export default {
   },
   subtitle: 'The water is warm, and far too clear.',
   palette: {
-    floor: [{ mat: 'poolTile', scale: 2 }, { mat: 'poolTileBlue', scale: 2, stairMat: 'poolTile' }, { mat: 'black', scale: 2 }],
-    wall: [{ mat: 'poolTile', scaleU: 2, scaleV: 2, vBase: 'abs' }],
+    floor: [{ mat: 'poolTile', scale: 2 }, { mat: 'poolTileBlue', scale: 2, stairMat: 'poolTile' }, { mat: 'black', scale: 2 }, { mat: 'poolTileDeep', scale: 2, stairMat: 'poolTileBlue' }],
+    wall: [{ mat: 'poolTile', scaleU: 2, scaleV: 2, vBase: 'abs' }, { mat: 'poolTileBlue', scaleU: 2, scaleV: 2, vBase: 'abs' }],
     ceil: [{ mat: 'poolTile', scale: 2 }, { mat: 'concrete', scale: 3 }],
     ledge: { mat: 'poolTileBlue', scale: 2 },
     soffit: { mat: 'poolTile', scaleU: 2, scaleV: 2 },
   },
-  materials: ['poolTile', 'poolTileBlue', 'concrete', 'chrome', 'plastic', 'laminate', 'darkMetal', 'paintedMetal', 'rustMetal', 'glowWhite', 'glowRed', 'glowGreen', 'glowAmber', 'black', 'paper', 'cardboard', 'woodCrate', 'bulbWarm', 'hazard', 'plasticDark', 'rubber'],
-  ambient: [0.075, 0.09, 0.1],
+  materials: ['poolTile', 'poolTileBlue', 'poolTileDeep', 'ringRed', 'ringWhite', 'rope', 'railSteel', 'concrete', 'chrome', 'plastic', 'laminate', 'darkMetal', 'paintedMetal', 'rustMetal', 'glowWhite', 'glowRed', 'glowGreen', 'glowAmber', 'black', 'paper', 'cardboard', 'woodCrate', 'bulbWarm', 'hazard', 'plasticDark', 'rubber'],
+  ambient: [0.065, 0.078, 0.088],
   bakeGain: 0.07,
   exposure: 1.0,
   fog: { color: 0x84a0a8, density: 0.022 },
   background: 0x8fa8b0,
   waterFog: 0.09, waterFogColor: 0x2a8a96,
-  grade: { lift: [0.01, 0.02, 0.03], gamma: [1.0, 1.0, 1.0], gain: [0.98, 1.02, 1.04], saturation: 0.88, tint: [0.97, 1.0, 1.02], vignette: 0.4, grain: 0.035, bloomStrength: 0.55, bloomThreshold: 0.85 },
+  grade: { lift: [0.01, 0.02, 0.03], gamma: [1.0, 1.0, 1.0], gain: [0.98, 1.02, 1.04], saturation: 0.88, tint: [0.97, 1.0, 1.02], vignette: 0.42, grain: 0.035, bloomStrength: 0.45, bloomThreshold: 0.86 },
   hemi: { sky: 0xdff4ff, ground: 0x5a7a80, intensity: 0.35 },
   dust: { color: 0xffffff, opacity: 0.18 },
   waterMat: 'water',
@@ -174,7 +354,10 @@ export default {
   entities: {
     primary: 'undertow', max: 1, spawnCd: 50, minDist: 14, maxDist: 30, rare: ['lookalike'],
     spawnFilter: (level, x, z) => level.waterAt(x, z) > level.floorAt(x, z) + 1.4,
+    // the blue halls are where they breed
+    secondary: [{ type: 'undertow', max: 1, spawnCd: 60, chance: 0.12, boost: ctx => ctx.players.some(p => zoneFor(ctx.level, Math.floor(p.x / 32), Math.floor(p.z / 32)) === 'blue') }],
   },
+  exitStyle: 'mosaic',
   allowBlackout: false,
   eventSounds: ['splash', 'drip', 'whisper', 'tideGroan', 'knock'],
 
@@ -189,9 +372,10 @@ export default {
     const env = makeEnvMap(game.engine.renderer, 0xe8f6ff, 0xb0d8e0, 0x2a7a88, [[0, 9, 0, 0xffffff, 6]]);
     const water = makeWaterMaterial(game.lib, { color: 0x167f8f, opacity: 0.42, envMap: env, envIntensity: 0.75, normalScale: 0.55, flow: 0.7 });
     game.lib.register('water', water);
+    game.lib.register('waterDeep', makeWaterMaterial(game.lib, { color: 0x0a2a5a, opacity: 0.7, envMap: env, envIntensity: 0.5, normalScale: 0.5, flow: 0.5 }));
     game.lib.register('skyGlow', new THREE.MeshBasicMaterial({ color: new THREE.Color(0xd8f0ff).multiplyScalar(2.2) }));
     // caustics on submerged tiles
-    for (const name of ['poolTileBlue', 'poolTile']) {
+    for (const name of ['poolTileBlue', 'poolTile', 'poolTileDeep']) {
       const m = game.lib.get(name);
       if (m.userData.caustics) continue;
       m.userData.caustics = true;
@@ -225,7 +409,7 @@ export default {
     }
   },
 
-  sideExit: { p: 0.1, minR: 2 },
+  sideExit: { p: 0.05, minR: 2 },
 
   generate(c, ctx) {
     const { rng, level, ports, landmarks } = ctx;
@@ -249,7 +433,7 @@ export default {
         const gx = c.x0 + ex * TILE + 1, gz = c.z0 + ez * TILE + 1;
         const grate = addObject(c, { kind: 'drainGrate', x: gx, y: -6.0, z: gz, ry: 0 });
         grate.collider = c.addCollider(gx - 1, -6.15, gz - 1, gx + 1, -5.95, gz + 1, false);
-        addObject(c, { kind: 'exit', x: gx, y: -8.0, z: gz, r: 1.1, to: 'L5', requires: 'drainOpen' });
+        addObject(c, { kind: 'exit', x: gx, y: -8.0, z: gz, r: 1.1, to: 'L4', requires: 'drainOpen' });
         addProp(c, 'poolLadder', c.x0 + (ex - 3) * TILE + 0.5, 0, c.z0 + (ez - 3) * TILE + 0.02, 0, { depth: 6 });
         addLight(c, { kind: 'none', x: gx, y: -5.4, z: gz, color: [0.4, 1, 0.9], intensity: 3, range: 6, flicker: 0.1 });
         addDecal(c, { name: 'text0', x: c.x0 + (ex - 4) * TILE + 1, y: 0.005, z: c.z0 + (ez + 3.5) * TILE, nx: 0, ny: 1, nz: 0, size: 1.6, rot: 0 });
@@ -259,11 +443,14 @@ export default {
         for (let k = 0; k < pools; k++) {
           const w = rng.int(3, 7), h = rng.int(3, 5);
           const x = rng.int(2, CS - 3 - w), z = rng.int(2, CS - 3 - h);
-          carvePool(c, x, z, x + w - 1, z + h - 1, rng.pick([1.4, 2.2, 3.0, 4.5]), rng, { steps: rng.chance(0.7) });
+          const steps = rng.chance(0.7);
+          carvePool(c, x, z, x + w - 1, z + h - 1, rng.pick([1.4, 2.2, 3.0, 4.5]), rng, { steps });
+          if (rng.chance(0.45)) railPool(c, rng, x, z, x + w - 1, z + h - 1, steps);
           if (rng.chance(0.5)) addProp(c, 'lifeguard', c.x0 + (x + w) * TILE + 0.7, 0, c.z0 + (z + 0.5) * TILE, -Math.PI / 2);
           if (rng.chance(0.6)) addProp(c, 'floatRing', c.x0 + (x + rng.float(0.5, w - 0.5)) * TILE, WL + 0.02, c.z0 + (z + rng.float(0.5, h - 0.5)) * TILE, 0, { alt: rng.chance(0.5) });
-          addLight(c, { kind: 'skylight', x: c.x0 + (x + w / 2) * TILE, y: ceil - 0.01, z: c.z0 + (z + h / 2) * TILE, w: Math.min(6, w * 1.4), d: Math.min(5, h * 1.4), color: [0.85, 0.95, 1.0], intensity: 9, range: 14 });
+          addLight(c, { kind: 'skylight', x: c.x0 + (x + w / 2) * TILE, y: ceil - 0.01, z: c.z0 + (z + h / 2) * TILE, w: Math.min(6, w * 1.4), d: Math.min(5, h * 1.4), color: [0.85, 0.95, 1.0], intensity: 7.5, range: 14 });
         }
+        if (rng.chance(0.45)) raisedLedge(c, rng, ceil);
       }
       // pillars on a loose grid (not in pools)
       for (let lz = 2; lz < CS - 1; lz += 4) for (let lx = 2; lx < CS - 1; lx += 4) {
@@ -275,7 +462,36 @@ export default {
       for (let lz = 1; lz < CS; lz += 3) for (let lx = 1; lx < CS; lx += 4) {
         const i = lz * CS + lx;
         if (c.type[i] !== T_FLOOR || rng.chance(0.2)) continue;
-        addLight(c, { kind: 'strip', x: c.tx(lx), y: c.ceil[i] - 0.01, z: c.tz(lz), d: 2.4, color: WHITE, intensity: 5, range: 10, flicker: rng.chance(0.08) ? 0.5 : 0 });
+        addLight(c, { kind: 'strip', x: c.tx(lx), y: c.ceil[i] - 0.01, z: c.tz(lz), d: 2.4, color: WHITE, intensity: 4.2, range: 10, flicker: rng.chance(0.08) ? 0.5 : 0 });
+      }
+    } else if (zone === 'blue') {
+      // the blue halls: tall, dim, navy-tiled, with big deep pools of dark water
+      const ceil = rng.pick([6, 7, 8]);
+      carveRect(c, 0, 0, CS - 1, CS - 1, T(ceil, { flags: F_ROOM, fmat: 1 }));
+      for (let i = 0; i < CS * CS; i++) c.wmat[i] = 1;
+      for (let k = rng.int(0, 2); k > 0; k--) { const x = rng.int(1, 12), z = rng.int(1, 12); fillRect(c, x, z, x + rng.int(0, 1), z + rng.int(0, 2), 1); }
+      c.meta.waterMat = 'waterDeep';
+      const pools = rng.int(1, 2);
+      for (let k = 0; k < pools; k++) {
+        const w = rng.int(6, 10), h = rng.int(5, 8);
+        const x = rng.int(1, CS - 2 - w), z = rng.int(1, CS - 2 - h);
+        const steps = rng.chance(0.5);
+        carvePool(c, x, z, x + w - 1, z + h - 1, rng.pick([4.5, 6, 7.5]), rng, { steps });
+        for (let zz = z; zz < z + h; zz++) for (let xx = x; xx < x + w; xx++) { const i = zz * CS + xx; if (c.type[i] === T_FLOOR && c.floor[i] < -0.1) c.fmat[i] = 3; }
+        if (rng.chance(0.6)) railPool(c, rng, x, z, x + w - 1, z + h - 1, steps);
+        if (rng.chance(0.4)) addProp(c, 'floatRing', c.x0 + (x + rng.float(0.5, w - 0.5)) * TILE, WL + 0.02, c.z0 + (z + rng.float(0.5, h - 0.5)) * TILE, 0, { alt: rng.chance(0.5) });
+        // a single dim skylight over the deep end
+        if (rng.chance(0.6)) addLight(c, { kind: 'skylight', x: c.x0 + (x + w / 2) * TILE, y: ceil - 0.01, z: c.z0 + (z + h / 2) * TILE, w: 4, d: 4, color: [0.6, 0.78, 1.0], intensity: 4.5, range: 14 });
+      }
+      for (let lz = 2; lz < CS - 1; lz += 5) for (let lx = 2; lx < CS - 1; lx += 5) {
+        const i = lz * CS + lx;
+        if (c.type[i] !== T_FLOOR || c.floor[i] !== 0 || (c.flags[i] & F_RESERVED) || rng.chance(0.3)) continue;
+        addProp(c, 'tilePillar', c.tx(lx), 0, c.tz(lz), 0, { h: ceil });
+      }
+      for (let lz = 1; lz < CS; lz += 4) for (let lx = 2; lx < CS; lx += 5) {
+        const i = lz * CS + lx;
+        if (c.type[i] !== T_FLOOR || rng.chance(0.35)) continue;
+        addLight(c, { kind: 'strip', x: c.tx(lx), y: c.ceil[i] - 0.01, z: c.tz(lz), d: 2.4, color: DEEPBLUE, intensity: 3.2, range: 10, flicker: rng.chance(0.15) ? 0.5 : 0, broken: rng.chance(0.1) });
       }
     } else if (zone === 'corridors') {
       fillRect(c, 0, 0, CS - 1, CS - 1, 0);
@@ -292,7 +508,7 @@ export default {
         const i = lz * CS + lx;
         const tx = c.cx * CS + lx, tz = c.cz * CS + lz;
         if (c.type[i] !== T_FLOOR || (tx + tz) % 3 !== 0) continue;
-        addLight(c, { kind: 'strip', x: c.tx(lx), y: c.ceil[i] - 0.01, z: c.tz(lz), d: 1.6, color: WHITE, intensity: 3.6, range: 7.5, flicker: rng.chance(0.1) ? rng.float(0.3, 0.8) : 0, broken: rng.chance(0.06) });
+        addLight(c, { kind: 'strip', x: c.tx(lx), y: c.ceil[i] - 0.01, z: c.tz(lz), d: 1.6, color: WHITE, intensity: 3.1, range: 7.5, flicker: rng.chance(0.1) ? rng.float(0.3, 0.8) : 0, broken: rng.chance(0.06) });
       }
     } else { // flooded
       carveRect(c, 0, 0, CS - 1, CS - 1, T(4));
@@ -304,7 +520,7 @@ export default {
       for (let lz = 1; lz < CS; lz += 3) for (let lx = 1; lx < CS; lx += 3) {
         const i = lz * CS + lx;
         if (c.type[i] !== T_FLOOR) continue;
-        addLight(c, { kind: 'strip', x: c.tx(lx), y: c.ceil[i] - 0.01, z: c.tz(lz), d: 2, color: [0.8, 0.95, 1.0], intensity: 3.4, range: 8, flicker: rng.chance(0.15) ? 0.5 : 0, broken: rng.chance(0.1) });
+        addLight(c, { kind: 'strip', x: c.tx(lx), y: c.ceil[i] - 0.01, z: c.tz(lz), d: 2, color: [0.8, 0.95, 1.0], intensity: 3.0, range: 8, flicker: rng.chance(0.15) ? 0.5 : 0, broken: rng.chance(0.1) });
       }
     }
 
@@ -328,6 +544,8 @@ export default {
       }
     }
 
+    const se = sideExitAt(level, c.cx, c.cz);
+    if (se) spiralExit(c, rng, se, level);
     openPorts(c, ports, () => T(3), 1);
     ensureConnected(c, ports, () => T(3));
 
@@ -340,7 +558,7 @@ export default {
     if (rng.chance(0.35)) { const s = take(spots); if (s) { const p = wallPos(c, s, 0.4); addContainer(c, rng, rng.chance(0.5) ? 'cardboard' : 'cabinet', LOOT, p.x, 0, p.z, yawFor(s.nx, s.nz), [1, 2]); } }
     if (rng.chance(0.15)) { const s = take(spots); if (s) { const p = wallPos(c, s, 0.4); addNote(c, rng.pick(this.notes), p.x, 0.005, p.z, rng.float(0, 6)); } }
     if (rng.chance(0.06)) addVignette(c, rng, addProp, this.notes);
-    addHatchExit(c, level, { label: 'service hatch', mat: 'paintedMetal' });
+    addLevelDoor(c, level, rng, 'L2', { p: 0.03, minR: 3, salt: 1401, label: 'LEVEL 2' });
     for (let k = rng.int(1, 2); k > 0; k--) {
       const lx = rng.int(0, CS - 1), lz = rng.int(0, CS - 1), i = lz * CS + lx;
       if (!dry(lx, lz, i)) continue;
@@ -353,9 +571,9 @@ export default {
         if (c.type[i] === T_FLOOR && c.floor[i] < -1.2 && c.ramp[i] < 0 && !(c.flags[i] & F_LANDMARK)) { addPickup(c, rng, LOOT, c.tx(lx), c.floor[i], c.tz(lz)); break; }
       }
     }
-    const exitL = level.byType.exit;
+    const goal = nearestExit(level, c.x0 + 16, c.z0 + 16);
     const ws = wallSpots(c);
-    if (rng.chance(0.4)) addWayfinding(c, rng, ws, { x: (exitL.tx + 0.5) * TILE, z: (exitL.tz + 0.5) * TILE }, { name: 'arrow' });
+    if (!addPortArrow(c, rng, ports, goal, { count: 1 }) && rng.chance(0.5)) addWayfinding(c, rng, ws, goal, { name: 'arrow' });
     if (rng.chance(0.2) && ws.length) { const s = rng.pick(ws), p = wallPos(c, s); addDecal(c, { name: rng.pick(['text1', 'text2', 'text3', 'drip', 'hand']), x: p.x, y: rng.float(0.9, 1.7), z: p.z, nx: s.nx, ny: 0, nz: s.nz, size: 1 }); }
     for (let k = rng.int(0, 2); k > 0; k--) {
       const lx = rng.int(0, CS - 1), lz = rng.int(0, CS - 1), i = lz * CS + lx;
@@ -385,6 +603,12 @@ export default {
   },
 
   interact(game, o, s) {
+    if (o.kind === 'roofHatch') {
+      game.sfx('metalGroan', o, { volume: 0.8 });
+      game.subtitle('The wheel turns. Above the hatch: carpet, and the smell of old rain.', 2.5);
+      game.useExit(o.to);
+      return;
+    }
     if (o.kind === 'drainGrate' && !s?.open) {
       if (game.inventory.has('drainKey')) { game.request({ t: 'int', l: 'L3', id: o.id, a: 'open' }); game.sfx('unlock', o, {}); }
       else { game.sfx('doorLocked', o, {}); game.subtitle('The valve won\'t budge. You need the drain valve key.', 2); }
@@ -406,8 +630,11 @@ export default {
   },
 
   clientUpdate(game, dt) {
-    // pull toward the open drain when close
     const P = game.player;
+    // darker, murkier water in the blue halls
+    const blue = game.level.chunks.get(Math.floor(P.pos.x / 32) + ',' + Math.floor(P.pos.z / 32))?.meta.zone === 'blue';
+    game.waterFogNow = blue ? 0.16 : undefined; game.waterFogColorNow = blue ? 0x0c2850 : undefined;
+    // pull toward the open drain when close
     if (!game.world.flag('L3', 'drainOpen')) return;
     const ch = game.level.chunks.get(Math.floor(P.pos.x / 32) + ',' + Math.floor(P.pos.z / 32));
     const dp = ch?.meta.deepPool;

@@ -263,7 +263,7 @@ export function addLevelDoor(c, level, rng, to, opts = {}) {
   if (opts.near) s = spots.reduce((b, q) => (Math.hypot(c.tx(q.lx) - opts.near.x, c.tz(q.lz) - opts.near.z) < Math.hypot(c.tx(b.lx) - opts.near.x, c.tz(b.lz) - opts.near.z) ? q : b), s);
   const p = wallPos(c, s, 0.08);
   c.flags[s.i] |= F_RESERVED;
-  const label = opts.label || ('LEVEL ' + to.slice(1));
+  const label = opts.label || (to === 'LG' ? 'LEVEL GUG' : 'LEVEL ' + to.slice(1));
   return addObject(c, { kind: 'levelDoor', to, label, x: p.x, y: opts.floor ?? 0, z: p.z, ry: yawFor(s.nx, s.nz) });
 }
 

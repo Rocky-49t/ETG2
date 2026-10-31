@@ -98,6 +98,11 @@ export const MATERIAL_DEFS = {
   ringWhite: { params: { color: 0xf0ece4, roughness: 0.45 } },
   rope: { params: { color: 0xb8a77a, roughness: 0.95 } },
   railSteel: { params: { color: 0xc9d2d6, roughness: 0.3, metalness: 0.25 } },
+  // Level Gug
+  gugConcrete: { recipe: 'concrete', params: { roughness: 1, color: 0xf4f6f8 }, stains: { body: '0.12, 0.12, 0.12', rim: '0.06, 0.06, 0.06' } },
+  gugTile: { recipe: 'poolTile', params: { roughness: 1, color: 0x8e9296 } },
+  gugDark: { recipe: 'drywall', params: { roughness: 1, color: 0x6a6e72 } },
+  gugFloor: { recipe: 'concrete', params: { roughness: 1, color: 0x8a8e92 } },
   // bases
   rqRed: { params: { color: 0xa81e18, roughness: 0.6 } },
   rqBlack: { params: { color: 0x1d1d20, roughness: 0.55 } },

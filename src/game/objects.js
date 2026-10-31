@@ -141,7 +141,7 @@ OBJECT_KINDS.hatch = {
 };
 
 // A door marked with another level's name: walking through takes you there.
-const LEVEL_DOOR_COLORS = { L0: 0xc9b46a, L1: 0x6a4a32, L2: 0x8a8f96, L3: 0x9ec8d6, L4: 0xb8ad94, L5: 0x6c7278 };
+const LEVEL_DOOR_COLORS = { L0: 0xc9b46a, L1: 0x6a4a32, L2: 0x8a8f96, L3: 0x9ec8d6, L4: 0xb8ad94, L5: 0x6c7278, LG: 0x4a4c50 };
 OBJECT_KINDS.levelDoor = {
   build(o, game) {
     const g = new THREE.Group();

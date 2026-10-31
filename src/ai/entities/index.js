@@ -10,8 +10,9 @@ import scuttler from './scuttler.js';
 import deedee from './deedee.js';
 import platsnake from './platsnake.js';
 import { ririqian, didhNpc } from './npc.js';
+import { gugwalker, gugcrawler } from './gug.js';
 
 export const ENTITY_TYPES = {};
-for (const d of [hush, lookalike, marrowhound, inkwalker, undertow, goaner, scuttler, deedee, platsnake, ririqian, didhNpc]) ENTITY_TYPES[d.type] = d;
+for (const d of [hush, lookalike, marrowhound, inkwalker, undertow, goaner, scuttler, deedee, platsnake, ririqian, didhNpc, gugwalker, gugcrawler]) ENTITY_TYPES[d.type] = d;
 
 export function registerEntity(def) { ENTITY_TYPES[def.type] = def; }

@@ -939,3 +939,40 @@ Object.assign(SFX, {
     return { stop() { a.stop(); b.stop(); lf.stop(); } };
   },
 });
+
+// ---------------------------------------------------------------- Level Gug
+Object.assign(SFX, {
+  // a thin, rising, almost-human wail that cuts off
+  gugScream(A, dest, o, t) {
+    const v = osc(A, 'sawtooth', 380); v.frequency.exponentialRampToValueAtTime(1150, t + 0.7); v.frequency.exponentialRampToValueAtTime(900, t + 1.0);
+    const fm = osc(A, 'sine', 6); const fg = gain(A, 40); fm.connect(fg).connect(v.frequency);
+    const fa = filt(A, 'bandpass', 1300, 6), fb = filt(A, 'bandpass', 2600, 8);
+    const g = gain(A, 0); v.connect(fa).connect(g); v.connect(fb).connect(g); g.connect(dest);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.35, t + 0.15); g.gain.setValueAtTime(0.32, t + 0.9); g.gain.linearRampToValueAtTime(0.0001, t + 1.02);
+    v.start(t); v.stop(t + 1.05); fm.start(t); fm.stop(t + 1.05);
+    burst(A, dest, t, { type: 'highpass', freq: 3000, a: 0.1, d: 0.9, vol: 0.12 });
+    return 1.1;
+  },
+  gugStep(A, dest, o, t) {
+    const v = o.volume ?? 1;
+    burst(A, dest, t, { type: 'bandpass', freq: 1400 + Math.random() * 600, Q: 3, d: 0.03, vol: 0.45 * v });
+    tone(A, dest, t, { freq: 90, to: 50, d: 0.06, vol: 0.18 * v });
+    return 0.1;
+  },
+  crawlerSlide(A, dest, o, t) {
+    const v = o.volume ?? 1;
+    burst(A, dest, t, { kind: 'pink', type: 'bandpass', freq: 700, Q: 1.2, a: 0.03, d: 0.25, vol: 0.3 * v, sweepTo: 400 });
+    burst(A, dest, t + 0.2, { type: 'bandpass', freq: 3200, Q: 6, d: 0.02, vol: 0.2 * v });
+    return 0.35;
+  },
+  crawlerShriek(A, dest, o, t) {
+    const v = osc(A, 'square', 220); v.frequency.exponentialRampToValueAtTime(90, t + 0.6);
+    const am = osc(A, 'square', 31); const ag = gain(A, 0.5);
+    const f = filt(A, 'bandpass', 900, 3); const g = gain(A, 0);
+    am.connect(ag).connect(g.gain); v.connect(f).connect(g).connect(dest);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.4, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+    v.start(t); v.stop(t + 0.75); am.start(t); am.stop(t + 0.75);
+    burst(A, dest, t, { kind: 'pink', type: 'lowpass', freq: 600, d: 0.6, vol: 0.3 });
+    return 0.8;
+  },
+});

@@ -531,6 +531,7 @@ export default {
     // arrival: a note where you land
     if (landmarks.some(l => l.type === 'spawn')) addNote(c, 'l4_a', c.tx(8) + 0.5, 0.004, c.tz(8) + 0.6, 0.6);
     addLevelDoor(c, level, rng, 'L3', { p: 0.03, minR: 3, salt: 1501, label: 'LEVEL 3' });
+    addLevelDoor(c, level, rng, 'LG', { p: 0.03, minR: 3, salt: 1601, label: 'LEVEL GUG' });
     // signs toward the nearest toll room
     const goal = nearestExit(level, c.x0 + 16, c.z0 + 16);
     const ws = wallSpots(c, (lx, lz, i) => !(c.flags[i] & F_ROOM));

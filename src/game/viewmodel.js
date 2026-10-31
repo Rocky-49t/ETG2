@@ -16,12 +16,15 @@ const POSES = {
   smg: { pos: [0.13, -0.14, -0.34], rot: [0, 0.04, 0], grip: [0, -0.05, 0.03], left: [-0.0, -0.06, -0.24], ads: [0, -0.07, -0.26] },
   rifle: { pos: [0.13, -0.15, -0.33], rot: [0, 0.04, 0], grip: [0, -0.05, 0.04], left: [0, -0.0, -0.3], ads: [0, -0.088, -0.24] },
   shotgun: { pos: [0.14, -0.15, -0.32], rot: [0, 0.05, 0], grip: [0, -0.05, 0.09], left: [0, -0.01, -0.3], ads: [0, -0.085, -0.22] },
+  sniper: { pos: [0.15, -0.2, -0.44], rot: [0, 0.04, 0], grip: [0, -0.05, 0.06], left: [0, -0.01, -0.34], ads: [0, -0.105, -0.26] },
   crowbar: { pos: [0.2, -0.24, -0.38], rot: [-0.3, -0.2, 0.25], grip: [0, -0.12, 0], one: true },
   knife: { pos: [0.18, -0.2, -0.34], rot: [0.1, -0.15, 0.1], grip: [0, 0.01, 0.06], one: true, bladeUp: true },
   flashlight: { pos: [0.17, -0.2, -0.42], rot: [0.02, 0.06, 0], grip: [0, -0.02, 0.03], one: true },
   lighter: { pos: [0.15, -0.17, -0.32], rot: [0, -0.2, 0], grip: [0, -0.03, 0], one: true },
   default: { pos: [0.16, -0.19, -0.34], rot: [0.2, -0.3, 0], grip: [0, -0.02, 0], one: true },
 };
+// Ririqian copies hold like the originals
+Object.assign(POSES, { rqPistol: POSES.pistol, rqRifle: POSES.rifle, rqSmg: POSES.smg, rqShotgun: POSES.shotgun, rqSniper: POSES.sniper, rqMachete: POSES.knife, rqBaton: POSES.crowbar });
 
 export class Viewmodel {
   constructor(camera, lib) {
@@ -100,7 +103,8 @@ export class Viewmodel {
         this.model.position.set(0, 0.0, 0);
       }
       if (id === 'crowbar') { this.model.rotation.set(-0.2, 0, 0); this.model.position.set(0, 0.05, 0); }
-      if (id === 'knife') { this.model.rotation.set(-0.2, 0, 0); }
+      if (id === 'knife' || id === 'rqMachete') { this.model.rotation.set(-0.2, 0, 0); }
+      if (id === 'rqBaton') { this.model.rotation.set(-0.2, 0, 0); this.model.position.set(0, 0.05, 0); }
       this.holder.add(this.model);
     }
     const P = POSES[id] || POSES.default;

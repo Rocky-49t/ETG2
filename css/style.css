@@ -509,3 +509,21 @@ h2.blood { font: 400 42px var(--type) !important; color: var(--danger) !importan
 .slot.gear.drag-over { border-color: #8fd36a; background: rgba(60, 90, 40, 0.3); }
 .inv-grid.pack { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
 .inv-grid .slot.hidden { display: none; }
+
+/* sniper scope */
+#scopeOverlay { position: fixed; inset: 0; pointer-events: none; z-index: 8; display: none; }
+#scopeOverlay.on { display: block; }
+#scopeOverlay .sc-ring { position: absolute; left: 50%; top: 50%; width: 86vmin; height: 86vmin; transform: translate(-50%, -50%); border-radius: 50%; box-shadow: 0 0 0 200vmax #000, inset 0 0 6vmin 2vmin rgba(0, 0, 0, 0.9); border: 0.6vmin solid #050505; }
+#scopeOverlay .sc-h { position: absolute; left: 7vmin; right: 7vmin; top: 50%; height: 2px; background: rgba(0, 0, 0, 0.85); }
+#scopeOverlay .sc-v { position: absolute; top: 7vmin; bottom: 7vmin; left: 50%; width: 2px; background: rgba(0, 0, 0, 0.85); }
+#scopeOverlay .sc-h::before, #scopeOverlay .sc-v::before { content: ''; position: absolute; background: #000; }
+#scopeOverlay .sc-h::before { left: 0; right: 0; top: -1.5px; height: 4px; clip-path: polygon(0 0, 38% 0, 38% 100%, 0 100%, 0 0, 62% 0, 100% 0, 100% 100%, 62% 100%); }
+#scopeOverlay .sc-dot { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: #d02a1a; }
+body.scoped #crosshair { opacity: 0; }
+
+#scannerPanel { position: absolute; left: 22px; top: 210px; min-width: 250px; padding: 8px 11px 9px; background: rgba(6, 10, 14, 0.8); border: 1px solid rgba(125, 200, 255, 0.35); border-radius: 4px; font: 12px var(--mono); color: #bfe2ff; }
+#scannerPanel.hidden { display: none; }
+#scannerPanel .tp-h { display: flex; justify-content: space-between; color: #8fd0ff; font-weight: 700; letter-spacing: 0.08em; font-size: 11px; margin-bottom: 4px; }
+#scannerPanel .tp-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; line-height: 1.55; }
+#scannerPanel .tp-row.far { color: #6f8aa0; }
+#scannerPanel .sc-bar { height: 4px; background: rgba(255, 255, 255, 0.1); margin: 3px 0 4px; } #scannerPanel .sc-bar div { height: 100%; background: #6fc0ff; }

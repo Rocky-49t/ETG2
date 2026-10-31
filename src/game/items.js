@@ -55,7 +55,20 @@ export const ITEMS = {
   decoy: { name: 'Wind-up Music Box', desc: 'Throw it. It plays loudly for 15 seconds and draws things that listen.', type: 'throwable', throw: 'decoy', stack: 3, icon: 'decoy', color: '#a77bd8' },
 
   rifle: { name: 'Service Rifle', desc: 'Expedition-issue 5.56 carbine. Accurate and hard-hitting. Thirty rounds a magazine — and not many magazines.', type: 'weapon', weapon: 'rifle', gun: true, stack: 1, data: { ammo: 30 }, icon: 'rifle', color: '#2e3228' },
-  rifleAmmo: { name: '5.56 Rounds', desc: 'For the service rifle.', type: 'ammo', stack: 60, icon: 'ammo', color: '#9aa04a' },
+  rifleAmmo: { name: 'Rifle Rounds', desc: 'For the service rifle and Ririqian rifles.', type: 'ammo', stack: 60, icon: 'ammo', color: '#9aa04a' },
+  sniper: { name: 'Sniper Rifle', desc: 'Bolt-action .308 with a 4x scope. Hold aim to look through it. Five rounds, one at a time.', type: 'weapon', weapon: 'sniper', gun: true, stack: 1, data: { ammo: 5 }, icon: 'sniper', color: '#3a3f33' },
+  sniperAmmo: { name: '.308 Rounds', desc: 'For sniper rifles.', type: 'ammo', stack: 30, icon: 'ammo', color: '#c8b070' },
+  rqPistol: { name: 'Ririqian Pistol', desc: 'Remnant sidearm, stamped with a star. Hits hard, kicks harder. 8 rounds of 9mm.', type: 'weapon', weapon: 'rqPistol', gun: true, stack: 1, data: { ammo: 8 }, icon: 'pistol', color: '#3a2420' },
+  rqRifle: { name: 'Ririqian Rifle', desc: 'The Brotherhood\'s rifle: a crude, loud copy of a foreign design. Thirty rifle rounds.', type: 'weapon', weapon: 'rqRifle', gun: true, stack: 1, data: { ammo: 30 }, icon: 'rifle', color: '#5a2a22' },
+  rqSmg: { name: 'Ririqian SMG', desc: 'A stubby Remnant machine pistol. Sprays 9mm.', type: 'weapon', weapon: 'rqSmg', gun: true, stack: 1, data: { ammo: 35 }, icon: 'smg', color: '#3a2420' },
+  rqShotgun: { name: 'Ririqian Coachgun', desc: 'Double-barrelled, sawn short. Two shells, both at once if you like.', type: 'weapon', weapon: 'rqShotgun', gun: true, stack: 1, data: { ammo: 2 }, icon: 'shotgun', color: '#6b2a1e' },
+  rqSniper: { name: 'Ririqian Marksman Rifle', desc: 'Watchroom rifle with a crude 4x scope. Four .308 rounds.', type: 'weapon', weapon: 'rqSniper', gun: true, stack: 1, data: { ammo: 4 }, icon: 'sniper', color: '#4a2820' },
+  rqMachete: { name: 'Ririqian Machete', desc: 'A long blade with a red-wrapped grip.', type: 'weapon', weapon: 'rqMachete', stack: 1, data: { dur: 100 }, icon: 'knife', color: '#b3201a' },
+  rqBaton: { name: 'Ririqian Baton', desc: 'A weighted guard\'s baton. Fast, and it staggers.', type: 'weapon', weapon: 'rqBaton', stack: 1, data: { dur: 100 }, icon: 'crowbar', color: '#1d1d20' },
+  grenade: { name: 'Frag Grenade', desc: 'Pull and throw. Explodes after three seconds. Hurts everyone nearby — you too.', type: 'throwable', throw: 'grenade', stack: 4, icon: 'grenade', color: '#4f5a3c' },
+  rqGrenade: { name: 'Ririqian Grenade', desc: 'A stick grenade with a red band. Explodes after three seconds.', type: 'throwable', throw: 'grenade', stack: 4, icon: 'grenade', color: '#5a2a22' },
+  radioScanner: { name: 'Radio Scanner', desc: 'Sweeps for radio traffic. Switch it on and leave it running: after a while it fixes the rough position of any transmitter on this level. Eats batteries.', type: 'scanner', stack: 1, data: { charge: 100, on: false, scan: 0 }, icon: 'scanner', color: '#3a4a3a' },
+  grayGoo: { name: 'Gray Goo', desc: 'A thick gray drink from Level Gug. It stings on the way down (a little health) but for 60 seconds you never tire. Another bottle resets the clock.', type: 'consumable', stack: 3, effects: { health: -6, thirst: 12, status: ['goo', 60], statusSet: true }, useTime: 1.2, sound: 'drink', icon: 'bottle', color: '#8a8c8e' },
   pistol: { name: 'Pistol', desc: '9mm semi-automatic. Reliable.', type: 'weapon', weapon: 'pistol', gun: true, stack: 1, data: { ammo: 12 }, icon: 'pistol', color: '#2b2d30' },
   shotgun: { name: 'Pump Shotgun', desc: 'Devastating up close. Six shells.', type: 'weapon', weapon: 'shotgun', gun: true, stack: 1, data: { ammo: 6 }, icon: 'shotgun', color: '#5a3b22' },
   smg: { name: 'SMG', desc: 'Fast and hungry for 9mm.', type: 'weapon', weapon: 'smg', gun: true, stack: 1, data: { ammo: 30 }, icon: 'smg', color: '#26282a' },
@@ -332,6 +345,22 @@ function drawIcon(g, icon, col) {
       rr(14, 12, 36, 44, 8); fillStroke(col);
       rr(18, 34, 28, 16, 4); fillStroke(shade(col, 0.8));
       g.strokeStyle = shade(col, 0.5); g.lineWidth = 3; g.beginPath(); g.moveTo(24, 12); g.quadraticCurveTo(32, 2, 40, 12); g.stroke();
+      break;
+    case 'sniper':
+      g.translate(32, 32); g.rotate(-0.25);
+      g.beginPath(); g.moveTo(-31, -2); g.lineTo(30, -2); g.lineTo(30, 1); g.lineTo(-4, 2); g.lineTo(-10, 10); g.lineTo(-16, 10); g.lineTo(-14, 3); g.lineTo(-31, 6); g.closePath(); fillStroke(col);
+      rr(-12, -10, 20, 6, 3); fillStroke('#1a1a1a');
+      break;
+    case 'grenade':
+      g.beginPath(); g.ellipse(32, 38, 15, 18, 0, 0, Math.PI * 2); fillStroke(col);
+      g.strokeStyle = shade(col, 0.6); g.lineWidth = 2; for (const y of [30, 38, 46]) { g.beginPath(); g.moveTo(18, y); g.lineTo(46, y); g.stroke(); }
+      rr(26, 12, 12, 9, 2); fillStroke('#777'); g.strokeStyle = '#ccc'; g.lineWidth = 2; g.beginPath(); g.arc(44, 14, 5, 0, Math.PI * 2); g.stroke();
+      break;
+    case 'scanner':
+      rr(16, 18, 32, 40, 5); fillStroke(col);
+      rr(21, 24, 22, 14, 2); fillStroke('#0f2a14'); g.strokeStyle = '#4dff7a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(22, 31); for (let x = 0; x < 20; x += 2) g.lineTo(23 + x, 31 + Math.sin(x) * 4); g.stroke();
+      g.strokeStyle = '#222'; g.lineWidth = 3; g.beginPath(); g.moveTo(42, 18); g.lineTo(48, 4); g.stroke();
+      for (const x of [24, 32, 40]) { g.beginPath(); g.arc(x, 48, 3, 0, Math.PI * 2); g.fillStyle = '#ccc'; g.fill(); }
       break;
     case 'rifle':
       g.translate(32, 32); g.rotate(-0.25);

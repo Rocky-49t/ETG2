@@ -39,6 +39,7 @@ import { EntityViews } from '../ai/views.js';
 import { Director } from '../ai/director.js';
 import { NOISE } from '../ai/brain.js';
 import { ENTITY_TYPES } from '../ai/entities/index.js';
+import { radioSources } from '../world/bases/index.js';
 import { audio } from '../audio/audio.js';
 
 const SURFACES = { carpet: 'carpet', officeCarpet: 'carpet', fabric: 'carpet', poolTile: 'tile', poolTileBlue: 'tile', grate: 'metal', rustMetal: 'metal', darkMetal: 'metal' };
@@ -825,7 +826,7 @@ export class Game {
     if (def.effects.revive && this.downed) this.selfRevive();
     this.inventory.takeFrom(idx, 1);
     this.sfx(def.sound || 'pickup', null, {});
-    if (def.effects.status) this.subtitle(def.effects.status[0] === 'inkward' ? 'It tastes of nothing. The air feels thinner around you.' : 'A clean, cold rush. Your legs feel tireless.', 2.5);
+    if (def.effects.status) this.subtitle({ inkward: 'It tastes of nothing. The air feels thinner around you.', goo: 'It tastes of pennies and wet cement. Your heart hammers — you could run forever.' }[def.effects.status[0]] || 'A clean, cold rush. Your legs feel tireless.', 2.5);
   }
 
   selfRevive() {
@@ -912,6 +913,54 @@ export class Game {
     this.sfx('click', null, {});
     if (it.data.on) { this.sfx('keyChirp', null, {}); this.transT = 0; }
     this.inventory.changed();
+  }
+
+  // Radio scanner: leave it running and it slowly fixes the rough position of
+  // any transmitter (bases with a communications room) on this level.
+  toggleScanner(it) {
+    if (!it) return;
+    if (!it.data.on && it.data.charge <= 0) { this.subtitle('The scanner is dead. Use a battery on it.', 2); this.sfx('click', null, {}); return; }
+    for (const s of this.inventory.slots) if (s && s.id === 'radioScanner' && s !== it) s.data.on = false;
+    it.data.on = !it.data.on;
+    this.sfx('click', null, {});
+    if (it.data.on) { this.sfx('scanStatic', null, {}); this.scanT = 0; if (it.data.lvl !== this.levelId) { it.data.lvl = this.levelId; it.data.scan = 0; it.data.found = null; } }
+    this.inventory.changed();
+  }
+  updateScannerHud(dt) {
+    const el = this._scEl || (this._scEl = document.getElementById('scannerPanel'));
+    let sc = null;
+    for (const s of this.inventory.slots) if (s && s.id === 'radioScanner' && s.data.on && s.data.charge > 0) sc = s;
+    if (!sc || !this.levelId || this.dead) { if (el && !el.classList.contains('hidden')) el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    const D = sc.data;
+    if (D.lvl !== this.levelId) { D.lvl = this.levelId; D.scan = 0; D.found = null; }
+    D.charge = Math.max(0, D.charge - dt * 0.12);
+    if (D.charge <= 0) { D.on = false; this.subtitle('The scanner\'s screen fades out. Battery dead.', 2); this.inventory.changed(); return; }
+    // a full sweep takes a while (it depends on the level's interference)
+    const need = 50 + (hash4(this.def.id.charCodeAt(1) || 0, this.seed | 0) % 40);
+    D.scan = Math.min(need, (D.scan || 0) + dt);
+    this.scanT = (this.scanT || 0) - dt;
+    if (this.scanT > 0) return;
+    this.scanT = 2;
+    if (Math.random() < 0.5) this.sfx('scanStatic', null, { volume: 0.5 });
+    const P = this.player.pos, yaw = this.player.yaw;
+    const fmt = v => (v >= 0 ? ' ' : '') + Math.round(v);
+    let rows;
+    if (D.scan < need) {
+      const pct = Math.floor(D.scan / need * 100);
+      rows = `<div class="tp-row"><span>Sweeping frequencies… ${pct}%</span></div><div class="sc-bar"><div style="width:${pct}%"></div></div><div class="tp-row far"><span>Keep it switched on.</span></div>`;
+    } else {
+      const was = D.found?.length || 0;
+      D.found = radioSources(this.level, P.x, P.z, 480).map(s => ({ x: s.x, z: s.z, faction: s.faction, strength: s.strength }));
+      if (D.found.length > was) { this.sfx('scanPing', null, {}); this.subtitle(D.found.length === 1 ? 'The scanner locks onto a transmission.' : 'The scanner picks out several transmissions.', 2.2); }
+      const arrows = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
+      rows = D.found.length ? D.found.map(f => {
+        const dx = f.x - P.x, dz = f.z - P.z, d = Math.hypot(dx, dz);
+        let a = Math.atan2(-dx, -dz) - yaw; a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        return `<div class="tp-row"><span>${f.strength > 0.6 ? 'Strong' : 'Faint'} signal <span class="arr">${arrows[Math.round((Math.PI * 2 - a) / (Math.PI / 4)) % 8]}</span>~${Math.round(d / 10) * 10}m</span><span>X≈${fmt(f.x)}</span><span>Z≈${fmt(f.z)}</span></div>`;
+      }).join('') : '<div class="tp-row far"><span>No transmissions within range.</span></div>';
+    }
+    el.innerHTML = `<div class="tp-h"><span>📡 RADIO SCANNER</span><span>${Math.round(D.charge)}%</span></div>${rows}`;
   }
 
   // HUD panel: your coordinates and every teammate's, refreshed every 3 s
@@ -1376,10 +1425,13 @@ export class Game {
         break;
       }
       case 'throw': {
+        if (!LEVELS[m.l] || ![m.x, m.y, m.z, m.vx, m.vy, m.vz].every(Number.isFinite)) break;
         const id = 't' + hash4(this.time * 1000 | 0, Math.random() * 1e9 | 0).toString(36);
-        const life = m.type === 'flare' ? 45 : m.type === 'glowstick' ? 120 : 15;
+        const nade = m.type === 'grenade' || m.type === 'rqGrenade';
+        const life = m.type === 'flare' ? 45 : m.type === 'glowstick' ? 120 : nade ? 3.1 : 15;
         const d = { id, kind: 'thrown', type: m.type, x: m.x, y: m.y, z: m.z, vx: m.vx, vy: m.vy, vz: m.vz, t0: this.time, life, owner: pid };
         this.hostBroadcast({ t: 'dyn+', l: m.l, d });
+        if (nade) this.hostGrenade(m.l, d, pid);
         break;
       }
       case 'fx': {
@@ -1554,6 +1606,41 @@ export class Game {
     }
   }
 
+  // Host: work out where a thrown grenade will be when its fuse runs out (the
+  // same physics every client runs), then blow it up there.
+  hostGrenade(l, d, pid, fuse = 3) {
+    const t = { d: { ...d, l }, pos: new THREE.Vector3(d.x, d.y, d.z), vel: new THREE.Vector3(d.vx, d.vy, d.vz), rest: false, spin: new THREE.Vector3() };
+    for (let k = 0; k < fuse / 0.02; k++) this.objects._physics(t, 0.02);
+    setTimeout(() => {
+      this.hostBroadcast({ t: 'dyn-', l, id: d.id });
+      this.hostExplode(l, { x: t.pos.x, y: t.pos.y + 0.15, z: t.pos.z }, pid);
+    }, fuse * 1000);
+  }
+
+  // Host: an explosion. Damage falls off with distance and walls stop it.
+  hostExplode(l, p, pid, R = 7.5, D = 150) {
+    const lvl = this.getLevel(l);
+    this.hostEvent(l, { k: 'explode', x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2), r: R });
+    this.noises.push({ x: p.x, y: p.y, z: p.z, r: NOISE.grenade, l, pid });
+    for (const e of this.entities.byLevel(l)) {
+      if (e.state === 'dead') continue;
+      const dist = Math.hypot(e.x - p.x, e.y + 0.8 - p.y, e.z - p.z);
+      if (dist > R || !lvl.lineOfSight(p.x, p.y, p.z, e.x, e.y + 0.8, e.z)) continue;
+      const res = this.entities.damage(e.id, D * Math.pow(1 - dist / R, 1.3) + 12, 'explosive', pid);
+      if (res?.killed && (this.roster.has(pid) || pid === this.myId)) {
+        this.hostSend(pid, { t: 'kill', e: e.id, type: e.type });
+        if (e.def.announceKill) this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} blew up ${ENTITY_TYPES[e.type]?.name}.` });
+      }
+    }
+    for (const q of this.playerTargets()) {
+      if (q.levelId !== l || (q.dead && !q.downed)) continue;
+      const dist = Math.hypot(q.x - p.x, q.y + 0.9 - p.y, q.z - p.z);
+      if (dist > R || !lvl.lineOfSight(p.x, p.y, p.z, q.x, q.y + 1.0, q.z)) continue;
+      const k = 6 * (1 - dist / R) / Math.max(0.5, Math.hypot(q.x - p.x, q.z - p.z));
+      this.hostHurt(q.id, (D * Math.pow(1 - dist / R, 1.3) + 8) * 0.8, { from: { x: p.x, z: p.z }, type: 'blast', scare: 25, push: { x: (q.x - p.x) * k, z: (q.z - p.z) * k, y: 2 * (1 - dist / R) } });
+    }
+  }
+
   // Host: put an item on the floor (entity drops).
   hostDropItem(l, item, qty, x, z) {
     const lvl = this.getLevel(l);
@@ -1688,6 +1775,17 @@ export class Game {
       this.sfx(m.name, { x: m.x, y: m.y, z: m.z }, { volume: m.volume ?? 0.8, ref: 4 });
     } else if (m.k === 'subtitle') {
       this.subtitle(m.text, m.dur || 3, m.cls || '');
+    } else if (m.k === 'explode') {
+      const p = new THREE.Vector3(m.x, m.y, m.z);
+      const d = this.player.pos.distanceTo(p);
+      this.sfx('explosion', p, { volume: 1.4, ref: 10, maxDist: 160 });
+      this.effects.flash(p, 6, 0.25);
+      for (let i = 0; i < 18; i++) this.effects.burst(i % 3 ? 'smoke' : 'ember', { x: m.x + (Math.random() - 0.5) * 1.5, y: m.y + Math.random() * 1.5, z: m.z + (Math.random() - 0.5) * 1.5 });
+      this.lights.muzzle?.(p);
+      this.player.shake = Math.min(1, this.player.shake + Math.max(0, 1.2 - d / 20));
+      if (d < 12) audio.setMuffle(0.7), setTimeout(() => audio.setMuffle(this.hidden ? 0.55 : 0), 1800);
+      const f = this.level.floorAt(m.x, m.z);
+      if (isFinite(f) && m.y - f < 1.2) this.effects.scorch({ x: m.x, y: f, z: m.z });
     } else if (m.k === 'shake') {
       this.player.shake = Math.min(1, this.player.shake + (m.a || 0.5));
     } else this.def?.clientEvent?.(this, m);

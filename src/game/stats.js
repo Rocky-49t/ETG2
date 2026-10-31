@@ -45,7 +45,8 @@ export class Stats extends Emitter {
 
     // stamina
     for (const k in this.status) { this.status[k] -= dt; if (this.status[k] <= 0) { delete this.status[k]; this.emit('statusEnd', k); } }
-    if (env.sprinting || env.swimFast) {
+    if (this.hasStatus('goo')) { this.stamina = 100; this.staminaLock = 0; this.sinceSprint = 0; }
+    else if (env.sprinting || env.swimFast) {
       this.stamina -= dt * (env.swimming ? 9 : 17) * this.mods.stamina * (env.armorStamina || 1) / (this.hasStatus('vigor') ? 3 : 1);
       this.sinceSprint = 0;
       if (this.stamina <= 0) { this.stamina = 0; this.staminaLock = 1; this.emit('exhausted'); }
@@ -111,7 +112,10 @@ export class Stats extends Emitter {
     if (fx.health) this.health = clamp(this.health + (fx.health > 0 ? fx.health * heal : fx.health), 0, 100);
     if (fx.sanity) this.sanity = clamp(this.sanity + fx.sanity, 0, 100);
     if (fx.regen) this.regen += fx.regen * heal;
-    if (fx.status) this.addStatus(fx.status[0], fx.status[1]);
+    if (fx.status) {
+      if (fx.statusSet) { this.status[fx.status[0]] = fx.status[1]; this.emit('status', fx.status[0]); }
+      else this.addStatus(fx.status[0], fx.status[1]);
+    }
     if (fx.stopBleed) this.bleeding = 0;
     if (fx.staminaBoost) { this.staminaBoost += fx.staminaBoost; this.stamina = Math.min(100, this.stamina + 30); }
   }

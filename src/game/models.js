@@ -219,6 +219,83 @@ function rifle() {
   g.userData.mag = mag;
   return g;
 }
+function sniper(rq = false) {
+  const g = new THREE.Group();
+  const metal = M('darkMetal'), wood = rq ? C(0x4a2a1c, 0.55) : C(0x3a3f33, 0.6);
+  g.add(mesh(box(0.05, 0.08, 0.6), wood, 0, 0.0, -0.1));                           // stock + forend
+  g.add(mesh(box(0.05, 0.11, 0.16), wood, 0, -0.03, 0.26, 0.15));                  // butt
+  g.add(mesh(box(0.04, 0.05, 0.2), metal, 0, 0.05, -0.02));                         // receiver
+  g.add(mesh(cyl(0.01, 0.011, 0.5, 8), metal, 0, 0.05, -0.55, Math.PI / 2));       // barrel
+  g.add(mesh(cyl(0.016, 0.016, 0.06, 8), M('black'), 0, 0.05, -0.81, Math.PI / 2)); // muzzle brake
+  g.add(mesh(cyl(0.022, 0.022, 0.26, 12), M('black'), 0, 0.105, -0.03, Math.PI / 2)); // scope tube
+  g.add(mesh(cyl(0.03, 0.022, 0.05, 12), M('black'), 0, 0.105, -0.18, Math.PI / 2));
+  g.add(mesh(cyl(0.027, 0.022, 0.04, 12), M('black'), 0, 0.105, 0.11, Math.PI / 2));
+  g.add(mesh(cyl(0.024, 0.024, 0.004, 12), C(0x3a6a8a, 0.1, 0.4, 0x0a2030, 0.6), 0, 0.105, -0.206, Math.PI / 2));
+  for (const z of [-0.08, 0.04]) g.add(mesh(box(0.02, 0.03, 0.02), metal, 0, 0.08, z));
+  g.add(mesh(cyl(0.008, 0.008, 0.06, 6), metal, 0.04, 0.06, 0.04, 0, 0, Math.PI / 2)); // bolt handle
+  const mag = mesh(box(0.03, 0.05, 0.07), metal, 0, -0.05, -0.03); mag.name = 'mag'; g.add(mag);
+  if (rq) rqMarks(g, 0.03, -0.3);
+  g.userData.muzzle = new THREE.Vector3(0, 0.05, -0.85);
+  g.userData.mag = mag;
+  return g;
+}
+// red band and a white star on Ririqian weapons
+function rqMarks(g, y, z, w = 0.056) {
+  g.add(mesh(box(w, 0.012, 0.03), C(0xb3201a, 0.5), 0, y, z));
+  const sh = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.006 : 0.015, a = Math.PI / 2 + i * Math.PI / 5; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+  const st = new THREE.Mesh(new THREE.ShapeGeometry(sh), C(0xf2efe6, 0.5)); st.position.set(w / 2 + 0.001, y + 0.02, z + 0.06); st.rotation.y = Math.PI / 2; g.add(st);
+}
+// a Ririqian copy of a base gun: darker steel, red-brown wood, red band and star
+function rqVariant(base, y, z, w) {
+  const g = base();
+  g.traverse(o => {
+    if (!o.isMesh) return;
+    const c = o.material.color;
+    if (!c) return;
+    const hsl = {}; c.getHSL(hsl);
+    o.material = hsl.l < 0.25 ? C(0x1c1a19, 0.45, 0.6) : C(0x5a2a1e, 0.6);
+  });
+  rqMarks(g, y, z, w);
+  return g;
+}
+function machete() {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.008, 0.05, 0.42), C(0xb8bcc0, 0.25, 0.9), 0, 0.01, -0.28));
+  g.add(mesh(box(0.009, 0.02, 0.4), C(0x7a7e82, 0.3, 0.9), 0, 0.04, -0.27));
+  g.add(mesh(cyl(0.017, 0.017, 0.12, 8), C(0xb3201a, 0.8), 0, 0, 0.0, Math.PI / 2));
+  g.add(mesh(box(0.05, 0.012, 0.012), M('darkMetal'), 0, 0, -0.065));
+  return g;
+}
+function baton() {
+  const g = new THREE.Group();
+  g.add(mesh(cyl(0.016, 0.014, 0.5, 10), C(0x1d1d20, 0.5), 0, 0, -0.18, Math.PI / 2));
+  g.add(mesh(cyl(0.02, 0.02, 0.12, 10), C(0xb3201a, 0.8), 0, 0, 0.03, Math.PI / 2));
+  return g;
+}
+function grenadeM(rq = false) {
+  const g = new THREE.Group();
+  if (rq) {
+    g.add(mesh(cyl(0.032, 0.032, 0.08, 12), C(0x3a3d30, 0.6), 0, 0.17, 0));
+    g.add(mesh(cyl(0.013, 0.013, 0.16, 8), C(0x6b4a2a, 0.7), 0, 0.07, 0));
+    g.add(mesh(cyl(0.033, 0.033, 0.015, 12), C(0xb3201a, 0.5), 0, 0.16, 0));
+  } else {
+    const b = mesh(new THREE.SphereGeometry(0.032, 10, 8), C(0x4f5a3c, 0.7), 0, 0.034, 0); b.scale.y = 1.2; g.add(b);
+    g.add(mesh(cyl(0.011, 0.013, 0.02, 8), C(0x777777, 0.4, 0.7), 0, 0.078, 0));
+    g.add(mesh(box(0.008, 0.05, 0.012), C(0x777777, 0.4, 0.7), 0.014, 0.06, 0, 0, 0, -0.3));
+    g.add(mesh(new THREE.TorusGeometry(0.01, 0.002, 4, 10), C(0xcccccc, 0.3, 0.9), -0.016, 0.085, 0, 0, Math.PI / 2, 0));
+  }
+  return g;
+}
+function scannerM() {
+  const g = new THREE.Group();
+  g.add(mesh(box(0.08, 0.12, 0.035), C(0x3a4a3a, 0.6), 0, 0.06, 0));
+  g.add(mesh(box(0.06, 0.04, 0.005), C(0x0f2a14, 0.2, 0, 0x2aff5a, 0.6), 0, 0.085, 0.019));
+  g.add(mesh(cyl(0.004, 0.004, 0.16, 6), C(0x111111, 0.4), 0.03, 0.18, 0));
+  for (const x of [-0.022, 0, 0.022]) g.add(mesh(cyl(0.006, 0.006, 0.006, 8), C(0xcccccc, 0.4), x, 0.04, 0.019, Math.PI / 2));
+  return g;
+}
+
 function pouch(color, label) {
   const g = new THREE.Group();
   g.add(mesh(box(0.1, 0.13, 0.03), C(0xc8c2b0, 0.35, 0.5), 0, 0.065, 0));
@@ -287,6 +364,19 @@ function packM(color, big) {
 const BUILDERS = {
   pistol, shotgun, smg, rifle, crowbar, knife, flashlight, lighter, glowstick, flare, decoy,
   cleanWater: () => bottle(0x9fd2f0, 0x3b7fc4),
+  grayGoo: () => bottle(0x8a8c8e, 0x4a4c4e),
+  sniper: () => sniper(false),
+  rqSniper: () => sniper(true),
+  rqPistol: () => rqVariant(pistol, 0.045, -0.06, 0.036),
+  rqRifle: () => rqVariant(rifle, 0.032, -0.2, 0.05),
+  rqSmg: () => rqVariant(smg, 0.03, -0.1, 0.05),
+  rqShotgun: () => rqVariant(shotgun, 0.03, -0.12, 0.05),
+  rqMachete: machete,
+  rqBaton: baton,
+  grenade: () => grenadeM(false),
+  rqGrenade: () => grenadeM(true),
+  radioScanner: scannerM,
+  sniperAmmo: () => ammoBox(0x5a4a2a, 0xd0b878, 0.011),
   dirtyWater: () => bottle(0x8a8452, 0xb8ae88),
   goanJuice: () => bottle(0xe2a23a, 0x6b3a14),
   paleDraught: () => bottle(0xf2efe6, 0xd8d2c4),
@@ -364,7 +454,10 @@ export const GROUND_POSE = {
   glowstick: [Math.PI / 2, 0, 0, 0.01], flare: [Math.PI / 2, 0, 0, 0.015], lighter: [0, 0, 0, 0.025],
   rifle: [0, 0, Math.PI / 2, 0.025], cleanWater: [Math.PI / 2, 0, 0, 0.034], dirtyWater: [Math.PI / 2, 0, 0, 0.034], goanJuice: [Math.PI / 2, 0, 0.6, 0.034],
   paleDraught: [Math.PI / 2, 0, 0, 0.034], fireSalts: [-Math.PI / 2, 0, 0, 0.015], blueberryFireSalts: [-Math.PI / 2, 0, 0, 0.015], antenna: [Math.PI / 2, 0, 0, 0.02],
-  transmitter: [-Math.PI / 2, 0, 0, 0.018],
+  transmitter: [-Math.PI / 2, 0, 0, 0.018], grayGoo: [Math.PI / 2, 0, 0, 0.034],
+  sniper: [0, 0, Math.PI / 2, 0.03], rqSniper: [0, 0, Math.PI / 2, 0.03], rqPistol: [0, 0, Math.PI / 2, 0.02], rqRifle: [0, 0, Math.PI / 2, 0.025],
+  rqSmg: [0, 0, Math.PI / 2, 0.025], rqShotgun: [0, 0, Math.PI / 2, 0.025], rqMachete: [0, 0, Math.PI / 2, 0.006], rqBaton: [0, 0, Math.PI / 2, 0.016],
+  rqGrenade: [Math.PI / 2, 0, 0, 0.03], radioScanner: [-Math.PI / 2, 0, 0, 0.018],
 };
 
 // ---------------------------------------------------------------- interactive props

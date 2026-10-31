@@ -8,7 +8,7 @@ import { angleDiff } from '../core/rng.js';
 import { CLASSES } from './classes.js';
 import { input } from '../core/input.js';
 
-const TWO_HANDED = new Set(['shotgun', 'smg', 'rifle']);
+export const TWO_HANDED = new Set(['shotgun', 'smg', 'rifle', 'sniper', 'rqRifle', 'rqSmg', 'rqShotgun', 'rqSniper']);
 
 function beamMaterial() {
   return new THREE.ShaderMaterial({

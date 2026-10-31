@@ -91,11 +91,24 @@ export class HUD {
       else this.heldAmmo.innerHTML = `<small>${Math.round(it.data.dur)}%</small>`;
     } else if (it.qty > 1) this.heldAmmo.innerHTML = `<small>×${it.qty}</small>`;
     else if (def.type === 'tool') this.heldAmmo.innerHTML = `<small>fuel ${Math.round(it.data.fuel)}%</small>`;
-    else if (def.type === 'transmitter') this.heldAmmo.innerHTML = `<small>${it.data.on ? 'ON' : 'off'} · ${Math.round(it.data.charge)}%</small>`;
+    else if (def.type === 'transmitter' || def.type === 'scanner') this.heldAmmo.innerHTML = `<small>${it.data.on ? 'ON' : 'off'} · ${Math.round(it.data.charge)}%</small>`;
     else this.heldAmmo.innerHTML = '';
   }
 
   // armor bar: overall protection, coloured by the most worn-out piece
+  scope(on) {
+    if (!this.scopeEl) {
+      this.scopeEl = document.createElement('div');
+      this.scopeEl.id = 'scopeOverlay';
+      this.scopeEl.innerHTML = '<div class="sc-ring"></div><div class="sc-h"></div><div class="sc-v"></div><div class="sc-dot"></div>';
+      document.body.appendChild(this.scopeEl);
+    }
+    if (this.scopeOn === on) return;
+    this.scopeOn = on;
+    this.scopeEl.classList.toggle('on', on);
+    document.body.classList.toggle('scoped', on);
+  }
+
   armorChanged(game) {
     const worn = ['head', 'body', 'legs', 'feet'].map(k => game.gear[k]).filter(Boolean);
     $('armorRow').classList.toggle('hidden', !worn.length);
@@ -113,7 +126,7 @@ export class HUD {
     if (sig === this._stSig) return;
     this._stSig = sig;
     const el = $('statusFx');
-    const META = { inkward: ['Inkward', '#e8e4dc', 'Inkwalkers ignore you'], vigor: ['Vigor', '#62e0b8', 'Stamina drains 3× slower'] };
+    const META = { inkward: ['Inkward', '#e8e4dc', 'Inkwalkers ignore you'], vigor: ['Vigor', '#62e0b8', 'Stamina drains 3× slower'], goo: ['Gray Goo', '#a8acb0', 'Unlimited stamina'], scan: ['Scanning', '#7dffa0', 'Radio scanner sweeping'] };
     el.innerHTML = keys.map(k => {
       const m = META[k] || [k, '#fff', ''];
       const t = Math.ceil(st[k]), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
@@ -200,6 +213,7 @@ export class HUD {
     this._post = game.engine.post;
     this.updateStatus(game);
     game.updateTransmitterHud?.(dt);
+    game.updateScannerHud?.(dt);
     // vitals
     this.hp.style.transform = `scaleX(${s.health / 100})`;
     this.hpLag.style.transform = `scaleX(${s.health / 100})`;

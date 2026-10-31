@@ -11,7 +11,9 @@ export const RECIPES = [
   { out: ['knife', 1], in: [['scrap', 1], ['ductTape', 1]], note: 'A sharpened plate with a taped grip.' },
   { out: ['decoy', 1], in: [['scrap', 1], ['wire', 1], ['battery', 1]], note: 'A buzzing noisemaker that draws things that listen.' },
   { out: ['glowstick', 2], in: [['wire', 1], ['battery', 1]], note: 'Two improvised chem lights.' },
-  { out: ['scrapVest', 1], in: [['cloth', 3], ['scrap', 3], ['ductTape', 1]], note: 'Light armor: absorbs 25% of damage.' },
+  { out: ['radioScanner', 1], in: [['antenna', 1], ['wire', 2], ['scrap', 1], ['battery', 1]], note: 'Finds radio transmissions (bases with a comms room) — leave it on.' },
+  { out: ['grenade', 1], in: [['scrap', 2], ['fireSalts', 2], ['ductTape', 1]], note: 'A crude pipe bomb that throws like a grenade.' },
+  { out: ['scrapVest', 1], in: [['cloth', 3], ['scrap', 3], ['ductTape', 1]], note: 'Light body armor: absorbs 22% of damage.' },
   { out: ['ductTape', 1], in: [['cloth', 2], ['wire', 1]], note: 'Not real tape, but it holds.' },
 ];
 

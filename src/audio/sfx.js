@@ -855,3 +855,53 @@ Object.assign(SFX, {
     return 0.3;
   },
 });
+
+// ---------------------------------------------------------------- arms (bases update)
+Object.assign(SFX, {
+  sniper(A, dest, o, t) {
+    // a huge whip-crack, then a long rolling boom down the halls
+    burst(A, dest, t, { type: 'highpass', freq: 2000, a: 0.0004, d: 0.05, vol: 1.1 });
+    burst(A, dest, t, { type: 'lowpass', freq: 2400, a: 0.001, d: 0.2, vol: 1.1 });
+    tone(A, dest, t, { freq: 120, to: 32, a: 0.001, d: 0.35, vol: 1.1 });
+    burst(A, dest, t + 0.05, { kind: 'brown', type: 'lowpass', freq: 300, a: 0.03, d: 1.4, vol: 0.6 });
+    burst(A, dest, t + 0.4, { kind: 'pink', type: 'lowpass', freq: 500, a: 0.1, d: 1.0, vol: 0.18 });
+    return 1.6;
+  },
+  rqRifle(A, dest, o, t) {
+    // rougher, lower and boomier than the service rifle
+    burst(A, dest, t, { type: 'highpass', freq: 1800, a: 0.0005, d: 0.03, vol: 0.85 });
+    burst(A, dest, t, { type: 'lowpass', freq: 2200, a: 0.001, d: 0.14, vol: 1.0 });
+    tone(A, dest, t, { freq: 120, to: 34, a: 0.001, d: 0.22, vol: 1.0 });
+    burst(A, dest, t + 0.03, { kind: 'brown', type: 'lowpass', freq: 380, a: 0.01, d: 0.5, vol: 0.5 });
+    return 0.65;
+  },
+  bolt(A, dest, o, t) {
+    burst(A, dest, t, { type: 'bandpass', freq: 2400, Q: 6, d: 0.03, vol: 0.5 });
+    burst(A, dest, t + 0.12, { type: 'bandpass', freq: 1700, Q: 5, d: 0.04, vol: 0.45 });
+    burst(A, dest, t + 0.22, { type: 'bandpass', freq: 2800, Q: 6, d: 0.03, vol: 0.5 });
+    burst(A, dest, t + 0.32, { type: 'bandpass', freq: 1900, Q: 5, d: 0.05, vol: 0.55 });
+    return 0.45;
+  },
+  pinPull(A, dest, o, t) {
+    burst(A, dest, t, { type: 'bandpass', freq: 4200, Q: 8, d: 0.03, vol: 0.45 });
+    tone(A, dest, t + 0.04, { type: 'triangle', freq: 2600, to: 1800, d: 0.06, vol: 0.06 });
+    burst(A, dest, t + 0.18, { type: 'bandpass', freq: 1500, Q: 3, d: 0.05, vol: 0.4 });
+    return 0.3;
+  },
+  explosion(A, dest, o, t) {
+    burst(A, dest, t, { type: 'lowpass', freq: 6000, a: 0.001, d: 0.12, vol: 1.2 });
+    tone(A, dest, t, { freq: 70, to: 24, a: 0.002, d: 1.0, vol: 1.3 });
+    burst(A, dest, t, { kind: 'brown', type: 'lowpass', freq: 500, a: 0.005, d: 2.2, vol: 1.1 });
+    for (let i = 0; i < 14; i++) burst(A, dest, t + 0.2 + Math.random() * 1.4, { type: 'bandpass', freq: 800 + Math.random() * 3000, Q: 4, d: 0.03, vol: 0.12 });
+    return 2.6;
+  },
+  scanPing(A, dest, o, t) {
+    tone(A, dest, t, { type: 'sine', freq: 1320, a: 0.005, d: 0.12, vol: 0.08 });
+    tone(A, dest, t + 0.14, { type: 'sine', freq: 1760, a: 0.005, d: 0.2, vol: 0.08 });
+    return 0.4;
+  },
+  scanStatic(A, dest, o, t) {
+    burst(A, dest, t, { type: 'bandpass', freq: 1800, Q: 0.7, a: 0.05, d: 0.4, vol: 0.05 });
+    return 0.5;
+  },
+});

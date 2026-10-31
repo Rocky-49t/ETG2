@@ -231,6 +231,7 @@ export class UI {
     else if (def.type === 'repair') withSel(() => g.held.useRepair());
     else if (def.type === 'armor' || def.type === 'pack') g.equipGear(idx);
     else if (def.type === 'transmitter') g.toggleTransmitter(it);
+    else if (def.type === 'scanner') g.toggleScanner(it);
     else if (def.type === 'part' || def.type === 'ammo' || def.type === 'key') g.subtitle(def.type === 'part' ? 'A crafting part — see the recipes on the right.' : def.type === 'ammo' ? 'Ammo loads when you reload.' : 'Use it at the right door.', 1.8);
     else {
       // equip: move into the hotbar and select
@@ -276,12 +277,12 @@ export class UI {
       extra = W.kind === 'gun' ? `\nLoaded: ${s.data.ammo}/${W.mag} · Reserve: ${inv.count(W.ammo)}` : `\nCondition: ${Math.round(s.data.dur)}%`;
     } else if (def?.type === 'flashlight') extra = `\nBattery: ${Math.round(s.data.charge)}%`;
     else if (def?.type === 'tool') extra = `\nFuel: ${Math.round(s.data.fuel)}%`;
-    else if (def?.type === 'transmitter') extra = `\nBattery: ${Math.round(s.data.charge)}% · ${s.data.on ? 'ON' : 'off'}`;
+    else if (def?.type === 'transmitter' || def?.type === 'scanner') extra = `\nBattery: ${Math.round(s.data.charge)}% · ${s.data.on ? 'ON' : 'off'}`;
     else if (def?.type === 'armor') extra = `\nSlot: ${def.armor.slot} · absorbs ${Math.round(def.armor.absorb * 100)}% · condition ${Math.round(s.data.dur)}%`;
     else if (def?.type === 'pack') extra = `\n+${def.pack.slots} inventory slots`;
     $('detailDesc').textContent = def ? def.desc + extra : 'Select an item.';
     $('btnUseItem').disabled = !def;
-    $('btnUseItem').textContent = !def ? 'Use' : def.type === 'armor' || def.type === 'pack' ? 'Wear' : def.type === 'transmitter' ? (s.data.on ? 'Switch off' : 'Switch on') : (def.type === 'consumable' || def.type === 'battery' || def.type === 'repair') ? 'Use' : 'Equip';
+    $('btnUseItem').textContent = !def ? 'Use' : def.type === 'armor' || def.type === 'pack' ? 'Wear' : def.type === 'transmitter' || def.type === 'scanner' ? (s.data.on ? 'Switch off' : 'Switch on') : (def.type === 'consumable' || def.type === 'battery' || def.type === 'repair') ? 'Use' : 'Equip';
     this.renderWorn();
     this.renderCrafting();
     $('btnDropItem').disabled = !def;

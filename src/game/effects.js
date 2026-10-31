@@ -186,6 +186,23 @@ export class Effects {
     if (this.holes.length > 80) { const old = this.holes.shift(); this.scene.remove(old); }
   }
 
+  // blackened floor where something exploded
+  scorch(p) {
+    if (!this.scorchMat) {
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const x = c.getContext('2d'); const g = x.createRadialGradient(32, 32, 2, 32, 32, 31);
+      g.addColorStop(0, 'rgba(0,0,0,0.9)'); g.addColorStop(0.6, 'rgba(10,8,6,0.6)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+      this.scorchMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    }
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 2.8), this.scorchMat);
+    m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 6;
+    m.position.set(p.x, p.y + 0.012, p.z);
+    this.scene.add(m);
+    this.holes.push(m);
+    if (this.holes.length > 80) { const old = this.holes.shift(); this.scene.remove(old); }
+  }
+
   flash(p, size = 0.5, life = 0.05, color = 0xffffff) {
     const s = new THREE.Sprite(this.flashMat.clone());
     s.material.color.set(color);

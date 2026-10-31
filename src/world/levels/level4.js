@@ -19,6 +19,7 @@ const CE = 3.0;
 const DAY = [1.0, 0.95, 0.86], LAMP = [1.0, 0.82, 0.6];
 
 const LOOT = [
+  ['smallPack', 2], ['largePack', 1], ['combatBoots', 1.5], ['legGuards', 1],
   ['goanJuice', 12], ['vigorTonic', 6], ['fireSalts', 12], ['cleanWater', 10], ['battery', 14, [1, 2]], ['bandage', 10], ['medkit', 4], ['painkillers', 8],
   ['ammo9', 8, [6, 12]], ['shells', 5, [2, 5]], ['rifleAmmo', 3, [8, 16]], ['glowstick', 8, [1, 3]], ['flare', 5], ['gpsBoard', 2], ['antenna', 2], ['wire', 4],
   ['scrap', 5], ['knife', 3], ['decoy', 4], ['level5Key', 1], [null, 14],

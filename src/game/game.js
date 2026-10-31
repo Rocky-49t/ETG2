@@ -45,6 +45,8 @@ const SURFACES = { carpet: 'carpet', officeCarpet: 'carpet', fabric: 'carpet', p
 const SNAP_RATE = 1 / 15, SEND_RATE = 1 / 20;
 
 const KEY_ITEMS = new Set(['keycard', 'fuse', 'drainKey', 'level5Key', 'gpsBoard', 'antenna']);
+export const ARMOR_SLOTS = ['head', 'body', 'legs', 'feet'];
+export const GEAR_SLOTS = [...ARMOR_SLOTS, 'pack'];
 const ENV_CAUSES = new Set(['thirst', 'hunger', 'bleed', 'drown', 'fall', 'void', 'steam']);
 
 export class Game {
@@ -104,6 +106,7 @@ export class Game {
     this.checkpoint = null;
     this.flashFlickerT = 0;
     this.blackoutT = 0;
+    this.gear = { head: null, body: null, legs: null, feet: null, pack: null };
     this.snapT = 0; this.sendT = 0;
     this.pendingNoise = 0;
     this.transitioning = false;
@@ -123,12 +126,18 @@ export class Game {
     this.stats.damage = (amount, cause, silent) => {
       if (this.cheatGod) return;
       // worn armor soaks up blows (not hunger, thirst, bleeding, drowning or falls)
-      if (this.armor && amount > 0 && !ENV_CAUSES.has(cause)) {
-        const A = ITEMS[this.armor.id].armor;
-        const soaked = amount * A.absorb;
-        amount -= soaked;
-        this.armor.data.dur -= soaked * 1.6;
-        if (this.armor.data.dur <= 0) { this.subtitle(`Your ${ITEMS[this.armor.id].name.toLowerCase()} falls apart.`, 2.2, 'warn'); this.armor = null; this.applyArmorMods(); }
+      const worn = ARMOR_SLOTS.map(k => this.gear[k]).filter(Boolean);
+      if (worn.length && amount > 0 && !ENV_CAUSES.has(cause)) {
+        let pass = 1;
+        for (const it of worn) pass *= 1 - ITEMS[it.id].armor.absorb;
+        const total = Math.min(0.75, 1 - pass);
+        for (const k of ARMOR_SLOTS) {
+          const it = this.gear[k];
+          if (!it) continue;
+          it.data.dur -= amount * ITEMS[it.id].armor.absorb * 1.6;
+          if (it.data.dur <= 0) { this.subtitle(`Your ${ITEMS[it.id].name.toLowerCase()} falls apart.`, 2.2, 'warn'); this.gear[k] = null; this.applyArmorMods(); }
+        }
+        amount *= 1 - total;
         this.hud.armorChanged(this);
       }
       baseDamage(amount, cause, silent);
@@ -180,6 +189,7 @@ export class Game {
     if (n > this._lootPlayers) { this._lootPlayers = n; this.objects?.refreshAll(); }
   }
   get def() { return LEVELS[this.levelId]; }
+  get armor() { return this.gear.body; }
 
   applyExposure() {
     this.engine.renderer.toneMappingExposure = (this.sceneDef?.exposure ?? 1) * settings.get('brightness');
@@ -348,11 +358,11 @@ export class Game {
       const surf = this.surfaceAt(P.pos);
       if (ev.type === 'step') {
         this.sfx('step', null, { surface: ev.wet ? 'water' : surf, volume: ev.crouch ? 0.22 : ev.sprint ? 0.85 : 0.5, reverb: 0.3 });
-        this.emitNoise((ev.crouch ? NOISE.crouch : ev.sprint ? NOISE.sprint : NOISE.walk) * classPerk(this, 'stepNoise', 1));
+        this.emitNoise((ev.crouch ? NOISE.crouch : ev.sprint ? NOISE.sprint : NOISE.walk) * classPerk(this, 'stepNoise', 1) * (this.armorQuiet || 1));
       } else if (ev.type === 'land') {
         this.sfx('land', null, { volume: Math.min(1, ev.impact / 9) });
         this.emitNoise(NOISE.land);
-        if (ev.impact > 10.5) this.stats.damage((ev.impact - 10.5) * 9, 'fall');
+        if (ev.impact > 10.5) this.stats.damage((ev.impact - 10.5) * 9 * (this.armorFall || 1), 'fall');
         P.shake = Math.min(1, P.shake + ev.impact / 14);
       } else if (ev.type === 'splash') {
         this.sfx('splash', P.pos, { volume: ev.strength });
@@ -827,31 +837,66 @@ export class Game {
     this.sfx('revive', null, {});
   }
 
-  wearArmor(idx) {
+  // Put on a piece of armor or a pack from an inventory slot (swapping out what's there).
+  equipGear(idx) {
     const it = this.inventory.slots[idx];
-    if (!it || ITEMS[it.id].type !== 'armor') return;
+    const def = it && ITEMS[it.id];
+    if (!def || (def.type !== 'armor' && def.type !== 'pack')) return;
+    const slot = def.type === 'pack' ? 'pack' : def.armor.slot;
+    const old = this.gear[slot];
+    if (slot === 'pack') {
+      // the pockets of the old pack must fit in the new one
+      if (!this.inventory.setExtra(Math.max(def.pack.slots, this.inventory.extra)) || (def.pack.slots < this.inventory.extra && this.inventory.extraUsed(def.pack.slots))) {
+        this.subtitle('Empty the pockets of your current pack first.', 2); return;
+      }
+    }
     const taken = this.inventory.takeFrom(idx, 1);
-    if (this.armor) this.inventory.add(this.armor);
-    this.armor = taken;
+    this.gear[slot] = taken;
+    if (slot === 'pack') this.inventory.setExtra(def.pack.slots);
+    if (old) { const left = this.inventory.add(old); if (left > 0) this.dropItem(old); }
     this.applyArmorMods();
     this.sfx('rummage', null, { volume: 0.7 });
-    this.subtitle(`You strap on the ${ITEMS[taken.id].name.toLowerCase()}.`, 1.8);
+    this.subtitle(slot === 'pack' ? `You shoulder the ${def.name}.` : `You put on the ${def.name}.`, 1.6);
   }
+  wearArmor(idx) { this.equipGear(idx); }
 
-  removeArmor() {
-    if (!this.armor) return;
-    const left = this.inventory.add(this.armor);
-    if (left > 0) this.dropItem(this.armor);
-    this.armor = null;
+  unequipGear(slot) {
+    const it = this.gear[slot];
+    if (!it) return false;
+    if (slot === 'pack') {
+      if (this.inventory.extraUsed()) { this.subtitle('Take everything out of the pack\'s pockets first.', 2); return false; }
+      this.inventory.setExtra(0);
+    }
+    this.gear[slot] = null;
+    const left = this.inventory.add(it);
+    if (left > 0) this.dropItem(it);
     this.applyArmorMods();
+    return true;
   }
+  removeArmor() { this.unequipGear('body'); }
 
+  // Speed, stamina, fall and noise modifiers from everything worn.
   applyArmorMods() {
-    const A = this.armor ? ITEMS[this.armor.id].armor : null;
-    this.player.armorSlow = A ? 1 - A.slow : 1;
-    this.armorStamina = A ? A.stamina : 1;
+    let slow = 0, stamina = 1, fall = 1, quiet = 1;
+    for (const k of GEAR_SLOTS) {
+      const it = this.gear[k];
+      if (!it) continue;
+      const d = ITEMS[it.id];
+      const A = d.armor || d.pack || {};
+      slow += A.slow || 0; stamina *= A.stamina || 1; fall *= A.fall || 1; quiet *= A.quiet || 1;
+    }
+    this.player.armorSlow = Math.max(0.6, 1 - slow);
+    this.armorStamina = stamina;
+    this.armorFall = fall;
+    this.armorQuiet = quiet;
     this.hud.armorChanged(this);
   }
+  armorProtection() {
+    let pass = 1;
+    for (const k of ARMOR_SLOTS) if (this.gear[k]) pass *= 1 - ITEMS[this.gear[k].id].armor.absorb;
+    return Math.min(0.75, 1 - pass);
+  }
+  gearIds() { return GEAR_SLOTS.map(k => this.gear[k]?.id || 0); }
 
   activeTransmitter() {
     for (const s of this.inventory.slots) if (s && s.id === 'transmitter' && s.data.on && s.data.charge > 0) return s;
@@ -1244,7 +1289,7 @@ export class Game {
       lvl: this.levelId, cr: P.crouching, sp: P.sprinting, sw: P.swimming, dn: this.downed, dd: this.dead, hd: this.hidden, nt: this.notarget || undefined,
       hi: it ? it.id : null, fl: this.lights.on, fo: this.lights.focus, lt: this.held.lighterLit, hp: Math.round(this.stats.health),
       sn: Math.round(this.stats.sanity), iw: this.level ? this.level.waterAt(P.pos.x, P.pos.z) > P.pos.y + 0.4 : false,
-      us: this.held.useT > 0 ? useAnim(it) : undefined, cl: this.classId || undefined, wd: this.stats.hasStatus('inkward') || undefined,
+      us: this.held.useT > 0 ? useAnim(it) : undefined, cl: this.classId || undefined, gr: this.gearIds(), wd: this.stats.hasStatus('inkward') || undefined,
     };
   }
 

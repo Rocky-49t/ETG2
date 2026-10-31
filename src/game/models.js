@@ -259,6 +259,31 @@ function vestM(color) {
   return g;
 }
 
+function helmetM(color, rq) {
+  const g = new THREE.Group(), m = C(color, 0.75, 0.15);
+  g.add(mesh(new THREE.SphereGeometry(0.11, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), m, 0, 0.01, 0));
+  g.add(mesh(cyl(0.118, 0.12, 0.022, 16), m, 0, 0.012, 0));
+  if (rq) g.add(mesh(cyl(0.113, 0.115, 0.02, 16), C(0xb3201a, 0.6), 0, 0.04, 0));
+  return g;
+}
+function legsM(color, rq) {
+  const g = new THREE.Group();
+  for (const x of [-0.06, 0.06]) { g.add(mesh(box(0.08, 0.025, 0.3), C(color, 0.8), x, 0.012, 0)); g.add(mesh(box(0.085, 0.03, 0.06), C(0x1d1d20, 0.6), x, 0.03, 0.02)); if (rq) g.add(mesh(box(0.082, 0.006, 0.02), C(0xb3201a, 0.6), x, 0.027, -0.06)); }
+  return g;
+}
+function bootsM(color, rq) {
+  const g = new THREE.Group(), m = C(color, 0.6);
+  for (const x of [-0.05, 0.05]) { g.add(mesh(box(0.07, 0.05, 0.14), m, x, 0.025, 0.02)); g.add(mesh(box(0.065, rq ? 0.16 : 0.09, 0.065), m, x, rq ? 0.08 : 0.045, -0.03)); if (rq) g.add(mesh(box(0.068, 0.012, 0.068), C(0xb3201a, 0.6), x, 0.12, -0.03)); }
+  return g;
+}
+function packM(color, big) {
+  const g = new THREE.Group(), m = C(color, 0.85);
+  g.add(mesh(box(big ? 0.32 : 0.26, big ? 0.14 : 0.11, big ? 0.42 : 0.3), m, 0, big ? 0.07 : 0.055, 0));
+  g.add(mesh(box(0.2, 0.06, 0.1), C(color, 0.95), 0, big ? 0.13 : 0.1, 0.12));
+  if (big) g.add(mesh(cyl(0.06, 0.06, 0.34, 10), C(0x7a2e22, 0.9), 0, 0.17, -0.12, 0, 0, Math.PI / 2));
+  return g;
+}
+
 const BUILDERS = {
   pistol, shotgun, smg, rifle, crowbar, knife, flashlight, lighter, glowstick, flare, decoy,
   cleanWater: () => bottle(0x9fd2f0, 0x3b7fc4),
@@ -278,6 +303,17 @@ const BUILDERS = {
   wire: () => { const g = new THREE.Group(); for (let i = 0; i < 4; i++) g.add(mesh(new THREE.TorusGeometry(0.04 - i * 0.004, 0.004, 6, 18), C(0xc8783a, 0.35, 0.9), 0, 0.006 + i * 0.006, 0, Math.PI / 2)); return g; },
   vest: () => vestM(0x4f5a3c),
   scrapVest: () => vestM(0x7a6a52),
+  plateCarrier: () => vestM(0xa08a5e),
+  ririqianVest: () => { const g = vestM(0x26262a); g.add(mesh(box(0.345, 0.006, 0.05), C(0xb3201a, 0.6), 0, 0.043, 0.04)); return g; },
+  helmet: () => helmetM(0x55603e, false),
+  ririqianHelmet: () => helmetM(0x3a3d30, true),
+  hardHat: () => { const g = new THREE.Group(); const m = C(0xe2b833, 0.5); g.add(mesh(new THREE.SphereGeometry(0.1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), m, 0, 0, 0)); g.add(mesh(cyl(0.12, 0.12, 0.01, 14), m, 0, 0.005, 0.01)); return g; },
+  legGuards: () => legsM(0x55603e, false),
+  ririqianGreaves: () => legsM(0x26262a, true),
+  combatBoots: () => bootsM(0x2a2620, false),
+  ririqianBoots: () => bootsM(0x111111, true),
+  smallPack: () => packM(0x6b5a3a, false),
+  largePack: () => packM(0x4a5a6b, true),
   level5Key: () => { const g = new THREE.Group(); const m = C(0xd9d3a0, 0.3, 0.9); g.add(mesh(cyl(0.006, 0.006, 0.09, 8), m, 0, 0.006, 0, Math.PI / 2)); g.add(mesh(new THREE.TorusGeometry(0.018, 0.005, 6, 14), m, 0, 0.006, 0.055, Math.PI / 2)); g.add(mesh(box(0.012, 0.004, 0.02), m, 0.008, 0.006, -0.035)); return g; },
   snackBar: () => {
     const g = new THREE.Group();

@@ -32,8 +32,21 @@ export const ITEMS = {
   scrap: { name: 'Scrap Metal', desc: 'Bent plates and brackets. Crafting part.', type: 'part', stack: 8, icon: 'scrap', color: '#8a8f94' },
   wire: { name: 'Copper Wire', desc: 'A coil of salvaged wire. Crafting part.', type: 'part', stack: 8, icon: 'wire', color: '#c8783a' },
   transmitter: { name: 'Location Transmitter', desc: 'Use to switch it on: shows your coordinates and every teammate\'s, updating every few seconds. Runs on battery.', type: 'transmitter', stack: 1, data: { charge: 100 }, icon: 'transmitter', color: '#3a4a3c' },
-  vest: { name: 'Ballistic Vest', desc: 'Use to wear or remove. Absorbs 40% of damage until worn through, but slows you down and tires you faster.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { absorb: 0.4, slow: 0.12, stamina: 1.25 }, icon: 'vest', color: '#4f5a3c' },
-  scrapVest: { name: 'Scrap Armor', desc: 'Use to wear or remove. Rags and plates lashed together: absorbs 25% of damage, slows you a little.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { absorb: 0.25, slow: 0.06, stamina: 1.1 }, icon: 'vest', color: '#7a6a52' },
+  // ---- armor: four slots (head, body, legs, feet); protection stacks
+  vest: { name: 'Ballistic Vest', desc: 'Body armor. Absorbs 34% of damage until worn through, but slows you and tires you faster.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'body', absorb: 0.34, slow: 0.1, stamina: 1.2 }, icon: 'vest', color: '#4f5a3c' },
+  scrapVest: { name: 'Scrap Armor', desc: 'Body armor. Rags and plates lashed together: absorbs 22% of damage, slows you a little.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'body', absorb: 0.22, slow: 0.05, stamina: 1.08 }, icon: 'vest', color: '#7a6a52' },
+  plateCarrier: { name: 'Plate Carrier', desc: 'Heavy body armor with ceramic plates. Absorbs 45% of damage. Slow and tiring.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'body', absorb: 0.45, slow: 0.15, stamina: 1.32 }, icon: 'vest', color: '#a08a5e' },
+  ririqianVest: { name: 'Ririqian Vest', desc: 'Black Remnant body armor with a red stripe. Absorbs 30% of damage and is lighter than it looks.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'body', absorb: 0.3, slow: 0.06, stamina: 1.12 }, icon: 'vest', color: '#26262a' },
+  helmet: { name: 'Combat Helmet', desc: 'Head armor. A US-issue helmet: absorbs 12% of damage.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'head', absorb: 0.12, slow: 0, stamina: 1 }, icon: 'helmet', color: '#55603e' },
+  ririqianHelmet: { name: 'Ririqian Helmet', desc: 'Head armor. Steel helmet with a red band and a white star: absorbs 13% of damage.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'head', absorb: 0.13, slow: 0, stamina: 1 }, icon: 'helmet', color: '#3a3d30' },
+  hardHat: { name: 'Hard Hat', desc: 'Head armor. Yellow plastic: absorbs 6% of damage. Better than nothing.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'head', absorb: 0.06, slow: 0, stamina: 1 }, icon: 'helmet', color: '#e2b833' },
+  legGuards: { name: 'Leg Guards', desc: 'Leg armor. Thigh plates and knee pads: absorbs 9% of damage.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'legs', absorb: 0.09, slow: 0.03, stamina: 1.03 }, icon: 'legs', color: '#55603e' },
+  ririqianGreaves: { name: 'Ririqian Greaves', desc: 'Leg armor. Black composite greaves: absorbs 11% of damage.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'legs', absorb: 0.11, slow: 0.04, stamina: 1.04 }, icon: 'legs', color: '#26262a' },
+  combatBoots: { name: 'Combat Boots', desc: 'Foot armor. Absorbs 5% of damage, softens falls and muffles your footsteps a little.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'feet', absorb: 0.05, slow: 0, stamina: 1, fall: 0.6, quiet: 0.85 }, icon: 'boots', color: '#2a2620' },
+  ririqianBoots: { name: 'Ririqian Jackboots', desc: 'Foot armor. Tall black boots: absorbs 6% of damage and softens falls.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'feet', absorb: 0.06, slow: 0, stamina: 1, fall: 0.7 }, icon: 'boots', color: '#151515' },
+  // ---- packs: the accessory slot; each adds inventory slots
+  smallPack: { name: 'Field Pack', desc: 'A worn canvas backpack. Wear it for 4 extra inventory slots.', type: 'pack', stack: 1, pack: { slots: 4 }, icon: 'pack', color: '#6b5a3a' },
+  largePack: { name: 'Expedition Pack', desc: 'A big framed pack with a bedroll. Wear it for 8 extra inventory slots (slows you very slightly).', type: 'pack', stack: 1, pack: { slots: 8, slow: 0.02 }, icon: 'pack', color: '#4a5a6b' },
 
   flashlight: { name: 'Flashlight', desc: 'Press F to toggle. Hold RMB (empty hands) to focus the beam — it stuns things that hate light.', type: 'flashlight', stack: 1, data: { charge: 100 }, icon: 'flashlight', color: '#3c3f44' },
   lighter: { name: 'Lighter', desc: 'A small flame. Hold it out to keep hounds at bay. Uses fuel.', type: 'tool', tool: 'lighter', stack: 1, data: { fuel: 100 }, icon: 'lighter', color: '#c0392b', hands: 'one' },
@@ -303,6 +316,22 @@ function drawIcon(g, icon, col) {
       g.beginPath(); g.moveTo(18, 10); g.lineTo(26, 10); g.quadraticCurveTo(32, 18, 38, 10); g.lineTo(46, 10); g.lineTo(52, 22); g.lineTo(48, 56); g.lineTo(16, 56); g.lineTo(12, 22); g.closePath(); fillStroke(col);
       g.fillStyle = shade(col, 0.75); g.fillRect(18, 30, 12, 10); g.fillRect(34, 30, 12, 10);
       g.strokeStyle = shade(col, 0.6); g.lineWidth = 2; g.beginPath(); g.moveTo(32, 20); g.lineTo(32, 56); g.stroke();
+      break;
+    case 'helmet':
+      g.beginPath(); g.moveTo(10, 42); g.quadraticCurveTo(10, 12, 32, 12); g.quadraticCurveTo(54, 12, 54, 42); g.lineTo(58, 46); g.lineTo(6, 46); g.closePath(); fillStroke(col);
+      g.strokeStyle = shade(col, 0.6); g.lineWidth = 3; g.beginPath(); g.moveTo(12, 36); g.lineTo(52, 36); g.stroke();
+      g.strokeStyle = '#222'; g.lineWidth = 2; g.beginPath(); g.moveTo(14, 46); g.quadraticCurveTo(32, 60, 50, 46); g.stroke();
+      break;
+    case 'legs':
+      for (const x of [16, 36]) { rr(x, 8, 13, 46, 4); fillStroke(col); g.fillStyle = shade(col, 1.3); g.fillRect(x + 2, 30, 9, 8); }
+      break;
+    case 'boots':
+      for (const x of [8, 34]) { g.beginPath(); g.moveTo(x, 10); g.lineTo(x + 12, 10); g.lineTo(x + 12, 40); g.lineTo(x + 22, 44); g.lineTo(x + 22, 54); g.lineTo(x, 54); g.closePath(); fillStroke(col); g.fillStyle = shade(col, 0.6); g.fillRect(x, 50, 22, 4); }
+      break;
+    case 'pack':
+      rr(14, 12, 36, 44, 8); fillStroke(col);
+      rr(18, 34, 28, 16, 4); fillStroke(shade(col, 0.8));
+      g.strokeStyle = shade(col, 0.5); g.lineWidth = 3; g.beginPath(); g.moveTo(24, 12); g.quadraticCurveTo(32, 2, 40, 12); g.stroke();
       break;
     case 'rifle':
       g.translate(32, 32); g.rotate(-0.25);

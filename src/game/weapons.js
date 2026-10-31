@@ -69,7 +69,7 @@ export class HeldController {
     else if (def.type === 'tool' && def.tool === 'lighter') this.updateLighter(dt, it, canAct);
     else if (def.type === 'repair') { if (canAct && input.actPressed('use')) this.useRepair(); }
     else if (def.type === 'transmitter') { if (canAct && input.actPressed('use')) g.toggleTransmitter(it); }
-    else if (def.type === 'armor') { if (canAct && input.actPressed('use')) g.wearArmor(g.inventory.selected); }
+    else if (def.type === 'armor' || def.type === 'pack') { if (canAct && input.actPressed('use')) g.equipGear(g.inventory.selected); }
     else if (def.type === 'part') { if (canAct && input.actPressed('use')) g.subtitle('A crafting part. Open the inventory to see recipes.', 2); }
     else if (def.type === 'key' || def.type === 'ammo') {
       if (canAct && input.actPressed('use')) g.subtitle(def.type === 'key' ? 'Use it at the right door: look at it and press E.' : 'Ammo loads automatically when you reload (R).', 2.5);

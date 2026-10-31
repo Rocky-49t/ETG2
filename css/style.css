@@ -496,3 +496,16 @@ h2.blood { font: 400 42px var(--type) !important; color: var(--danger) !importan
 .phone-act button { font-size: 11px; padding: 9px 0; }
 .phone-call { background: #8fc48a !important; } .phone-hang { background: #d98a7a !important; }
 .phone-help { margin-top: 10px; font-size: 10px; color: #5a5038; text-align: center; }
+
+/* gear panel: armor slots + pack */
+.gear-box { margin-top: 12px; padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: 4px; background: rgba(0, 0, 0, 0.3); }
+.gear-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; margin-bottom: 6px; gap: 10px; }
+.gear-head .muted { font-size: 11px; }
+.gear-slots { display: grid; grid-template-columns: repeat(5, 62px); gap: 6px; }
+.slot.gear { width: 62px; height: 62px; cursor: pointer; position: relative; pointer-events: auto; border-style: dashed; }
+.slot.gear.filled { border-style: solid; }
+.slot.gear .glabel { position: absolute; top: 2px; left: 4px; font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+.slot.gear .ic { margin-top: 8px; }
+.slot.gear.drag-over { border-color: #8fd36a; background: rgba(60, 90, 40, 0.3); }
+.inv-grid.pack { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.inv-grid .slot.hidden { display: none; }

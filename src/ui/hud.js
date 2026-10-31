@@ -95,10 +95,14 @@ export class HUD {
     else this.heldAmmo.innerHTML = '';
   }
 
+  // armor bar: overall protection, coloured by the most worn-out piece
   armorChanged(game) {
-    const a = game.armor;
-    $('armorRow').classList.toggle('hidden', !a);
-    if (a) $('armorFill').style.width = Math.max(0, a.data.dur) + '%';
+    const worn = ['head', 'body', 'legs', 'feet'].map(k => game.gear[k]).filter(Boolean);
+    $('armorRow').classList.toggle('hidden', !worn.length);
+    if (!worn.length) return;
+    const avg = worn.reduce((n, it) => n + Math.max(0, it.data.dur), 0) / worn.length;
+    $('armorFill').style.width = avg + '%';
+    $('armorRow').title = `Armor: ${Math.round(game.armorProtection() * 100)}% protection`;
   }
 
   // timed status effects (Pale Draught, Vigor Tonic...)

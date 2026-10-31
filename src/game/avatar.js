@@ -68,6 +68,17 @@ function rbox(w, h, d, r = 0.02) {
   return g;
 }
 
+// a flat five-pointed star (faces +z)
+const starCache = new Map();
+function starGeo(s) {
+  if (starCache.has(s)) return starCache.get(s);
+  const sh = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const r = i % 2 ? s * 0.42 : s, a = Math.PI / 2 + i * Math.PI / 5; const x = Math.cos(a) * r, y = Math.sin(a) * r; if (i) sh.lineTo(x, y); else sh.moveTo(x, y); }
+  const g = new THREE.ShapeGeometry(sh);
+  starCache.set(s, g);
+  return g;
+}
+
 function part(geo, material, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
   const m = new THREE.Mesh(geo, material);
   m.position.set(x, y, z);
@@ -275,6 +286,77 @@ export class Avatar {
     this.heldSlot = new THREE.Group();
     this.heldSlot.position.set(0, -0.08, 0.02);
     this.arms[1].hand.add(this.heldSlot);
+    this.gearParts = [];
+    if (this.gearIds) { const g = this.gearIds; this.gearIds = null; this.setGear(g); }
+  }
+
+  // Worn armor and packs: [head, body, legs, feet, pack] item ids (0 = none).
+  setGear(ids) {
+    ids = (ids || []).slice(0, 5);
+    const key = ids.join('|');
+    if (this.gearIds && this.gearIds.join('|') === key) return;
+    for (const [parent, m] of this.gearParts) parent.remove(m);
+    this.gearParts = [];
+    this.gearIds = ids;
+    const add = (parent, geo, m, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => { const p = part(geo, m, x, y, z, rx, ry, rz); parent.add(p); this.gearParts.push([parent, p]); return p; };
+    const [head, body, legs, feet, pack] = ids;
+    const red = mat('#b3201a', 0.6), white = mat('#ecebe4', 0.5), black = mat('#1d1d20', 0.55);
+    const star = (parent, x, y, z, s = 0.03, ry = 0) => add(parent, starGeo(s), white, x, y, z, 0, ry, 0);
+    // ---- head
+    if (head === 'helmet' || head === 'ririqianHelmet') {
+      const m = mat(head === 'helmet' ? '#55603e' : '#3a3d30', 0.75, 0.15);
+      add(this.head, new THREE.SphereGeometry(0.152, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), m, 0, 0.17, -0.005);
+      add(this.head, new THREE.CylinderGeometry(0.16, 0.162, 0.03, 18), m, 0, 0.175, -0.005);
+      add(this.head, new THREE.BoxGeometry(0.012, 0.13, 0.012), black, -0.118, 0.11, 0.02);
+      add(this.head, new THREE.BoxGeometry(0.012, 0.13, 0.012), black, 0.118, 0.11, 0.02);
+      if (head === 'ririqianHelmet') { add(this.head, new THREE.CylinderGeometry(0.155, 0.157, 0.03, 18), red, 0, 0.215, -0.005); star(this.head, 0, 0.25, 0.135, 0.028); }
+      else add(this.head, new THREE.BoxGeometry(0.06, 0.04, 0.03), black, 0, 0.27, 0.12); // NVG mount
+    } else if (head === 'hardHat') {
+      const m = mat('#e2b833', 0.5);
+      add(this.head, new THREE.SphereGeometry(0.15, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), m, 0, 0.21, 0);
+      add(this.head, new THREE.CylinderGeometry(0.175, 0.175, 0.015, 16), m, 0, 0.215, 0.01);
+    }
+    // ---- body
+    if (body) {
+      const col = { vest: '#4f5a3c', scrapVest: '#6f6250', plateCarrier: '#a08a5e', ririqianVest: '#232326' }[body] || '#4f5a3c';
+      const m = mat(col, 0.85);
+      add(this.spine, rbox(0.4, 0.4, 0.27, 0.12), m, 0, 0.26, 0);
+      if (body === 'plateCarrier' || body === 'vest') {
+        for (let k = -1; k <= 1; k++) add(this.spine, rbox(0.085, 0.1, 0.05, 0.2), mat(col, 0.9), k * 0.11, 0.14, 0.15);
+        add(this.spine, rbox(0.3, 0.2, 0.03, 0.15), mat(col, 0.7), 0, 0.3, 0.14);
+      }
+      if (body === 'plateCarrier') for (const sx of [-1, 1]) add(this.spine, rbox(0.12, 0.06, 0.2, 0.3), m, sx * 0.21, 0.47, 0);
+      if (body === 'scrapVest') { add(this.spine, rbox(0.18, 0.14, 0.03), mat('#8a8a86', 0.5, 0.6), -0.07, 0.3, 0.145, 0, 0, 0.1); add(this.spine, rbox(0.14, 0.12, 0.03), mat('#6b4a2a', 0.8), 0.09, 0.18, 0.145, 0, 0, -0.15); add(this.spine, rbox(0.42, 0.04, 0.29), mat('#3a2f22', 0.9), 0, 0.12, 0); }
+      if (body === 'ririqianVest') { add(this.spine, new THREE.BoxGeometry(0.405, 0.05, 0.275), red, 0, 0.33, 0); star(this.spine, -0.1, 0.4, 0.138, 0.03); }
+    }
+    // ---- legs
+    if (legs) {
+      const m = mat(legs === 'legGuards' ? '#55603e' : '#232326', 0.75);
+      for (const L of this.legs) {
+        add(L.hip, rbox(0.15, 0.2, 0.06, 0.3), m, 0, -0.18, 0.06);
+        add(L.knee, rbox(0.12, 0.1, 0.05, 0.4), black, 0, -0.03, 0.07);
+        add(L.knee, rbox(0.13, 0.22, 0.05, 0.3), m, 0, -0.2, 0.06);
+        if (legs === 'ririqianGreaves') add(L.knee, new THREE.BoxGeometry(0.135, 0.025, 0.055), red, 0, -0.1, 0.065);
+      }
+    }
+    // ---- feet
+    if (feet) {
+      const m = mat(feet === 'ririqianBoots' ? '#111' : '#2a2620', 0.6);
+      for (const L of this.legs) {
+        add(L.knee, rbox(0.15, 0.1, 0.27, 0.3), m, 0, -0.41, 0.04);
+        add(L.knee, rbox(0.135, feet === 'ririqianBoots' ? 0.24 : 0.14, 0.135, 0.3), m, 0, feet === 'ririqianBoots' ? -0.3 : -0.35, 0);
+        if (feet === 'ririqianBoots') add(L.knee, new THREE.BoxGeometry(0.14, 0.02, 0.14), red, 0, -0.2, 0);
+      }
+    }
+    // ---- pack
+    if (pack) {
+      const big = pack === 'largePack';
+      const m = mat(big ? '#4a5a6b' : '#6b5a3a', 0.85), strap = mat('#2a2620', 0.8);
+      add(this.spine, rbox(big ? 0.34 : 0.3, big ? 0.5 : 0.34, big ? 0.2 : 0.15, 0.15), m, 0, big ? 0.3 : 0.26, big ? -0.2 : -0.18);
+      add(this.spine, rbox(0.24, 0.12, 0.07, 0.2), mat(big ? '#3e4d5c' : '#5a4a30', 0.85), 0, big ? 0.14 : 0.15, big ? -0.31 : -0.27);
+      for (const sx of [-1, 1]) add(this.spine, rbox(0.045, 0.42, 0.02, 0.3), strap, sx * 0.1, 0.27, 0.118);
+      if (big) { add(this.spine, new THREE.CylinderGeometry(0.075, 0.075, 0.38, 10), mat('#7a2e22', 0.9), 0, 0.6, -0.2, 0, 0, Math.PI / 2); add(this.spine, new THREE.BoxGeometry(0.02, 0.62, 0.02), black, -0.17, 0.32, -0.3); add(this.spine, new THREE.BoxGeometry(0.02, 0.62, 0.02), black, 0.17, 0.32, -0.3); }
+    }
   }
 
   setSkin(skin) { this.skin = normalizeSkin(skin); this.build(); }

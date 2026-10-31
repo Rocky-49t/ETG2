@@ -234,4 +234,41 @@ registerObjectKind('trader', {
   radius: 0.8, centerY: 1.2,
 });
 
+// RuckyOS passwords come from the base seed, so the notes and the OS agree
+const PW_WORDS = ['GLORY', 'REMNANT', 'CROWN', 'STAR', 'BELOW', 'IRON', 'RUCKY', 'EXILE', 'BANNER', 'DESERT', 'LEADER', 'OATH'];
+export function basePasswords(seed) {
+  const r = new RNG(hash4(seed >>> 0, 515));
+  const user = r.pick(PW_WORDS) + r.int(10, 99);
+  const admin = r.pick(PW_WORDS) + '-' + r.pick(PW_WORDS) + '-' + r.int(1000, 9999);
+  return { user, admin };
+}
+
+// A RuckyOS workstation: the screen glows red.
+registerObjectKind('rqComputer', {
+  build() {
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.28), new THREE.MeshBasicMaterial({ color: 0x9a1810 }));
+    m.position.set(0, 0.98, 0.034); g.add(m);
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    s.position.set(0, 1.0, 0.036); g.add(s);
+    g.userData.scr = m;
+    return g;
+  },
+  prompt: () => 'Use the computer (RuckyOS)',
+  radius: 0.5, centerY: 0.82,
+  animate(mesh) { mesh.userData.scr.material.color.setHex(Math.random() < 0.01 ? 0xc02a20 : 0x9a1810); },
+});
+// A scrap of paper with something written on it (passwords, mostly).
+registerObjectKind('paper', {
+  build(o) {
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(o.wall ? 0.12 : 0.16, o.wall ? 0.12 : 0.11), new THREE.MeshStandardMaterial({ color: o.color ?? 0xf0e070, roughness: 0.9, side: THREE.DoubleSide }));
+    if (o.wall) m.position.set(0, o.y0 ?? 1.35, 0.01); else { m.rotation.x = -Math.PI / 2; m.position.y = 0.005; }
+    g.add(m);
+    return g;
+  },
+  prompt: () => 'Read the note',
+  radius: 0.4, centerY: 0.2,
+});
+
 export function baseHash(...a) { return hash4(...a); }

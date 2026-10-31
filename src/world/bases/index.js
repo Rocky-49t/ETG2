@@ -15,7 +15,7 @@ import { chunkPorts, chunkRng, ensureConnected } from '../gen.js';
 import { hash01, hash4, RNG } from '../../core/rng.js';
 import { addProp } from '../props.js';
 import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, sideExitAt } from '../levels/common.js';
-import { arabicGibberish, didystaniName, traderOffers } from './objects.js';
+import { arabicGibberish, didystaniName, traderOffers, basePasswords } from './objects.js';
 import './props.js';
 
 const K_NONE = 0, K_ROOM = 1, K_YARD = 2, K_CORR = 3, K_DOOR = 4, K_ENTR = 5, K_WALL = 6;
@@ -111,6 +111,12 @@ export function basesNear(level, x, z, R) {
   return out;
 }
 export function baseLayout(level, b) { return layoutOf(level, b); }
+export function baseById(level, id) {
+  const [lid, gx, gz] = String(id).split(':');
+  if (lid !== level.id) return null;
+  const b = baseInCell(level, +gx | 0, +gz | 0);
+  return b && b.id === id ? b : null;
+}
 
 // Transmitters: Ririqian bases with a radio room. Coordinates are only
 // approximate (a fixed per-base error of up to ~25 m).
@@ -681,6 +687,8 @@ function furnish(c, level, b, L, r, ri, R, ctx) {
         }
       }
       const s = take(); if (s) prop('serverRack', s, 0.45);
+      // someone always writes the password down
+      if (rq) { const sp = take(); if (sp) { const p = atWall(sp, 0.01); addObject(c, { kind: 'paper', wall: true, x: p.x, y: Y, z: p.z, ry: p.ry, y0: 1.3 + R.float(0, 0.3), title: 'Sticky note', text: `op pass: ${basePasswords(b.seed).user}\n\n(do NOT leave this on the wall — Cmdr)` }); } }
       decorate(1);
       break;
     }
@@ -697,7 +705,8 @@ function furnish(c, level, b, L, r, ri, R, ctx) {
       const s2 = take(); if (s2) cont('safe', s2, 0.32, loot('command'), [1, 2]);
       const s3 = take(); if (s3) prop('mapBoard', s3, 0.02);
       decorate(2);
-      // the vault code is no code at all: it is the key the officer carries
+      // the commander's passphrase, tucked under the blotter
+      if (rq) addObject(c, { kind: 'paper', x: cx + R.float(-0.5, 0.5), y: Y, z: cz + R.float(-0.5, 0.5), ry: R.float(0, 6), color: 0xe8e4d8, title: 'Folded slip', text: `COMMANDER — memorise and burn.\n\nTerminal passphrase:\n${basePasswords(b.seed).admin}\n\nThe vault key never leaves your person.` });
       break;
     }
     case 'vault': {

@@ -11,6 +11,7 @@ import { WEAPONS } from '../game/weapons.js';
 import { RECIPES, canCraft, craft } from '../game/crafting.js';
 import { CLASSES, CLASS_ORDER } from '../game/classes.js';
 import { ComputerUI, PhoneUI } from './computer.js';
+import { RuckyOS } from './ruckyos.js';
 
 const $ = id => document.getElementById(id);
 const TIPS = [
@@ -47,6 +48,7 @@ export class UI {
     this.onHelp = null;
     this.computer = new ComputerUI(this);
     this.phone = new PhoneUI(this);
+    this.ruckyos = new RuckyOS(this);
     this.bindInventory();
     this.bindPause();
     this.bindChat();

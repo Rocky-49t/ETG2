@@ -39,9 +39,9 @@ import { EntityViews } from '../ai/views.js';
 import { Director } from '../ai/director.js';
 import { NOISE } from '../ai/brain.js';
 import { ENTITY_TYPES } from '../ai/entities/index.js';
-import { radioSources, basesNear, baseLayout } from '../world/bases/index.js';
+import { radioSources, basesNear, baseLayout, baseById, baseAtChunk } from '../world/bases/index.js';
 import { NPC_ARMS } from '../ai/entities/npc.js';
-import { imageURL, IMAGE_CAPTIONS, didystaniName, radioChatter } from '../world/bases/objects.js';
+import { imageURL, IMAGE_CAPTIONS, didystaniName, radioChatter, basePasswords } from '../world/bases/objects.js';
 import { WEAPONS } from './weapons.js';
 import { audio } from '../audio/audio.js';
 
@@ -584,6 +584,18 @@ export class Game {
         break;
       case 'trader':
         this.ui.openTrade(o, s, this);
+        break;
+      case 'rqComputer': {
+        const b = baseById(this.level, o.base);
+        if (b) b._posts = baseLayout(this.level, b).posts.length;
+        const P = this.player;
+        if (o.seat) { this.preSeat = { x: P.pos.x, y: P.pos.y, z: P.pos.z }; P.teleport(o.seat.x, P.pos.y, o.seat.z, o.seat.yaw); P.pitch = -0.12; P.height = 1.3; }
+        this.ui.ruckyos.open(this, o, b);
+        break;
+      }
+      case 'paper':
+        this.sfx('paper', null, {});
+        this.ui.showNote({ title: o.title || 'Note', body: o.text || '' });
         break;
       case 'radioSet': {
         const [t, b] = radioChatter(hash4(o.x * 10 | 0, o.z * 10 | 0, (this.time / 30) | 0));
@@ -1501,6 +1513,7 @@ export class Game {
       }
       case 'cheat': this.hostCheat(pid, m); break;
       case 'call': this.hostCall(pid, m); break;
+      case 'baseCmd': this.hostBaseCmd(pid, m); break;
       case 'chat': {
         const text = String(m.text || '').slice(0, 200);
         if (text) this.hostBroadcast({ t: 'chat', from: pid, name: this.nameOf(pid), text });
@@ -1764,6 +1777,29 @@ export class Game {
         this.hostBroadcast({ t: 'flag', l: e.levelId, k: 'alarm:' + e.npc.base, v: this.time });
         this.hostEvent(e.levelId, { k: 'subtitle', text: 'A siren starts to wail.', dur: 2.5, cls: 'scare' });
       }
+    }
+  }
+
+  // RuckyOS admin commands: the passphrase is checked here, on the host.
+  hostBaseCmd(pid, m) {
+    const lvl = LEVELS[m.l] && this.getLevel(m.l);
+    const b = lvl && baseById(lvl, m.base);
+    if (!b || b.faction !== 'rq' || typeof m.pw !== 'string' || m.pw !== basePasswords(b.seed).admin) return;
+    if (m.cmd === 'alarmOff') this.hostBroadcast({ t: 'flag', l: m.l, k: 'alarm:' + b.id, v: 0 });
+    else if (m.cmd === 'alarmOn') {
+      this.hostBroadcast({ t: 'flag', l: m.l, k: 'alarm:' + b.id, v: this.time });
+      // the garrison comes to see who pressed it
+      const p = this.playerTargetById(pid);
+      const rec = this.baseNpcs?.get(b.id);
+      if (p && rec) for (const id of rec.ids) { const e = this.entities.list.get(id); if (e && e.state !== 'dead' && e.state !== 'combat') { e.lastSeen = { x: p.x, z: p.z, t: this.time }; setStateNpc(e, 'search'); } }
+    } else if (m.cmd === 'vault' && typeof m.vault === 'string') {
+      const o = this.findObject(m.l, m.vault);
+      if (!o || o.kind !== 'baseVault' || o.base !== b.id) return;
+      const s = this.world.get(m.l, o.id) || {};
+      if (s.open) return;
+      this.hostBroadcast({ t: 'os', l: m.l, id: o.id, s: { open: true } });
+      if (o.collider) o.collider.disabled = true;
+      this.hostEvent(m.l, { k: 'sound', name: 'metalDoor', x: o.x, y: 1, z: o.z, volume: 1 });
     }
   }
 

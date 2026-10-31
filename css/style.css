@@ -536,3 +536,73 @@ body.scoped #crosshair { opacity: 0; }
 .trade-row.no { opacity: 0.5; }
 .trade-row .ti { width: 32px; height: 32px; }
 .trade-row .arr { color: var(--accent); text-align: center; }
+
+/* ============================== RUCKYOS 7 (Win7-style, red/white/black) */
+#ruckyos { background: #000; z-index: 60; padding: 0; }
+#ruckyos.show { display: block; }
+.ros-desk { position: absolute; inset: 3vh 4vw; overflow: hidden; border-radius: 12px; font: 12px "Segoe UI", Tahoma, Arial, sans-serif; color: #111; user-select: none;
+  background: radial-gradient(ellipse at 30% 30%, #b0201a 0%, #5a0c08 45%, #160303 100%); box-shadow: inset 0 0 90px rgba(0,0,0,0.7), 0 0 0 12px #1a1a1c, 0 0 0 15px #3a3a3e; }
+.ros-desk::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.06) 0 1px, transparent 1px 3px); z-index: 900; }
+.ros-wall { position: absolute; right: 8%; top: 18%; text-align: center; color: rgba(255,255,255,0.85); text-shadow: 0 2px 20px rgba(0,0,0,0.6); pointer-events: none; }
+.ros-star { font-size: 120px; line-height: 1; color: #fff; filter: drop-shadow(0 0 30px rgba(255,255,255,0.35)); }
+.ros-brand { font: 300 46px "Segoe UI", Arial, sans-serif; letter-spacing: 0.02em; } .ros-brand span { font-weight: 600; color: #ff6a5a; margin-left: 6px; }
+.ros-sub { font-size: 20px; opacity: 0.7; direction: rtl; }
+.ros-icons { position: absolute; left: 14px; top: 12px; display: grid; gap: 10px; grid-auto-flow: column; grid-template-rows: repeat(6, auto); }
+.ros-icon { width: 80px; text-align: center; color: #fff; padding: 4px; border-radius: 4px; cursor: default; text-shadow: 0 1px 3px #000; }
+.ros-icon span { display: block; font-size: 30px; line-height: 36px; }
+.ros-icon:hover { background: rgba(255,255,255,0.15); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.3); }
+.ros-wins { position: absolute; inset: 0 0 40px 0; }
+.ros-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 6px; z-index: 700;
+  background: linear-gradient(rgba(30,30,34,0.75), rgba(10,10,12,0.9)); border-top: 1px solid rgba(255,255,255,0.25); backdrop-filter: blur(6px); }
+.ros-orb { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.5); background: radial-gradient(circle at 40% 30%, #ff8a7a, #b0201a 55%, #4a0805); color: #fff; font-size: 17px; cursor: pointer; box-shadow: 0 0 12px rgba(255,80,60,0.5); }
+.ros-tasks { flex: 1; display: flex; gap: 4px; overflow: hidden; }
+.ros-task { max-width: 160px; height: 30px; padding: 0 10px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.3); background: linear-gradient(rgba(255,255,255,0.18), rgba(255,255,255,0.05)); color: #fff; font: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.ros-task.min { opacity: 0.6; }
+.ros-tray { color: #fff; display: flex; gap: 10px; padding: 0 8px; }
+.ros-start { position: absolute; left: 4px; bottom: 42px; width: 360px; display: grid; grid-template-columns: 1fr 120px; grid-template-rows: auto 1fr; z-index: 750; border-radius: 6px; overflow: hidden;
+  background: linear-gradient(rgba(40,10,8,0.92), rgba(15,5,4,0.95)); border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: #fff; }
+.ros-start.hidden { display: none; }
+.ros-user { grid-column: 1 / 3; display: flex; gap: 10px; align-items: center; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+.ros-av { width: 40px; height: 40px; border-radius: 4px; background: #b0201a; color: #fff; display: grid; place-items: center; font-size: 22px; border: 2px solid #fff; }
+.ros-av.big { width: 64px; height: 64px; font-size: 34px; }
+.ros-list { background: #fff; color: #111; padding: 4px; } .ros-list div { padding: 6px 8px; border-radius: 3px; } .ros-list div:hover { background: #fde2de; }
+.ros-side div { padding: 8px 10px; } .ros-side div:hover { background: rgba(255,255,255,0.12); }
+.ros-win { position: absolute; display: flex; flex-direction: column; border-radius: 7px; overflow: hidden; border: 1px solid rgba(0,0,0,0.6);
+  background: linear-gradient(rgba(60,14,10,0.82), rgba(25,6,5,0.88)); box-shadow: 0 8px 26px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.25); backdrop-filter: blur(4px); }
+.ros-win.min { display: none; }
+.ros-title { display: flex; justify-content: space-between; align-items: center; padding: 6px 6px 6px 10px; color: #fff; text-shadow: 0 0 6px rgba(0,0,0,0.8); cursor: move; }
+.ros-title button { width: 26px; height: 18px; margin-left: 2px; border: 1px solid rgba(255,255,255,0.4); border-radius: 3px; background: linear-gradient(rgba(255,255,255,0.3), rgba(255,255,255,0.05)); color: #fff; font-size: 11px; line-height: 14px; cursor: pointer; }
+.ros-title button.x { width: 40px; background: linear-gradient(#e66a5a, #a8201a); }
+.ros-body { flex: 1; margin: 0 6px 6px; background: #fff; border: 1px solid rgba(0,0,0,0.5); overflow: auto; display: flex; flex-direction: column; min-height: 0; }
+.ros-body button { font: inherit; padding: 4px 12px; border: 1px solid #8a8a8a; border-radius: 3px; background: linear-gradient(#fafafa, #dcdcdc); cursor: pointer; color: #111; }
+.ros-body button.pri { border-color: #8a1810; background: linear-gradient(#e85a4a, #a8201a); color: #fff; }
+.ros-body button:disabled { opacity: 0.5; }
+.ros-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
+.ros-err { color: #a8201a; min-height: 16px; margin-top: 4px; }
+.ros-in { width: 100%; padding: 5px; border: 1px solid #8a8a8a; border-radius: 3px; margin-top: 6px; font: inherit; }
+.ros-login { display: flex; gap: 14px; padding: 14px; align-items: flex-start; } .ros-login > div:last-child { flex: 1; }
+.ros-ex { display: grid; grid-template-columns: 170px 1fr; flex: 1; min-height: 0; }
+.ros-tree { border-right: 1px solid #ddd; padding: 6px; background: #f6f2f1; overflow: auto; } .ros-tree div { padding: 5px 6px; border-radius: 3px; cursor: pointer; } .ros-tree div.on, .ros-tree div:hover { background: #fde2de; }
+.ros-files { padding: 8px; overflow: auto; } .ros-file { padding: 5px 6px; border-radius: 3px; cursor: pointer; } .ros-file:hover { background: #fde2de; }
+.ros-locked { padding: 20px; text-align: center; line-height: 1.7; color: #333; }
+.ros-status { padding: 3px 8px; border-top: 1px solid #ddd; background: #f6f2f1; color: #555; }
+.ros-img { flex: 1; display: grid; place-items: center; background: #111; } .ros-img img { max-width: 100%; max-height: 100%; }
+.ros-note { flex: 1; border: 0; resize: none; padding: 8px; font: 13px Consolas, "Courier New", monospace; }
+.ros-calc { padding: 8px; display: flex; flex-direction: column; gap: 6px; background: #f2eeee; flex: 1; }
+.ros-lcd { background: linear-gradient(#fff, #e8eef2); border: 1px solid #8a8a8a; border-radius: 3px; text-align: right; font-size: 22px; padding: 8px; overflow: hidden; white-space: nowrap; }
+.ros-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; } .ros-keys button { padding: 7px 0; }
+.ros-paint { display: flex; flex-direction: column; flex: 1; } .ros-tools { display: flex; gap: 4px; align-items: center; padding: 4px; background: #f2eeee; border-bottom: 1px solid #ddd; flex-wrap: wrap; }
+.ros-tools .sw { width: 20px; height: 20px; padding: 0; border: 1px solid #555; } .ros-tools .sw.on { outline: 2px solid #a8201a; }
+.ros-paint canvas { flex: 1; width: 100%; cursor: crosshair; touch-action: none; }
+.ros-mines { padding: 8px; background: #d8d4d4; flex: 1; } .ros-mhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font: bold 16px monospace; color: #a8201a; }
+.ros-grid { display: grid; gap: 1px; } .ros-grid .mc { width: 24px; height: 24px; padding: 0; font: bold 12px monospace; border-radius: 0; } .ros-grid .mc.o { background: #eee; border-color: #bbb; }
+.ros-grid .mc[data-n="1"] { color: #2a4a8a; } .ros-grid .mc[data-n="2"] { color: #2a7a2a; } .ros-grid .mc[data-n="3"] { color: #a8201a; } .ros-grid .mc[data-n="4"] { color: #4a1a6a; }
+.ros-term { flex: 1; display: flex; flex-direction: column; background: #0c0c0c; color: #e8e0d0; font: 13px Consolas, "Courier New", monospace; padding: 6px; min-height: 0; }
+.ros-out { flex: 1; overflow: auto; white-space: pre-wrap; } .ros-out .cmd { color: #ff8a7a; } .ros-out .err { color: #ff5a4a; }
+.ros-prompt { display: flex; gap: 6px; } .ros-prompt input { flex: 1; background: transparent; border: 0; color: #fff; font: inherit; outline: none; }
+.ros-mon { padding: 10px; flex: 1; } .ros-stat { font: 13px Consolas, monospace; background: #111; color: #9fffb0; padding: 10px; border-radius: 3px; margin: 0; white-space: pre-wrap; }
+.ros-mail { display: grid; grid-template-columns: 200px 1fr; flex: 1; min-height: 0; } .ros-mail.one { grid-template-columns: 1fr; overflow: auto; padding: 8px; }
+.ros-mlist { border-right: 1px solid #ddd; overflow: auto; } .ros-mlist div { padding: 7px 8px; border-bottom: 1px solid #eee; cursor: pointer; } .ros-mlist div.on, .ros-mlist div:hover { background: #fde2de; }
+.ros-mbody { padding: 12px; overflow: auto; line-height: 1.5; } .ros-ic { padding: 6px 4px; border-bottom: 1px solid #eee; } .ros-ic p { margin: 4px 0 0; }
+.ros-media { flex: 1; padding: 12px; text-align: center; background: linear-gradient(#1a1a1c, #000); color: #ddd; }
+.ros-viz { height: 70px; display: flex; align-items: flex-end; justify-content: center; gap: 3px; margin-bottom: 10px; } .ros-viz i { width: 8px; height: 4px; background: linear-gradient(#ff6a5a, #a8201a); transition: height 0.2s; }

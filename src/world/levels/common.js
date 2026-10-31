@@ -16,9 +16,11 @@ export function addLight(c, l) {
 
 export function addDecal(c, d) { c.decals.push(d); return d; }
 
-let objCounter = 0;
+// ids come from a per-chunk counter (not the list length) so removing objects
+// (clearArea, bases) can never hand out an id twice
 export function addObject(c, o) {
-  o.id = c.key + ':' + c.objects.length;
+  c._oid = (c._oid ?? -1) + 1;
+  o.id = c.key + ':' + c._oid;
   c.objects.push(o);
   return o;
 }

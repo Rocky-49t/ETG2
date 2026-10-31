@@ -359,6 +359,8 @@ export default {
     secondary: [{ type: 'undertow', max: 1, spawnCd: 60, chance: 0.12, boost: ctx => ctx.players.some(p => zoneFor(ctx.level, Math.floor(p.x / 32), Math.floor(p.z / 32)) === 'blue') }],
   },
   exitStyle: 'mosaic',
+  // abandoned Didystani posts among the pools (about one per 7 minutes)
+  bases: { faction: 'dd', cell: 6, chance: 0.75, minR: 3, sizes: [['outpost', 3], ['small', 3], ['medium', 2], ['large', 0.7]], ceil: 3.2, yardCeil: 5, light: 'strip', lightColor: [0.8, 0.92, 1.0] },
   containerMats: { cabinet: 'poolTile', crate: 'poolTileBlue', cardboard: 'soggyCardboard' },
   allowBlackout: false,
   eventSounds: ['splash', 'drip', 'whisper', 'tideGroan', 'knock'],

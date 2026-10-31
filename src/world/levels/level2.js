@@ -555,6 +555,8 @@ export default {
     secondary: [{ type: 'inkwalker', max: 1, spawnCd: 110, chance: 0, boost: ctx => ctx.players.some(p => p.y < -2) }],
   },
   exitStyle: 'emergency',
+  // Ririqian outposts and strongholds hidden among the offices (about one per 5 minutes of walking)
+  bases: { faction: 'rq', cell: 5, chance: 0.75, minR: 3, sizes: [['outpost', 3], ['small', 3], ['medium', 2.5], ['large', 1.5]], ceil: 2.8, yardCeil: 4.4, light: 'panel', lightColor: [0.9, 0.92, 1.0] },
   eventSounds: ['phoneRing', 'knock', 'distantThud', 'inkStep', 'scrape', 'whisper'],
 
   landmarks(level) {

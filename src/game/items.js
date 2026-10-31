@@ -80,6 +80,9 @@ export const ITEMS = {
 
   keycard: { name: 'Service Keycard', desc: 'A grimy maintenance keycard: "SERVICE ACCESS — TUNNEL EXIT". Opens the service door.', type: 'key', stack: 1, icon: 'keycard', color: '#e0a33a' },
   fuse: { name: 'Industrial Fuse', desc: 'A heavy ceramic fuse. Something in the stairwell needs power.', type: 'key', stack: 1, icon: 'fuse', color: '#5a8fd0' },
+  vaultKey: { name: 'Ririqian Vault Key', desc: 'A heavy brass key on a red cord, stamped with a star. Opens the vault of the base it came from.', type: 'key', stack: 3, icon: 'tkey', color: '#c9a640' },
+  goldBar: { name: 'Gold Bar', desc: 'A small Ririqian gold bar stamped with Rucky Rucky\'s face. Useless down here — unless you find someone who still believes in money.', type: 'part', stack: 10, icon: 'gold', color: '#e2b833' },
+  didhCharm: { name: 'Did\'h Charm', desc: 'A little blue stone on a string. The Wanderers say Did\'h watches over whoever carries one. Holding it steadies your nerves.', type: 'part', stack: 3, icon: 'charm', color: '#4a8aff' },
   level5Key: { name: 'Bridge Key', desc: 'A cold, heavy key stamped "5". Opens a Level 4 toll vault without solving its lock.', type: 'key', stack: 3, icon: 'tkey', color: '#d9d3a0' },
   drainKey: { name: 'Drain Valve Key', desc: 'A T-shaped key stamped "MAIN DRAIN". Opens the drainage grate.', type: 'key', stack: 1, icon: 'tkey', color: '#7fb8c9' },
 };
@@ -329,6 +332,15 @@ function drawIcon(g, icon, col) {
       g.beginPath(); g.moveTo(18, 10); g.lineTo(26, 10); g.quadraticCurveTo(32, 18, 38, 10); g.lineTo(46, 10); g.lineTo(52, 22); g.lineTo(48, 56); g.lineTo(16, 56); g.lineTo(12, 22); g.closePath(); fillStroke(col);
       g.fillStyle = shade(col, 0.75); g.fillRect(18, 30, 12, 10); g.fillRect(34, 30, 12, 10);
       g.strokeStyle = shade(col, 0.6); g.lineWidth = 2; g.beginPath(); g.moveTo(32, 20); g.lineTo(32, 56); g.stroke();
+      break;
+    case 'gold':
+      g.beginPath(); g.moveTo(10, 44); g.lineTo(18, 24); g.lineTo(46, 24); g.lineTo(54, 44); g.closePath(); fillStroke(col);
+      g.fillStyle = shade(col, 1.2); g.beginPath(); g.moveTo(18, 24); g.lineTo(46, 24); g.lineTo(42, 30); g.lineTo(22, 30); g.closePath(); g.fill();
+      break;
+    case 'charm':
+      g.strokeStyle = '#c8b890'; g.lineWidth = 2; g.beginPath(); g.moveTo(20, 8); g.quadraticCurveTo(32, 26, 44, 8); g.stroke();
+      g.beginPath(); g.ellipse(32, 38, 12, 15, 0, 0, Math.PI * 2); fillStroke(col);
+      g.fillStyle = '#fff6'; g.beginPath(); g.ellipse(28, 33, 3, 5, -0.4, 0, Math.PI * 2); g.fill();
       break;
     case 'helmet':
       g.beginPath(); g.moveTo(10, 42); g.quadraticCurveTo(10, 12, 32, 12); g.quadraticCurveTo(54, 12, 54, 42); g.lineTo(58, 46); g.lineTo(6, 46); g.closePath(); fillStroke(col);

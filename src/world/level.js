@@ -4,6 +4,7 @@
 import { ChunkData, TILE, CS, CHUNK, T_SOLID, T_FLOOR, T_VOID, F_NAVBLOCK, NO_WATER, OPEN_SKY } from './chunk.js';
 import { chunkPorts, chunkRng, passable } from './gen.js';
 import { hash4, hashString, RNG } from '../core/rng.js';
+import { applyBases } from './bases/index.js';
 
 const MAX_CACHED = 220;
 
@@ -31,7 +32,9 @@ export class LevelInstance {
       const rng = chunkRng(this.levelSeed, this.id, cx, cz);
       const lms = this.landmarks.filter(l => Math.floor(l.tx / CS) === cx && Math.floor(l.tz / CS) === cz)
         .map(l => ({ ...l, lx: l.tx - cx * CS, lz: l.tz - cz * CS }));
-      this.def.generate(c, { level: this, rng, ports, landmarks: lms, seed: this.levelSeed });
+      const ctx = { level: this, rng, ports, landmarks: lms, seed: this.levelSeed };
+      this.def.generate(c, ctx);
+      if (this.def.bases) applyBases(this, c, ctx);
       this.chunks.set(key, c);
       this.onGenerate?.(c);
       if (this.chunks.size > MAX_CACHED) this.evict();

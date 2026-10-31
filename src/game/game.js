@@ -40,6 +40,8 @@ import { Director } from '../ai/director.js';
 import { NOISE } from '../ai/brain.js';
 import { ENTITY_TYPES } from '../ai/entities/index.js';
 import { radioSources } from '../world/bases/index.js';
+import { imageURL, IMAGE_CAPTIONS, didystaniName, radioChatter } from '../world/bases/objects.js';
+import { WEAPONS } from './weapons.js';
 import { audio } from '../audio/audio.js';
 
 const SURFACES = { carpet: 'carpet', officeCarpet: 'carpet', fabric: 'carpet', poolTile: 'tile', poolTileBlue: 'tile', grate: 'metal', rustMetal: 'metal', darkMetal: 'metal' };
@@ -553,6 +555,38 @@ export class Game {
       case 'computer':
         this.useComputer(o);
         break;
+      case 'image': {
+        const fig = o.img.startsWith('didFigure:');
+        const [title, body] = fig ? [didystaniName(+o.img.slice(10)), 'A Didystani officer, painted in oils. The frame is scorched along one side. Whoever hung it here did not get to take it down.'] : (IMAGE_CAPTIONS[o.img === 'didh' && this.stats.sanity < 30 ? 'didhDark' : o.img] || ['Picture', '']);
+        this.ui.showImage(imageURL(o.img === 'didh' && this.stats.sanity < 30 && Math.random() < 0.5 ? 'didhDark' : o.img), title, body);
+        if (o.img === 'didh') this.stats.scare(-4);
+        break;
+      }
+      case 'gate': {
+        if (s?.open || o.broken0) return;
+        const it = this.inventory.held, d = it && ITEMS[it.id];
+        const W = d?.type === 'weapon' ? WEAPONS[d.weapon] : null;
+        const dmg = W?.kind === 'melee' ? W.damage * (it.id === 'crowbar' ? 1.6 : 1.1) : 9;
+        if (this.stats.stamina < 6) { this.subtitle('You\'re too winded to swing.', 1.2); return; }
+        this.stats.stamina = Math.max(0, this.stats.stamina - 9); this.stats.sinceSprint = 0;
+        this.viewmodel.swing(W?.swing || 'crowbar');
+        this.sfx('hitWall', o, { volume: 1 }); this.sfx('metalGroan', o, { volume: 0.5 });
+        this.emitNoise(16);
+        this.request({ t: 'int', l, id: o.id, a: 'bash', d: dmg });
+        if (!W) this.subtitle('Bare hands won\'t do much. A crowbar, a blade — or a grenade.', 2);
+        break;
+      }
+      case 'baseVault':
+        if (s?.open) return;
+        if (this.inventory.has('vaultKey')) { this.inventory.consume('vaultKey', 1); this.request({ t: 'int', l, id: o.id, a: 'unlock' }); this.sfx('unlock', o, {}); this.sfx('metalDoor', o, { volume: 0.8 }); }
+        else { this.sfx('doorLocked', o, {}); this.subtitle('A vault door with a heavy brass lock. The base commander would carry the key.', 2.5); }
+        break;
+      case 'radioSet': {
+        const [t, b] = radioChatter(hash4(o.x * 10 | 0, o.z * 10 | 0, (this.time / 30) | 0));
+        this.sfx('radioStatic', o, { volume: 0.8 });
+        this.subtitle(`${t}. ${b}`, 6);
+        break;
+      }
       default:
         // level-specific kinds
         this.def.interact?.(this, o, s, tgt);
@@ -1593,6 +1627,15 @@ export class Game {
           if (prog >= 1) this.hostEvent(m.l, { k: 'sound', name: 'metalDoor', x: o.x, y: 0.5, z: o.z, volume: 1 });
         }
         break;
+      case 'gate': {
+        if (m.a !== 'bash' || s.open || o.broken0) return;
+        const hp = (s.hp ?? o.hp) - Math.max(0, Math.min(80, +m.d || 0));
+        this.hostDamageGate(m.l, o, hp, pid);
+        break;
+      }
+      case 'baseVault':
+        if (m.a === 'unlock' && !s.open) { set({ open: true }); if (o.collider) o.collider.disabled = true; this.hostEvent(m.l, { k: 'subtitle', text: 'The vault wheel spins and the door swings out.', dur: 2.5 }); }
+        break;
       case 'vendor': {
         const sold = s.sold || 0;
         if (m.a !== 'buy' || sold >= o.stock) return;
@@ -1617,6 +1660,17 @@ export class Game {
     }, fuse * 1000);
   }
 
+  hostDamageGate(l, o, hp, pid) {
+    if (hp <= 0) {
+      this.hostBroadcast({ t: 'os', l, id: o.id, s: { open: true, hp: 0 } });
+      if (o.collider) o.collider.disabled = true;
+      this.hostEvent(l, { k: 'sound', name: 'crumble', x: o.x, y: 1, z: o.z, volume: 1.2 });
+      this.hostEvent(l, { k: 'subtitle', text: 'The gate tears loose and crashes down.', dur: 2.5 });
+      this.noises.push({ x: o.x, y: 1, z: o.z, r: 40, l, pid });
+    } else this.hostBroadcast({ t: 'os', l, id: o.id, s: { hp, hitT: performance.now() } });
+    this.onGateHit?.(l, o, pid, hp);
+  }
+
   // Host: an explosion. Damage falls off with distance and walls stop it.
   hostExplode(l, p, pid, R = 7.5, D = 150) {
     const lvl = this.getLevel(l);
@@ -1630,6 +1684,17 @@ export class Game {
       if (res?.killed && (this.roster.has(pid) || pid === this.myId)) {
         this.hostSend(pid, { t: 'kill', e: e.id, type: e.type });
         if (e.def.announceKill) this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} blew up ${ENTITY_TYPES[e.type]?.name}.` });
+      }
+    }
+    // gates in the blast
+    for (let cz = Math.floor((p.z - R) / CHUNK); cz <= Math.floor((p.z + R) / CHUNK); cz++) for (let cx = Math.floor((p.x - R) / CHUNK); cx <= Math.floor((p.x + R) / CHUNK); cx++) {
+      if (!lvl.hasChunk(cx, cz)) continue;
+      for (const o of lvl.chunk(cx, cz).objects) {
+        if (o.kind !== 'gate' || o.broken0) continue;
+        const s = this.world.get(l, o.id) || {};
+        const dist = Math.hypot(o.x - p.x, o.z - p.z);
+        if (s.open || dist > R) continue;
+        this.hostDamageGate(l, o, (s.hp ?? o.hp) - 260 * (1 - dist / R), pid);
       }
     }
     for (const q of this.playerTargets()) {

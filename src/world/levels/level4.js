@@ -472,6 +472,8 @@ export default {
   surface: 'carpet',
   lockerStyle: 'metal',
   exitStyle: 'plaque',
+  // tiny Did'h Wanderer camps
+  bases: { faction: 'didh', cell: 5, chance: 0.6, minR: 3, sizes: [['tiny', 1]], ceil: 3.0, light: 'bulb', lightColor: [1.0, 0.85, 0.6] },
   containerMats: { cabinet: 'beigeWall', crate: 'darkWood' },
   notes: ['l4_a', 'l4_b', 'l4_c', 'gen_a'],
   decalTexts: ['THE WINDOWS LIE', 'DON\'T WAVE BACK', 'TOLL PAID', 'LISTEN TO THE LOCK'],

@@ -8,7 +8,7 @@ import { ITEMS } from './items.js';
 import { NOTES } from './notes.js';
 import { CHUNK } from '../world/chunk.js';
 
-const CTYPE_NAMES = { cardboard: 'box', cabinet: 'filing cabinet', crate: 'crate', toolbox: 'toolbox', locker: 'locker', backpack: 'old backpack' };
+const CTYPE_NAMES = { cardboard: 'box', cabinet: 'filing cabinet', crate: 'crate', toolbox: 'toolbox', locker: 'locker', backpack: 'old backpack', ammo: 'ammo crate', footlocker: 'footlocker', med: 'medicine cabinet', safe: 'safe' };
 
 // Kind registry: build visuals, prompt text, and interaction request.
 export const OBJECT_KINDS = {
@@ -42,7 +42,7 @@ export const OBJECT_KINDS = {
       const k = mesh.userData.open;
       if (mesh.userData.flaps) { mesh.userData.flaps[0].rotation.x = -k * 2.0; mesh.userData.flaps[1].rotation.x = k * 2.0; }
       if (mesh.userData.drawers) mesh.userData.drawers[2].position.z = 0.3 + k * 0.35;
-      if (mesh.userData.lid) mesh.userData.lid.rotation.x = -k * 1.6;
+      if (mesh.userData.lid) { if (mesh.userData.door) mesh.userData.lid.rotation.y = -k * 1.7; else mesh.userData.lid.rotation.x = -k * 1.6; }
     },
   },
   locker: {
@@ -209,8 +209,15 @@ OBJECT_KINDS.sign = {
     const x = c.getContext('2d');
     x.fillStyle = o.bg || '#d8d2bc'; x.fillRect(0, 0, 256, 96);
     x.strokeStyle = o.border || '#4a4232'; x.lineWidth = 6; x.strokeRect(3, 3, 250, 90);
-    x.fillStyle = o.fg || '#2a2418'; x.font = `bold ${o.size || 46}px Arial, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillText(o.text, 128, 50);
+    x.fillStyle = o.fg || '#2a2418'; x.font = `bold ${o.size || 46}px ${o.rtl ? '"Noto Naskh Arabic", "Geeza Pro", Tahoma, ' : ''}Arial, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    if (o.rtl) x.direction = 'rtl';
+    // long texts wrap onto a second/third line
+    const words = String(o.text).split(' '), lines = [];
+    let line = '';
+    for (const wd of words) { const t = line ? line + ' ' + wd : wd; if (x.measureText(t).width > 236 && line) { lines.push(line); line = wd; } else line = t; }
+    lines.push(line);
+    const lh = (o.size || 46) * 1.05;
+    lines.slice(0, 3).forEach((ln, k) => x.fillText(ln, 128, 50 + (k - (Math.min(3, lines.length) - 1) / 2) * lh));
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(o.w || 0.36, (o.w || 0.36) * 0.375), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }));
     m.position.y = o.h ?? 1.7;

@@ -527,3 +527,5 @@ body.scoped #crosshair { opacity: 0; }
 #scannerPanel .tp-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; line-height: 1.55; }
 #scannerPanel .tp-row.far { color: #6f8aa0; }
 #scannerPanel .sc-bar { height: 4px; background: rgba(255, 255, 255, 0.1); margin: 3px 0 4px; } #scannerPanel .sc-bar div { height: 100%; background: #6fc0ff; }
+
+.note-img { display: block; max-width: 100%; max-height: 52vh; margin: 4px auto 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }

@@ -163,7 +163,7 @@ export class UI {
     this.game = game;
     this.containerObj = o;
     $('containerBox').classList.remove('hidden');
-    $('containerTitle').textContent = { cabinet: 'Filing cabinet', crate: 'Crate', toolbox: 'Toolbox', backpack: 'Old backpack' }[o.ctype] || 'Box';
+    $('containerTitle').textContent = { cabinet: 'Filing cabinet', crate: 'Crate', toolbox: 'Toolbox', backpack: 'Old backpack', ammo: 'Ammo crate', footlocker: 'Footlocker', med: 'Medicine cabinet', safe: 'Safe' }[o.ctype] || 'Box';
     if (!this.open.has('inventory')) this.openModal('inventory');
     this.renderInventory();
   }
@@ -416,6 +416,15 @@ export class UI {
   }
 
   // ------------------------------------------------------------------ notes & journal
+  // a framed picture up close, with a caption
+  showImage(src, title, body) {
+    $('noteTitle').textContent = title;
+    $('noteBody').innerHTML = '';
+    if (src) { const img = typeof src === 'string' ? Object.assign(new Image(), { src }) : src; img.className = 'note-img'; $('noteBody').appendChild(img); }
+    const p = document.createElement('div'); p.textContent = body || ''; $('noteBody').appendChild(p);
+    this.openModal('note');
+  }
+
   showNote(n) {
     $('noteTitle').textContent = n.title;
     $('noteBody').textContent = n.body;

@@ -423,6 +423,9 @@ const BUILDERS = {
   rifleAmmo: () => ammoBox(0x4a5030, 0xb8b060, 0.007),
   shells: () => { const g = new THREE.Group(); g.add(mesh(box(0.1, 0.06, 0.07), C(0x8a1f18, 0.7), 0, 0.03, 0)); g.add(mesh(box(0.101, 0.02, 0.071), C(0xe8e0c8, 0.7), 0, 0.03, 0)); return g; },
   ductTape: () => { const g = new THREE.Group(); g.add(mesh(new THREE.TorusGeometry(0.035, 0.016, 8, 18), C(0x8c9196, 0.6), 0, 0.016, 0, Math.PI / 2)); return g; },
+  vaultKey: () => { const g = new THREE.Group(); const m = C(0xc9a640, 0.3, 0.9); g.add(mesh(cyl(0.007, 0.007, 0.1, 8), m, 0, 0.007, 0, Math.PI / 2)); g.add(mesh(new THREE.TorusGeometry(0.02, 0.006, 6, 14), m, 0, 0.007, 0.06, Math.PI / 2)); g.add(mesh(box(0.016, 0.005, 0.025), m, 0.01, 0.007, -0.04)); g.add(mesh(new THREE.TorusGeometry(0.03, 0.003, 4, 12), C(0xb3201a, 0.8), 0, 0.004, 0.09, Math.PI / 2)); return g; },
+  goldBar: () => { const g = new THREE.Group(); g.add(mesh(box(0.1, 0.03, 0.05), C(0xe2b833, 0.25, 1), 0, 0.015, 0)); return g; },
+  didhCharm: () => { const g = new THREE.Group(); const s = mesh(new THREE.SphereGeometry(0.018, 8, 6), C(0x4a8aff, 0.2, 0.1, 0x1a3aff, 0.5), 0, 0.02, 0); s.scale.y = 1.3; g.add(s); g.add(mesh(new THREE.TorusGeometry(0.03, 0.002, 4, 12), C(0xc8b890, 0.8), 0, 0.003, 0.03, Math.PI / 2)); return g; },
   keycard: () => { const g = new THREE.Group(); g.add(mesh(box(0.085, 0.003, 0.054), C(0xe0a33a, 0.4), 0, 0.002, 0)); g.add(mesh(box(0.085, 0.0035, 0.01), C(0x111111), 0, 0.002, -0.015)); return g; },
   fuse: () => { const g = new THREE.Group(); g.add(mesh(cyl(0.02, 0.02, 0.09, 12), C(0xeeeeee, 0.5), 0, 0, 0, 0, 0, Math.PI / 2)); g.add(mesh(cyl(0.021, 0.021, 0.03, 12), C(0x5a8fd0, 0.5), 0, 0, 0, 0, 0, Math.PI / 2)); for (const s of [-1, 1]) g.add(mesh(cyl(0.012, 0.012, 0.02, 10), C(0xc9a640, 0.3, 0.9), s * 0.05, 0, 0, 0, 0, Math.PI / 2)); g.position.y = 0.02; return g; },
   drainKey: () => { const g = new THREE.Group(); const m = C(0x7fb8c9, 0.35, 0.8); g.add(mesh(cyl(0.008, 0.008, 0.16, 8), m, 0, 0.008, 0, Math.PI / 2)); g.add(mesh(cyl(0.008, 0.008, 0.1, 8), m, 0, 0.008, 0.08, 0, 0, Math.PI / 2)); return g; },
@@ -516,6 +519,25 @@ export function containerModel(ctype, mats = {}) {
     g.add(mesh(box(0.8, 0.55, 0.55), m, 0, 0.275, 0));
     const lid = new THREE.Group(); lid.position.set(0, 0.55, -0.275); lid.add(mesh(box(0.82, 0.05, 0.57), m, 0, 0.025, 0.285)); g.add(lid);
     g.userData.lid = lid;
+  } else if (ctype === 'ammo' || ctype === 'footlocker') {
+    const m = C(ctype === 'ammo' ? 0x4f5a3c : 0x3a3d30, 0.8);
+    g.add(mesh(box(0.7, 0.36, 0.42), m, 0, 0.18, 0));
+    if (ctype === 'ammo') g.add(mesh(box(0.5, 0.06, 0.005), C(0xb3201a, 0.6), 0, 0.24, 0.212));
+    for (const sx of [-0.3, 0.3]) g.add(mesh(box(0.05, 0.05, 0.44), M('darkMetal'), sx, 0.33, 0));
+    const lid = new THREE.Group(); lid.position.set(0, 0.36, -0.21); lid.add(mesh(box(0.72, 0.04, 0.44), m, 0, 0.02, 0.21)); g.add(lid);
+    g.userData.lid = lid;
+  } else if (ctype === 'med') {
+    const m = C(0xece8e0, 0.5);
+    g.add(mesh(box(0.6, 0.8, 0.3), m, 0, 1.2, 0));
+    g.add(mesh(box(0.2, 0.06, 0.005), C(0xc22e22, 0.5), 0, 1.25, 0.152)); g.add(mesh(box(0.06, 0.2, 0.005), C(0xc22e22, 0.5), 0, 1.25, 0.152));
+    for (const y of [0.98, 1.22, 1.44]) g.add(mesh(box(0.56, 0.015, 0.26), C(0xffffff, 0.4), 0, y, 0));
+    const lid = new THREE.Group(); lid.position.set(-0.3, 1.2, 0.15); lid.add(mesh(box(0.6, 0.78, 0.02), m, 0.3, 0, 0.01)); g.add(lid);
+    g.userData.lid = lid; g.userData.door = true;
+  } else if (ctype === 'safe') {
+    const m = C(0x2a2c2e, 0.4, 0.7);
+    g.add(mesh(box(0.6, 0.7, 0.55), m, 0, 0.35, 0));
+    const lid = new THREE.Group(); lid.position.set(-0.29, 0.35, 0.28); lid.add(mesh(box(0.56, 0.62, 0.04), m, 0.28, 0, 0.02)); lid.add(mesh(cyl(0.06, 0.06, 0.03, 14), C(0xc8ccd0, 0.2, 1), 0.3, 0.05, 0.05, Math.PI / 2)); g.add(lid);
+    g.userData.lid = lid; g.userData.door = true;
   } else if (ctype === 'toolbox') {
     const m = C(0xb8281c, 0.45, 0.6);
     g.add(mesh(box(0.5, 0.2, 0.22), m, 0, 0.1, 0));

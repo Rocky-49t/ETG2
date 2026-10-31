@@ -905,3 +905,37 @@ Object.assign(SFX, {
     return 0.5;
   },
 });
+
+// ---------------------------------------------------------------- bases
+Object.assign(SFX, {
+  // a barked order in the Brotherhood's language: two harsh syllables
+  rqShout(A, dest, o, t) {
+    const r = ((o.seed || 1) * 9301 + 49297) % 233280 / 233280;
+    const f0 = 120 + r * 50;
+    for (let k = 0; k < 2; k++) {
+      const st = t + k * 0.22, d = k ? 0.32 : 0.18;
+      const v = osc(A, 'sawtooth', f0 * (k ? 0.9 : 1.15));
+      v.frequency.linearRampToValueAtTime(f0 * (k ? 0.7 : 1.05), st + d);
+      const fa = filt(A, 'bandpass', k ? 750 : 950, 5), fb = filt(A, 'bandpass', k ? 1150 : 1700, 6);
+      const g = gain(A, 0); v.connect(fa).connect(g); v.connect(fb).connect(g); g.connect(dest);
+      g.gain.setValueAtTime(0.0001, st); g.gain.linearRampToValueAtTime(0.45, st + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, st + d);
+      v.start(st); v.stop(st + d + 0.05);
+      burst(A, dest, st, { type: 'bandpass', freq: 2500, Q: 1, d: 0.05, vol: 0.12 });
+    }
+    return 0.65;
+  },
+  whizz(A, dest, o, t) {
+    burst(A, dest, t, { type: 'bandpass', freq: 5000, Q: 2, a: 0.02, d: 0.12, vol: 0.4, sweepTo: 1800 });
+    tone(A, dest, t, { type: 'sine', freq: 3400, to: 1400, a: 0.01, d: 0.12, vol: 0.05 });
+    return 0.2;
+  },
+  siren(A, dest) {
+    // a wailing two-tone air-raid siren
+    const a = osc(A, 'sawtooth', 500), b = osc(A, 'square', 503);
+    const lf = osc(A, 'sine', 0.35); const lg = gain(A, 260); lf.connect(lg); lg.connect(a.frequency); lg.connect(b.frequency);
+    const f = filt(A, 'lowpass', 1800, 1); const g = gain(A, 0.16);
+    a.connect(f); b.connect(f); f.connect(g).connect(dest);
+    a.start(); b.start(); lf.start();
+    return { stop() { a.stop(); b.stop(); lf.stop(); } };
+  },
+});

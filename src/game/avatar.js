@@ -108,7 +108,7 @@ export class Avatar {
     const hairM = mat(s.hairColor, 0.9);
     const hwM = mat(s.headwearColor, 0.6);
     // what the shoulders and sleeves are made of (coats and jackets go over the top)
-    const outerM = s.shirt === 'labcoat' ? mat('#ecebe4', 0.8) : s.shirt === 'jacket' ? mat('#3a3a32', 0.8) : shirtM;
+    const outerM = s.shirt === 'labcoat' ? mat('#ecebe4', 0.8) : s.shirt === 'jacket' ? mat('#3a3a32', 0.8) : s.shirt === 'robe' ? mat(s.shirtColor, 0.95) : shirtM;
 
     const root = new THREE.Group();
     this.group.add(root);
@@ -130,6 +130,18 @@ export class Avatar {
     if (s.shirt === 'jacket') {
       spine.add(part(rbox(0.38, 0.48, 0.235), mat('#3a3a32', 0.8), 0, 0.24, 0));
       spine.add(part(new THREE.BoxGeometry(0.1, 0.44, 0.01), shirtM, 0, 0.24, 0.118));
+    }
+    if (s.shirt === 'uniform') {
+      // Brotherhood field tunic: breast pockets, belt, shoulder straps
+      for (const sx of [-0.09, 0.09]) spine.add(part(rbox(0.1, 0.08, 0.02), mat(s.shirtColor, 0.9), sx, 0.33, 0.113));
+      spine.add(part(rbox(0.37, 0.05, 0.225), mat('#2a2018', 0.6), 0, 0.03, 0));
+      spine.add(part(new THREE.BoxGeometry(0.05, 0.04, 0.03), mat('#c9a640', 0.3, 0.8), 0, 0.03, 0.115));
+    }
+    if (s.shirt === 'robe') {
+      // a Wanderer's long tunic with a rope belt
+      spine.add(part(rbox(0.38, 0.5, 0.235), mat(s.shirtColor, 0.95), 0, 0.23, 0));
+      hips.add(part(new THREE.CylinderGeometry(0.2, 0.27, 0.62, 10), mat(s.shirtColor, 0.95), 0, -0.26, 0));
+      spine.add(part(new THREE.TorusGeometry(0.19, 0.015, 5, 14), mat('#c8b890', 0.9), 0, 0.03, 0, Math.PI / 2, 0, 0));
     }
     if (s.shirt === 'labcoat') {
       spine.add(part(rbox(0.38, 0.5, 0.235), mat('#ecebe4', 0.8), 0, 0.23, 0));
@@ -191,6 +203,13 @@ export class Avatar {
     // headwear
     if (s.headwear === 'cap') { head.add(part(rbox(0.24, 0.08, 0.25, 0.3), hwM, 0, 0.255, 0)); head.add(part(new THREE.BoxGeometry(0.2, 0.015, 0.12), hwM, 0, 0.225, 0.16)); }
     if (s.headwear === 'beanie') head.add(part(rbox(0.245, 0.14, 0.255, 0.35), hwM, 0, 0.25, 0));
+    if (s.headwear === 'beret') { const b = part(new THREE.SphereGeometry(0.15, 12, 8), hwM, 0.03, 0.245, -0.01, 0, 0, -0.25); b.scale.set(1, 0.32, 1.02); head.add(b); head.add(part(new THREE.CylinderGeometry(0.122, 0.122, 0.025, 14), mat('#1a1a1a', 0.8), 0, 0.225, 0)); }
+    if (s.headwear === 'officerCap') {
+      head.add(part(new THREE.CylinderGeometry(0.15, 0.125, 0.09, 16), hwM, 0, 0.275, 0));
+      head.add(part(new THREE.CylinderGeometry(0.127, 0.127, 0.03, 16), mat('#a81e18', 0.6), 0, 0.245, 0));
+      head.add(part(new THREE.BoxGeometry(0.2, 0.012, 0.09), mat('#111', 0.4), 0, 0.235, 0.135, 0.25, 0, 0));
+      head.add(part(new THREE.BoxGeometry(0.04, 0.04, 0.01), mat('#c9a640', 0.3, 0.8), 0, 0.28, 0.148));
+    }
     if (s.headwear === 'hardhat') { head.add(part(new THREE.SphereGeometry(0.15, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), hwM, 0, 0.22, 0)); head.add(part(new THREE.CylinderGeometry(0.17, 0.17, 0.015, 14), hwM, 0, 0.225, 0.01)); }
     if (s.headwear === 'hood') { head.add(part(rbox(0.26, 0.29, 0.26, 0.2), hwM, 0, 0.14, -0.015)); head.add(part(new THREE.BoxGeometry(0.17, 0.2, 0.02), mat('#111', 0.9), 0, 0.12, 0.122)); }
     if (s.headwear === 'headlamp') {
@@ -262,6 +281,7 @@ export class Avatar {
     for (const side of [-1, 1]) {
       const sh = new THREE.Group(); sh.position.set(side * 0.235, 0.44, 0); spine.add(sh);
       sh.add(part(new THREE.SphereGeometry(0.068, 10, 8), outerM, 0, -0.01, 0)); // shoulder cap
+      if (s.shirt === 'uniform' && side < 0) sh.add(part(new THREE.CylinderGeometry(0.064, 0.064, 0.07, 10), mat('#a81e18', 0.7), 0, -0.13, 0));
       const upper = part(armGeo, outerM, 0, -0.14, 0);
       sh.add(upper);
       const elbow = new THREE.Group(); elbow.position.y = -0.29; sh.add(elbow);

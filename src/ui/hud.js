@@ -214,6 +214,7 @@ export class HUD {
     this.updateStatus(game);
     game.updateTransmitterHud?.(dt);
     game.updateScannerHud?.(dt);
+    game.updateSiren?.(dt);
     // vitals
     this.hp.style.transform = `scaleX(${s.health / 100})`;
     this.hpLag.style.transform = `scaleX(${s.health / 100})`;

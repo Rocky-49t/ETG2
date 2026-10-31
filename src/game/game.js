@@ -39,7 +39,8 @@ import { EntityViews } from '../ai/views.js';
 import { Director } from '../ai/director.js';
 import { NOISE } from '../ai/brain.js';
 import { ENTITY_TYPES } from '../ai/entities/index.js';
-import { radioSources } from '../world/bases/index.js';
+import { radioSources, basesNear, baseLayout } from '../world/bases/index.js';
+import { NPC_ARMS } from '../ai/entities/npc.js';
 import { imageURL, IMAGE_CAPTIONS, didystaniName, radioChatter } from '../world/bases/objects.js';
 import { WEAPONS } from './weapons.js';
 import { audio } from '../audio/audio.js';
@@ -581,6 +582,9 @@ export class Game {
         if (this.inventory.has('vaultKey')) { this.inventory.consume('vaultKey', 1); this.request({ t: 'int', l, id: o.id, a: 'unlock' }); this.sfx('unlock', o, {}); this.sfx('metalDoor', o, { volume: 0.8 }); }
         else { this.sfx('doorLocked', o, {}); this.subtitle('A vault door with a heavy brass lock. The base commander would carry the key.', 2.5); }
         break;
+      case 'trader':
+        this.ui.openTrade(o, s, this);
+        break;
       case 'radioSet': {
         const [t, b] = radioChatter(hash4(o.x * 10 | 0, o.z * 10 | 0, (this.time / 30) | 0));
         this.sfx('radioStatic', o, { volume: 0.8 });
@@ -960,6 +964,24 @@ export class Game {
     if (it.data.on) { this.sfx('scanStatic', null, {}); this.scanT = 0; if (it.data.lvl !== this.levelId) { it.data.lvl = this.levelId; it.data.scan = 0; it.data.found = null; } }
     this.inventory.changed();
   }
+  // the base siren: the nearest wailing alarm on this level
+  updateSiren(dt) {
+    this.sirenT = (this.sirenT || 0) - dt;
+    if (this.sirenT > 0) return;
+    this.sirenT = 0.5;
+    let best = null, bd = 70;
+    for (const e of this.objects.all.values()) {
+      if (e.o.kind !== 'alarm') continue;
+      const t = this.world.flag(this.levelId, 'alarm:' + e.o.base);
+      if (!t || this.time - t > 32) continue;
+      const d = Math.hypot(e.o.x - this.player.pos.x, e.o.z - this.player.pos.z);
+      if (d < bd) { bd = d; best = e.o; }
+    }
+    if (best && !this.siren) this.siren = this.loopSfx('siren', { x: best.x, y: 2.4, z: best.z }, { volume: 1, ref: 8, rolloff: 0.8 });
+    if (best && this.siren) this.siren.setPos({ x: best.x, y: 2.4, z: best.z });
+    if (!best && this.siren) { this.siren.stop(1.2); this.siren = null; }
+  }
+
   updateScannerHud(dt) {
     const el = this._scEl || (this._scEl = document.getElementById('scannerPanel'));
     let sc = null;
@@ -1275,6 +1297,7 @@ export class Game {
     for (const p of targets) if (p.levelId !== this.levelId) this.getLevel(p.levelId).chunk(Math.floor(p.x / CHUNK), Math.floor(p.z / CHUNK));
     this.entities.update(dt, perLevel);
     this.entitiesOpenDoors(perLevel);
+    this.hostBases(perLevel, dt);
     this.director.update(dt, perLevel);
     for (const [lid, ctx] of perLevel) LEVELS[lid].hostUpdate?.(this, ctx, dt);
     this.noises.length = 0;
@@ -1633,6 +1656,17 @@ export class Game {
         this.hostDamageGate(m.l, o, hp, pid);
         break;
       }
+      case 'trader': {
+        if (m.a !== 'trade') return;
+        const offer = o.offers[m.i | 0];
+        const dead = (this.world.flag(m.l, 'bk:' + o.base) || []).includes(o.post);
+        if (!offer || s.traded || dead || this.world.flag(m.l, 'hostile:' + o.base)) { if (offer) this.hostSend(pid, { t: 'give', item: { id: offer[0], qty: offer[1] } }); return; }
+        set({ traded: true });
+        const def = ITEMS[offer[2]];
+        this.hostSend(pid, { t: 'give', item: { id: offer[2], qty: offer[3], data: def?.data ? { ...def.data } : undefined } });
+        this.hostEvent(m.l, { k: 'subtitle', text: ['"Did\'h smiles on fair trades."', '"Walk soft, stranger."', '"May you always find the warm places."'][hash4(o.post, 7) % 3], dur: 2.5 });
+        break;
+      }
       case 'baseVault':
         if (m.a === 'unlock' && !s.open) { set({ open: true }); if (o.collider) o.collider.disabled = true; this.hostEvent(m.l, { k: 'subtitle', text: 'The vault wheel spins and the door swings out.', dur: 2.5 }); }
         break;
@@ -1647,6 +1681,171 @@ export class Game {
       default:
         LEVELS[m.l]?.hostInteract?.(this, pid, o, s, m);
     }
+  }
+
+  // ------------------------------------------------------------------ base NPCs
+  // Bring a base's garrison to life when a player comes near; put it away when
+  // everyone has left. The dead stay dead (a per-base list in the world flags).
+  hostBases(perLevel, dt) {
+    this.baseNpcs ??= new Map();
+    this.basesT = (this.basesT || 0) - dt;
+    if (this.basesT > 0) return;
+    this.basesT = 1;
+    const live = new Set();
+    for (const [lid, ctx] of perLevel) {
+      const level = ctx.level;
+      const cfg = level.def.bases;
+      if (!cfg || cfg.faction === 'dd') continue;
+      for (const p of ctx.players) for (const b of basesNear(level, p.x, p.z, 80)) {
+        live.add(b.id);
+        if (!this.baseNpcs.has(b.id)) this.spawnBaseNpcs(lid, b);
+      }
+    }
+    for (const [id, rec] of this.baseNpcs) {
+      if (live.has(id)) continue;
+      const ctx = perLevel.get(rec.l);
+      const L = rec.L;
+      if (ctx && ctx.players.some(p => Math.hypot(p.x - L.cx, p.z - L.cz) < 150)) continue;
+      for (const eid of rec.ids) { const e = this.entities.list.get(eid); if (e && e.state !== 'dead') this.entities.remove(eid); }
+      this.baseNpcs.delete(id);
+    }
+  }
+
+  spawnBaseNpcs(l, b) {
+    const L = baseLayout(this.getLevel(l), b);
+    const killed = this.world.flag(l, 'bk:' + b.id) || [];
+    const ids = [];
+    const rq = b.faction === 'rq';
+    const hostile = !!this.world.flag(l, 'hostile:' + b.id);
+    L.posts.forEach((post, k) => {
+      if (killed.includes(k)) return;
+      const [x, y, z, yaw, role, ri] = post;
+      const r = new RNG(hash4(b.seed, k, 404));
+      let weapon, gear = [0, 0, 0, 0, 0], nades = 0;
+      if (rq) {
+        weapon = role === 'sniper' ? 'rqSniper' : role === 'officer' || role === 'radio' ? 'rqPistol' : role === 'guard' ? (r.chance(0.75) ? 'rqRifle' : 'rqShotgun')
+          : r.weighted([['rqRifle', 45], ['rqSmg', 20], ['rqPistol', 15], ['rqMachete', 12], ['rqBaton', 8]]);
+        gear = [role === 'officer' ? 0 : r.chance(role === 'sniper' ? 1 : 0.5) ? 'ririqianHelmet' : 0, r.chance(role === 'officer' ? 1 : 0.35) ? 'ririqianVest' : 0, r.chance(0.15) ? 'ririqianGreaves' : 0, r.chance(0.6) ? 'ririqianBoots' : 0, 0];
+        nades = role !== 'sniper' && r.chance(0.3) ? 1 : 0;
+      } else weapon = r.weighted([['pistol', 35], ['knife', 35], ['shotgun', 15], ['crowbar', 15]]);
+      const room = L.rooms[ri];
+      const ey = role === 'sniper' && room?.role === 'watch' ? L.Y + 1.2 : y;
+      const e = this.entities.spawn(rq ? 'ririqian' : 'didh', l, x, z, {
+        y: ey, yaw, hpMul: role === 'officer' ? 1.3 : 1,
+        npc: { base: b.id, post: k, role, weapon, gear, faction: b.faction, nades, skin: hash4(b.seed, k, 7) % 100000, home: { x, z, yaw } },
+      });
+      if (!e) return;
+      if (hostile) e.hostile = true;
+      ids.push(e.id);
+    });
+    this.baseNpcs.set(b.id, { l, L, ids, b });
+  }
+
+  baseMates(e, R = 45) {
+    const rec = this.baseNpcs?.get(e.npc.base);
+    if (!rec) return [];
+    return rec.ids.map(id => this.entities.list.get(id)).filter(o => o && o.state !== 'dead' && o !== e && (rec.L.alarmed || Math.hypot(o.x - e.x, o.z - e.z) < R));
+  }
+
+  // One soldier sees you: he opens up, and everyone nearby joins in. Big bases sound the alarm.
+  hostNpcAlert(e, p) {
+    e.target = p.id; e.lastSeen = { x: p.x, z: p.z, t: this.time };
+    setStateNpc(e, 'combat');
+    for (const o of this.baseMates(e)) {
+      if (o.state === 'combat' || o.state === 'aim' || o.state === 'strike') continue;
+      if (o.npc.faction === 'didh' && !o.hostile) continue;
+      o.target = p.id; o.lastSeen = { x: p.x, z: p.z, t: this.time };
+      setStateNpc(o, Math.hypot(o.x - p.x, o.z - p.z) < 30 ? 'combat' : 'search');
+    }
+    const rec = this.baseNpcs.get(e.npc.base);
+    if (rec?.L.alarmed && !this.world.flag(e.levelId, 'seized:' + e.npc.base)) {
+      const t = this.world.flag(e.levelId, 'alarm:' + e.npc.base);
+      if (!t || this.time - t > 45) {
+        this.hostBroadcast({ t: 'flag', l: e.levelId, k: 'alarm:' + e.npc.base, v: this.time });
+        this.hostEvent(e.levelId, { k: 'subtitle', text: 'A siren starts to wail.', dur: 2.5, cls: 'scare' });
+      }
+    }
+  }
+
+  hostNpcHurt(e, from) {
+    if (e.npc.faction === 'didh' && !e.hostile) {
+      // strike one Wanderer and the whole camp remembers
+      this.hostBroadcast({ t: 'flag', l: e.levelId, k: 'hostile:' + e.npc.base, v: true });
+      e.hostile = true;
+      for (const o of this.baseMates(e, 999)) o.hostile = true;
+      this.hostEvent(e.levelId, { k: 'subtitle', text: 'The Wanderers draw their weapons.', dur: 2.5, cls: 'scare' });
+    }
+    const p = this.playerTargetById(from);
+    if (p && (e.npc.faction === 'rq' || e.hostile)) this.hostNpcAlert(e, p);
+  }
+
+  // A shot from an NPC: roll to hit against range, movement and stance.
+  hostNpcShoot(e, p, G) {
+    const lvl = this.getLevel(e.levelId);
+    const fx = Math.sin(e.yaw), fz = Math.cos(e.yaw);
+    const mx = e.x + fx * 0.5, my = e.y + 1.42, mz = e.z + fz * 0.5;
+    const tx = p.x, ty = p.y + (p.crouch ? 0.9 : 1.25), tz = p.z;
+    const d = Math.hypot(tx - mx, tz - mz);
+    const diff = this.difficulty === 'easy' ? 0.75 : this.difficulty === 'hard' ? 1.2 : 1;
+    let acc = G.acc * diff - (d / G.range) * 0.35 - (p.sprint ? 0.15 : 0) - (p.crouch ? 0.08 : 0);
+    acc = Math.max(0.06, Math.min(0.92, acc));
+    const clear = lvl.lineOfSight(mx, my, mz, tx, ty, tz);
+    const hit = clear && Math.random() < acc;
+    let ix = tx, iy = ty, iz = tz, n = null;
+    if (!hit) {
+      // a miss: past the target into whatever is behind
+      const ox = (Math.random() - 0.5) * 2.4, oy = (Math.random() - 0.3) * 1.2;
+      const dx = tx + Math.cos(e.yaw) * ox - mx, dy = ty + oy - my, dz = tz - Math.sin(e.yaw) * ox - mz;
+      const len = Math.hypot(dx, dy, dz) || 1;
+      const r = lvl.raycast(mx, my, mz, dx / len, dy / len, dz / len, G.range * 1.4);
+      if (r) { ix = r.x; iy = r.y; iz = r.z; n = [+r.nx.toFixed(2), +r.ny.toFixed(2), +r.nz.toFixed(2)]; }
+      else { ix = mx + dx / len * 40; iy = my + dy / len * 40; iz = mz + dz / len * 40; }
+    } else this.hostHurt(p.id, G.dmg * (G.burst > 1 ? 1 : 1), { from: e, type: e.npc.faction === 'rq' ? 'rq' : 'didh', scare: 4 });
+    this.noises.push({ x: e.x, y: e.y, z: e.z, r: 30, l: e.levelId, pid: 'npc' });
+    this.hostEvent(e.levelId, { k: 'npcShot', w: G.sound, x: +mx.toFixed(2), y: +my.toFixed(2), z: +mz.toFixed(2), tx: +ix.toFixed(2), ty: +iy.toFixed(2), tz: +iz.toFixed(2), n, h: hit ? 1 : 0, id: p.id });
+  }
+
+  hostNpcGrenade(e, at) {
+    const dx = at.x - e.x, dz = at.z - e.z, d = Math.hypot(dx, dz) || 1;
+    const sp = Math.min(13, 4 + d * 0.55);
+    const id = 't' + hash4(this.time * 1000 | 0, e.id).toString(36);
+    const dd = { id, kind: 'thrown', type: 'rqGrenade', x: e.x, y: e.y + 1.5, z: e.z, vx: dx / d * sp, vy: 3.2, vz: dz / d * sp, t0: this.time, life: 3.1, owner: 'npc' };
+    this.hostBroadcast({ t: 'dyn+', l: e.levelId, d: dd });
+    this.hostGrenade(e.levelId, dd, 'npc');
+    this.hostEvent(e.levelId, { k: 'subtitle', text: 'Something clatters across the floor toward you.', dur: 1.8, cls: 'scare' });
+  }
+
+  // A garrison member dies: drop their gear, remember the death, maybe seize the base.
+  hostNpcKilled(e) {
+    const N = e.npc, l = e.levelId;
+    const killed = [...(this.world.flag(l, 'bk:' + N.base) || [])];
+    if (!killed.includes(N.post)) killed.push(N.post);
+    this.hostBroadcast({ t: 'flag', l, k: 'bk:' + N.base, v: killed });
+    const drop = (item, qty, data) => { const a = Math.random() * 6.28; this.hostDropItemData(l, item, qty, e.x + Math.cos(a) * 0.5, e.z + Math.sin(a) * 0.5, data); };
+    if (N.weapon) drop(N.weapon, 1, ITEMS[N.weapon]?.data ? { ...ITEMS[N.weapon].data, ...(NPC_ARMS[N.weapon]?.mag ? { ammo: Math.max(0, Math.min(ITEMS[N.weapon].data.ammo ?? 0, e.mag)) } : {}) } : undefined);
+    const ammo = ITEMS[N.weapon]?.weapon && !NPC_ARMS[N.weapon]?.melee ? ({ rqRifle: 'rifleAmmo', rqSmg: 'ammo9', rqPistol: 'ammo9', rqShotgun: 'shells', rqSniper: 'sniperAmmo', pistol: 'ammo9', shotgun: 'shells' })[N.weapon] : null;
+    if (ammo && Math.random() < 0.7) drop(ammo, ammo === 'sniperAmmo' ? 3 : ammo === 'shells' ? 4 : 10 + (Math.random() * 10 | 0));
+    for (const g of N.gear || []) if (g && Math.random() < 0.35) drop(g, 1, { dur: 40 + Math.random() * 40 | 0 });
+    if (N.role === 'officer') { const rec = this.baseNpcs.get(N.base); if (rec?.L.rooms.some(r => r.role === 'vault')) drop('vaultKey', 1); if (Math.random() < 0.5) drop('goldBar', 1 + (Math.random() * 2 | 0)); }
+    if (e.nades > 0) drop('rqGrenade', e.nades);
+    if (N.faction === 'didh' && Math.random() < 0.4) drop('didhCharm', 1);
+    // every post dead: the base is yours
+    const rec = this.baseNpcs.get(N.base);
+    if (rec && rec.L.posts.every((p, k) => killed.includes(k)) && !this.world.flag(l, 'seized:' + N.base)) {
+      this.hostBroadcast({ t: 'flag', l, k: 'seized:' + N.base, v: true });
+      this.hostBroadcast({ t: 'flag', l, k: 'alarm:' + N.base, v: 0 });
+      const lp = this.lastPerLevel?.get(l)?.players.find(p => p.id === e.lastHitBy);
+      this.hostBroadcast({ t: 'sys', text: N.faction === 'rq' ? `The Ririqian ${rec.b.size === 'city' ? 'stronghold' : rec.b.size === 'large' ? 'base' : 'outpost'} falls silent. ${lp ? this.nameOf(e.lastHitBy) : 'Someone'} has seized it.` : 'The Wanderer camp is empty now.' });
+    }
+  }
+
+  hostDropItemData(l, item, qty, x, z, data) {
+    const lvl = this.getLevel(l);
+    let y = lvl.floorAt(x, z);
+    if (!isFinite(y)) y = lvl.floorAt(Math.round(x), Math.round(z));
+    if (!isFinite(y)) return;
+    const id = 'd' + hash4(this.time * 1000 | 0, Math.random() * 1e9 | 0).toString(36);
+    this.hostBroadcast({ t: 'dyn+', l, d: { id, kind: 'drop', item, qty, data, x, y: y + 0.02, z, ry: Math.random() * 6 } });
   }
 
   // Host: work out where a thrown grenade will be when its fuse runs out (the
@@ -1668,7 +1867,14 @@ export class Game {
       this.hostEvent(l, { k: 'subtitle', text: 'The gate tears loose and crashes down.', dur: 2.5 });
       this.noises.push({ x: o.x, y: 1, z: o.z, r: 40, l, pid });
     } else this.hostBroadcast({ t: 'os', l, id: o.id, s: { hp, hitT: performance.now() } });
-    this.onGateHit?.(l, o, pid, hp);
+    // the garrison hears the gate being battered
+    const rec = this.baseNpcs?.get(o.base);
+    if (rec) for (const id of rec.ids) {
+      const e = this.entities.list.get(id);
+      if (!e || e.state === 'dead' || e.state === 'combat' || Math.hypot(e.x - o.x, e.z - o.z) > 40) continue;
+      if (e.npc.faction === 'didh') continue;
+      e.lastSeen = { x: o.x, z: o.z, t: this.time }; setStateNpc(e, 'search');
+    }
   }
 
   // Host: an explosion. Damage falls off with distance and walls stop it.
@@ -1840,6 +2046,18 @@ export class Game {
       this.sfx(m.name, { x: m.x, y: m.y, z: m.z }, { volume: m.volume ?? 0.8, ref: 4 });
     } else if (m.k === 'subtitle') {
       this.subtitle(m.text, m.dur || 3, m.cls || '');
+    } else if (m.k === 'npcShot') {
+      const a = new THREE.Vector3(m.x, m.y, m.z), b = new THREE.Vector3(m.tx, m.ty, m.tz);
+      this.sfx(m.w, a, { volume: 1, ref: 6, maxDist: 140 });
+      this.effects.tracer(a, b);
+      this.effects.flash(a, 0.5, 0.05);
+      this.lights.muzzle?.(a);
+      if (m.n) this.effects.bulletHole(b, { x: m.n[0], y: m.n[1], z: m.n[2] });
+      // rounds cracking past you
+      if (!m.h && m.id === this.myId) {
+        const cam = this.engine.camera.position, ab = b.clone().sub(a), t = Math.max(0, Math.min(1, cam.clone().sub(a).dot(ab) / ab.lengthSq()));
+        if (a.clone().addScaledVector(ab, t).distanceTo(cam) < 2.5) { this.sfx('whizz', null, { volume: 0.8 }); this.player.shake = Math.min(1, this.player.shake + 0.15); this.stats.scare(1.5); }
+      }
     } else if (m.k === 'explode') {
       const p = new THREE.Vector3(m.x, m.y, m.z);
       const d = this.player.pos.distanceTo(p);
@@ -1923,3 +2141,5 @@ function useAnim(it) {
   const snd = it && ITEMS[it.id]?.sound;
   return snd === 'drink' ? 'drink' : snd === 'bandage' ? 'bandage' : 'eat';
 }
+
+function setStateNpc(e, s) { if (e.state !== s) { e.state = s; e.stateT = 0; e.stateChanged = true; } }

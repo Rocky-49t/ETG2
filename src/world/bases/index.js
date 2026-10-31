@@ -15,7 +15,7 @@ import { chunkPorts, chunkRng, ensureConnected } from '../gen.js';
 import { hash01, hash4, RNG } from '../../core/rng.js';
 import { addProp } from '../props.js';
 import { addLight, addDecal, addObject, addPickup, addContainer, addNote, addLocker, sideExitAt } from '../levels/common.js';
-import { arabicGibberish, didystaniName } from './objects.js';
+import { arabicGibberish, didystaniName, traderOffers } from './objects.js';
 import './props.js';
 
 const K_NONE = 0, K_ROOM = 1, K_YARD = 2, K_CORR = 3, K_DOOR = 4, K_ENTR = 5, K_WALL = 6;
@@ -545,6 +545,11 @@ function dressBase(level, c, b, L, ox, oz) {
       if (s) addObject(c, { kind: 'alarm', x: s.x, y: Y, z: s.z, ry: Math.atan2(s.nx, s.nz), base: b.id, y0: Math.min(r.ceil - 0.4, 2.6) });
     });
   }
+  // Wanderers who trade stand at their stall
+  L.posts.forEach((post, k) => {
+    if (post[4] !== 'trader' || !mine(post[0], post[2])) return;
+    addObject(c, { kind: 'trader', x: post[0], y: Y, z: post[2], base: b.id, post: k, offers: traderOffers(hash4(b.seed, k, 21)) });
+  });
   c.meta.baseFaction = F;
 }
 

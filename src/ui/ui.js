@@ -416,6 +416,35 @@ export class UI {
   }
 
   // ------------------------------------------------------------------ notes & journal
+  // Trading with a Did'h Wanderer: three offers, one trade.
+  openTrade(o, s, game) {
+    this.game = game;
+    let el = document.getElementById('trade');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'trade'; el.className = 'screen modal-screen';
+      document.body.appendChild(el);
+    }
+    const inv = game.inventory;
+    el.innerHTML = `<section class="panel trade-panel"><h2>Did'h Wanderer</h2><p class="muted">"Did'h teaches us to share. Once. Choose well, stranger."</p><div class="trade-list"></div><div class="row end"><button class="small" data-x>Leave</button></div></section>`;
+    const list = el.querySelector('.trade-list');
+    o.offers.forEach(([cid, cq, rid, rq], i) => {
+      const ok = inv.count(cid) >= cq && !s?.traded;
+      const row = document.createElement('div'); row.className = 'trade-row' + (ok ? '' : ' no');
+      row.innerHTML = `<div class="ti"></div><span>${cq}× ${ITEMS[cid].name}</span><span class="arr">→</span><div class="ti"></div><span>${rq}× ${ITEMS[rid].name}</span><button class="small" ${ok ? '' : 'disabled'}>Trade</button>`;
+      const ics = row.querySelectorAll('.ti'); iconInto(ics[0], cid, 32); iconInto(ics[1], rid, 32);
+      row.querySelector('button').onclick = () => {
+        if (inv.count(cid) < cq) return;
+        inv.consume(cid, cq);
+        game.request({ t: 'int', l: game.levelId, id: o.id, a: 'trade', i });
+        audio.play('ui', { freq: 760 });
+        this.closeModal('trade');
+      };
+      list.appendChild(row);
+    });
+    el.querySelector('[data-x]').onclick = () => this.closeModal('trade');
+    this.openModal('trade');
+  }
+
   // a framed picture up close, with a caption
   showImage(src, title, body) {
     $('noteTitle').textContent = title;

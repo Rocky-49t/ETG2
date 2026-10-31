@@ -210,4 +210,28 @@ registerObjectKind('radioSet', {
 });
 export function radioChatter(seed) { return CHATTER[(seed >>> 0) % CHATTER.length]; }
 
+// A Wanderer who'll trade (once). The object sits at their post.
+const OFFERS = [
+  ['scrap', 2, 'battery', 1], ['fireSalts', 3, 'goanJuice', 2], ['goldBar', 1, 'medkit', 1], ['goldBar', 2, 'smallPack', 1], ['cloth', 2, 'bandage', 2],
+  ['battery', 2, 'vigorTonic', 1], ['goldBar', 1, 'didhCharm', 2], ['rqPistol', 1, 'goanJuice', 3], ['ammo9', 12, 'cleanWater', 2], ['wire', 2, 'flare', 2],
+  ['snackBar', 2, 'fireSalts', 3], ['rifleAmmo', 15, 'medkit', 1], ['goldBar', 3, 'largePack', 1], ['dirtyWater', 2, 'cleanWater', 1],
+];
+export function traderOffers(seed) {
+  const r = new RNG(seed >>> 0);
+  const pool = OFFERS.slice();
+  const out = [];
+  for (let k = 0; k < 3; k++) out.push(pool.splice(r.int(0, pool.length - 1), 1)[0]);
+  return out;
+}
+registerObjectKind('trader', {
+  build: () => null,
+  prompt: (o, s, game) => {
+    if (s?.traded) return null;
+    const dead = (game.world.flag(game.levelId, 'bk:' + o.base) || []).includes(o.post);
+    if (dead || game.world.flag(game.levelId, 'hostile:' + o.base)) return null;
+    return 'Trade with the Wanderer';
+  },
+  radius: 0.8, centerY: 1.2,
+});
+
 export function baseHash(...a) { return hash4(...a); }

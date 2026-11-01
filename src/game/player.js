@@ -55,7 +55,8 @@ export class PlayerController {
     this.events.length = 0;
     // ---- look
     if (input.locked && !this.frozenLook) {
-      const [mx, my] = input.consumeMouse();
+      let [mx, my] = input.consumeMouse();
+      mx *= this.lookScale || 1; my *= this.lookScale || 1;
       this.yaw -= mx;
       this.pitch = clamp(this.pitch - my, -1.5, 1.5);
     } else input.consumeMouse();
@@ -268,7 +269,8 @@ export class PlayerController {
     this.camera.rotation.set(this.pitch + shy, this.yaw + shx, (this.downed ? 0.25 : 0) + Math.cos(this.bobT) * 0.004 * this.bobAmt * bobOn);
     const fovBase = settings.get('fov');
     this.fovKick = damp(this.fovKick, this.sprinting ? 6 : 0, 5, dt);
-    const fov = fovBase + this.fovKick + (this.zoom || 0);
+    // a scope zooms by a factor; plain aiming narrows the view a little
+    const fov = this.scope ? (fovBase + this.fovKick) / this.scope : fovBase + this.fovKick + (this.zoom || 0);
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     this.forward.set(0, 0, -1).applyEuler(this.camera.rotation);
   }

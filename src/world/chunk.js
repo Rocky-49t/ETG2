@@ -19,6 +19,7 @@ export const F_NAVBLOCK = 8;    // blocked for AI by a prop
 export const F_NOCEIL = 16;     // open to the sky
 export const F_LANDMARK = 32;   // exit / key room
 export const F_NOWALLDECOR = 64;
+export const F_BASE = 128;      // part of a base (never tunnelled through)
 
 export const NO_WATER = -1e9;
 export const OPEN_SKY = 1e9;

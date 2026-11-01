@@ -19,6 +19,7 @@ const CE = 3.0;
 const DAY = [1.0, 0.95, 0.86], LAMP = [1.0, 0.82, 0.6];
 
 const LOOT = [
+  ['smallPack', 2], ['largePack', 1], ['combatBoots', 1.5], ['legGuards', 1],
   ['goanJuice', 12], ['vigorTonic', 6], ['fireSalts', 12], ['cleanWater', 10], ['battery', 14, [1, 2]], ['bandage', 10], ['medkit', 4], ['painkillers', 8],
   ['ammo9', 8, [6, 12]], ['shells', 5, [2, 5]], ['rifleAmmo', 3, [8, 16]], ['glowstick', 8, [1, 3]], ['flare', 5], ['gpsBoard', 2], ['antenna', 2], ['wire', 4],
   ['scrap', 5], ['knife', 3], ['decoy', 4], ['level5Key', 1], [null, 14],
@@ -471,6 +472,8 @@ export default {
   surface: 'carpet',
   lockerStyle: 'metal',
   exitStyle: 'plaque',
+  // tiny Did'h Wanderer camps
+  bases: { faction: 'didh', cell: 5, chance: 0.6, minR: 3, sizes: [['tiny', 1]], ceil: 3.0, light: 'bulb', lightColor: [1.0, 0.85, 0.6] },
   containerMats: { cabinet: 'beigeWall', crate: 'darkWood' },
   notes: ['l4_a', 'l4_b', 'l4_c', 'gen_a'],
   decalTexts: ['THE WINDOWS LIE', 'DON\'T WAVE BACK', 'TOLL PAID', 'LISTEN TO THE LOCK'],
@@ -528,6 +531,7 @@ export default {
     // arrival: a note where you land
     if (landmarks.some(l => l.type === 'spawn')) addNote(c, 'l4_a', c.tx(8) + 0.5, 0.004, c.tz(8) + 0.6, 0.6);
     addLevelDoor(c, level, rng, 'L3', { p: 0.03, minR: 3, salt: 1501, label: 'LEVEL 3' });
+    addLevelDoor(c, level, rng, 'LG', { p: 0.03, minR: 3, salt: 1601, label: 'LEVEL GUG' });
     // signs toward the nearest toll room
     const goal = nearestExit(level, c.x0 + 16, c.z0 + 16);
     const ws = wallSpots(c, (lx, lz, i) => !(c.flags[i] & F_ROOM));

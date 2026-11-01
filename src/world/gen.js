@@ -2,7 +2,7 @@
 // "ports" that guarantee chunks connect to their neighbours, carving tools,
 // connectivity repair and simple placement utilities.
 import { RNG, hash4, hashString } from '../core/rng.js';
-import { CS, TILE, T_SOLID, T_FLOOR, F_RESERVED, F_ROOM, F_LANDMARK, NO_WATER } from './chunk.js';
+import { CS, TILE, T_SOLID, T_FLOOR, F_RESERVED, F_ROOM, F_LANDMARK, F_BASE, NO_WATER } from './chunk.js';
 
 const KIND_H = 1, KIND_V = 2;
 
@@ -164,6 +164,7 @@ export function ensureConnected(c, ports, template) {
         if (nx < 0 || nz < 0 || nx >= CS || nz >= CS) continue;
         const j = nz * CS + nx;
         if (prev[j] !== -2) continue;
+        if (c.flags[j] & F_BASE && comp[j] !== main) continue; // never tunnel through a base
         prev[j] = i;
         if (comp[j] === main) { found = j; break; }
         q.push(j);

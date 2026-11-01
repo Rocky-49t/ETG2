@@ -19,7 +19,7 @@ import { TILE, CHUNK, F_DARK } from '../world/chunk.js';
 import { LEVELS, FIRST_LEVEL, LEVEL_ORDER } from '../world/levels/index.js';
 import { PlayerController } from './player.js';
 import { Stats } from './stats.js';
-import { Inventory } from './inventory.js';
+import { Inventory, EXTRA as EXTRA_SLOTS } from './inventory.js';
 import { ITEMS, makeItem } from './items.js';
 import { NOTES } from './notes.js';
 import { Viewmodel } from './viewmodel.js';
@@ -33,18 +33,25 @@ import { RemotePlayer } from './remote.js';
 import { initModels } from './models.js';
 import { normalizeSkin } from './avatar.js';
 import { escapeHtml } from './remote.js';
-import { CLASSES, applyClass, classPerk } from './classes.js';
+import { CLASSES, applyClass, applyClassMods, classPerk } from './classes.js';
+import { SAVE_MAGIC, SAVE_VERSION, sanitizeSave, sanitizeChar, sanitizeItem, randomHex, randomId, isToken, isRunId, tokenEq, getToken, setToken, writeSlot } from './save.js';
 import { EntityManager } from '../ai/manager.js';
 import { EntityViews } from '../ai/views.js';
 import { Director } from '../ai/director.js';
 import { NOISE } from '../ai/brain.js';
 import { ENTITY_TYPES } from '../ai/entities/index.js';
+import { radioSources, basesNear, baseLayout, baseById, baseAtChunk } from '../world/bases/index.js';
+import { NPC_ARMS } from '../ai/entities/npc.js';
+import { imageURL, IMAGE_CAPTIONS, didystaniName, radioChatter, basePasswords } from '../world/bases/objects.js';
+import { WEAPONS } from './weapons.js';
 import { audio } from '../audio/audio.js';
 
 const SURFACES = { carpet: 'carpet', officeCarpet: 'carpet', fabric: 'carpet', poolTile: 'tile', poolTileBlue: 'tile', grate: 'metal', rustMetal: 'metal', darkMetal: 'metal' };
 const SNAP_RATE = 1 / 15, SEND_RATE = 1 / 20;
 
 const KEY_ITEMS = new Set(['keycard', 'fuse', 'drainKey', 'level5Key', 'gpsBoard', 'antenna']);
+export const ARMOR_SLOTS = ['head', 'body', 'legs', 'feet'];
+export const GEAR_SLOTS = [...ARMOR_SLOTS, 'pack'];
 const ENV_CAUSES = new Set(['thirst', 'hunger', 'bleed', 'drown', 'fall', 'void', 'steam']);
 
 export class Game {
@@ -104,6 +111,7 @@ export class Game {
     this.checkpoint = null;
     this.flashFlickerT = 0;
     this.blackoutT = 0;
+    this.gear = { head: null, body: null, legs: null, feet: null, pack: null };
     this.snapT = 0; this.sendT = 0;
     this.pendingNoise = 0;
     this.transitioning = false;
@@ -114,6 +122,12 @@ export class Game {
     this.cheats = { on: false, granted: new Set() };
     this._lootPlayers = Math.max(1, this.roster.size || 1);   // co-op cheat permissions (host-owned)
     this.cheatGod = false; this.notarget = false;
+    // saves: this run's id, co-op character tokens (host), characters waiting to be reclaimed
+    this.runId = isRunId(opts.runId) ? opts.runId : randomId();
+    this.saveTokens = new Map();
+    this.savedPlayers = [];
+    this.claimTried = new Set();
+    this.autoSaveT = 300;
 
     this.world.on('obj', (l, id) => { if (l === this.levelId) this.objects.refresh(id); this.onObjState?.(l, id); });
     this.world.on('dyn+', (l, d) => { if (l === this.levelId) this.objects.addDyn(d); });
@@ -123,12 +137,18 @@ export class Game {
     this.stats.damage = (amount, cause, silent) => {
       if (this.cheatGod) return;
       // worn armor soaks up blows (not hunger, thirst, bleeding, drowning or falls)
-      if (this.armor && amount > 0 && !ENV_CAUSES.has(cause)) {
-        const A = ITEMS[this.armor.id].armor;
-        const soaked = amount * A.absorb;
-        amount -= soaked;
-        this.armor.data.dur -= soaked * 1.6;
-        if (this.armor.data.dur <= 0) { this.subtitle(`Your ${ITEMS[this.armor.id].name.toLowerCase()} falls apart.`, 2.2, 'warn'); this.armor = null; this.applyArmorMods(); }
+      const worn = ARMOR_SLOTS.map(k => this.gear[k]).filter(Boolean);
+      if (worn.length && amount > 0 && !ENV_CAUSES.has(cause)) {
+        let pass = 1;
+        for (const it of worn) pass *= 1 - ITEMS[it.id].armor.absorb;
+        const total = Math.min(0.75, 1 - pass);
+        for (const k of ARMOR_SLOTS) {
+          const it = this.gear[k];
+          if (!it) continue;
+          it.data.dur -= amount * ITEMS[it.id].armor.absorb * 1.6;
+          if (it.data.dur <= 0) { this.subtitle(`Your ${ITEMS[it.id].name.toLowerCase()} falls apart.`, 2.2, 'warn'); this.gear[k] = null; this.applyArmorMods(); }
+        }
+        amount *= 1 - total;
         this.hud.armorChanged(this);
       }
       baseDamage(amount, cause, silent);
@@ -180,6 +200,7 @@ export class Game {
     if (n > this._lootPlayers) { this._lootPlayers = n; this.objects?.refreshAll(); }
   }
   get def() { return LEVELS[this.levelId]; }
+  get armor() { return this.gear.body; }
 
   applyExposure() {
     this.engine.renderer.toneMappingExposure = (this.sceneDef?.exposure ?? 1) * settings.get('brightness');
@@ -245,7 +266,7 @@ export class Game {
     this.ui.fade(false);
     this.ui.titleCard(def.name, def.title, def.subtitle);
     this.hud.setObjective(def, this);
-    if (!first) this.stats0.levels++;
+    if (!first) { this.stats0.levels++; if (this.isHost) this.autoSaveT = Math.min(this.autoSaveT, 4); }
     this.transitioning = false;
     this.levelEnterTime = this.time;
     def.onEnter?.(this);
@@ -296,6 +317,7 @@ export class Game {
 
     this.updateLocal(dt, level);
     if (this.isHost) this.hostUpdate(dt);
+    if (this.isHost && (this.autoSaveT -= dt) <= 0) { this.autoSaveT = 300; this.autoSave(); }
 
     // world + visuals
     const cam = this.engine.camera;
@@ -348,11 +370,11 @@ export class Game {
       const surf = this.surfaceAt(P.pos);
       if (ev.type === 'step') {
         this.sfx('step', null, { surface: ev.wet ? 'water' : surf, volume: ev.crouch ? 0.22 : ev.sprint ? 0.85 : 0.5, reverb: 0.3 });
-        this.emitNoise((ev.crouch ? NOISE.crouch : ev.sprint ? NOISE.sprint : NOISE.walk) * classPerk(this, 'stepNoise', 1));
+        this.emitNoise((ev.crouch ? NOISE.crouch : ev.sprint ? NOISE.sprint : NOISE.walk) * classPerk(this, 'stepNoise', 1) * (this.armorQuiet || 1));
       } else if (ev.type === 'land') {
         this.sfx('land', null, { volume: Math.min(1, ev.impact / 9) });
         this.emitNoise(NOISE.land);
-        if (ev.impact > 10.5) this.stats.damage((ev.impact - 10.5) * 9, 'fall');
+        if (ev.impact > 10.5) this.stats.damage((ev.impact - 10.5) * 9 * (this.armorFall || 1), 'fall');
         P.shake = Math.min(1, P.shake + ev.impact / 14);
       } else if (ev.type === 'splash') {
         this.sfx('splash', P.pos, { volume: ev.strength });
@@ -380,7 +402,7 @@ export class Game {
     this.stats.update(dt, {
       sprinting: P.sprinting, swimming: P.swimming, swimFast: P.swimming && input.act('sprint'), underwater: P.underwater,
       darkness: lit ? 0 : (flags & F_DARK || ambient < 0.08 ? 1 : 0.35), nearbyThreat: threat, inBrightLight: ambient > 0.55, teammatesNear: teammates,
-      sanityDrain: this.def.sanityDrain || 0, armorStamina: this.armorStamina || 1,
+      sanityDrain: this.def.sanityDrain || 0, charm: this.inventory.held?.id === 'didhCharm', armorStamina: this.armorStamina || 1,
     });
     this.threat = threat;
     audio.setUnderwater(P.underwater);
@@ -542,6 +564,53 @@ export class Game {
       case 'computer':
         this.useComputer(o);
         break;
+      case 'image': {
+        const fig = o.img.startsWith('didFigure:');
+        const [title, body] = fig ? [didystaniName(+o.img.slice(10)), 'A Didystani officer, painted in oils. The frame is scorched along one side. Whoever hung it here did not get to take it down.'] : (IMAGE_CAPTIONS[o.img === 'didh' && this.stats.sanity < 30 ? 'didhDark' : o.img] || ['Picture', '']);
+        this.ui.showImage(imageURL(o.img === 'didh' && this.stats.sanity < 30 && Math.random() < 0.5 ? 'didhDark' : o.img), title, body);
+        if (o.img === 'didh') this.stats.scare(-4);
+        break;
+      }
+      case 'gate': {
+        if (s?.open || o.broken0) return;
+        const it = this.inventory.held, d = it && ITEMS[it.id];
+        const W = d?.type === 'weapon' ? WEAPONS[d.weapon] : null;
+        const dmg = W?.kind === 'melee' ? W.damage * (it.id === 'crowbar' ? 1.6 : 1.1) : 9;
+        if (this.stats.stamina < 6) { this.subtitle('You\'re too winded to swing.', 1.2); return; }
+        this.stats.stamina = Math.max(0, this.stats.stamina - 9); this.stats.sinceSprint = 0;
+        this.viewmodel.swing(W?.swing || 'crowbar');
+        this.sfx('hitWall', o, { volume: 1 }); this.sfx('metalGroan', o, { volume: 0.5 });
+        this.emitNoise(16);
+        this.request({ t: 'int', l, id: o.id, a: 'bash', d: dmg });
+        if (!W) this.subtitle('Bare hands won\'t do much. A crowbar, a blade — or a grenade.', 2);
+        break;
+      }
+      case 'baseVault':
+        if (s?.open) return;
+        if (this.inventory.has('vaultKey')) { this.inventory.consume('vaultKey', 1); this.request({ t: 'int', l, id: o.id, a: 'unlock' }); this.sfx('unlock', o, {}); this.sfx('metalDoor', o, { volume: 0.8 }); }
+        else { this.sfx('doorLocked', o, {}); this.subtitle('A vault door with a heavy brass lock. The base commander would carry the key.', 2.5); }
+        break;
+      case 'trader':
+        this.ui.openTrade(o, s, this);
+        break;
+      case 'rqComputer': {
+        const b = baseById(this.level, o.base);
+        if (b) b._posts = baseLayout(this.level, b).posts.length;
+        const P = this.player;
+        if (o.seat) { this.preSeat = { x: P.pos.x, y: P.pos.y, z: P.pos.z }; P.teleport(o.seat.x, P.pos.y, o.seat.z, o.seat.yaw); P.pitch = -0.12; P.height = 1.3; }
+        this.ui.ruckyos.open(this, o, b);
+        break;
+      }
+      case 'paper':
+        this.sfx('paper', null, {});
+        this.ui.showNote({ title: o.title || 'Note', body: o.text || '' });
+        break;
+      case 'radioSet': {
+        const [t, b] = radioChatter(hash4(o.x * 10 | 0, o.z * 10 | 0, (this.time / 30) | 0));
+        this.sfx('radioStatic', o, { volume: 0.8 });
+        this.subtitle(`${t}. ${b}`, 6);
+        break;
+      }
       default:
         // level-specific kinds
         this.def.interact?.(this, o, s, tgt);
@@ -815,7 +884,7 @@ export class Game {
     if (def.effects.revive && this.downed) this.selfRevive();
     this.inventory.takeFrom(idx, 1);
     this.sfx(def.sound || 'pickup', null, {});
-    if (def.effects.status) this.subtitle(def.effects.status[0] === 'inkward' ? 'It tastes of nothing. The air feels thinner around you.' : 'A clean, cold rush. Your legs feel tireless.', 2.5);
+    if (def.effects.status) this.subtitle({ inkward: 'It tastes of nothing. The air feels thinner around you.', goo: 'It tastes of pennies and wet cement. Your heart hammers — you could run forever.' }[def.effects.status[0]] || 'A clean, cold rush. Your legs feel tireless.', 2.5);
   }
 
   selfRevive() {
@@ -827,31 +896,66 @@ export class Game {
     this.sfx('revive', null, {});
   }
 
-  wearArmor(idx) {
+  // Put on a piece of armor or a pack from an inventory slot (swapping out what's there).
+  equipGear(idx) {
     const it = this.inventory.slots[idx];
-    if (!it || ITEMS[it.id].type !== 'armor') return;
+    const def = it && ITEMS[it.id];
+    if (!def || (def.type !== 'armor' && def.type !== 'pack')) return;
+    const slot = def.type === 'pack' ? 'pack' : def.armor.slot;
+    const old = this.gear[slot];
+    if (slot === 'pack') {
+      // the pockets of the old pack must fit in the new one
+      if (!this.inventory.setExtra(Math.max(def.pack.slots, this.inventory.extra)) || (def.pack.slots < this.inventory.extra && this.inventory.extraUsed(def.pack.slots))) {
+        this.subtitle('Empty the pockets of your current pack first.', 2); return;
+      }
+    }
     const taken = this.inventory.takeFrom(idx, 1);
-    if (this.armor) this.inventory.add(this.armor);
-    this.armor = taken;
+    this.gear[slot] = taken;
+    if (slot === 'pack') this.inventory.setExtra(def.pack.slots);
+    if (old) { const left = this.inventory.add(old); if (left > 0) this.dropItem(old); }
     this.applyArmorMods();
     this.sfx('rummage', null, { volume: 0.7 });
-    this.subtitle(`You strap on the ${ITEMS[taken.id].name.toLowerCase()}.`, 1.8);
+    this.subtitle(slot === 'pack' ? `You shoulder the ${def.name}.` : `You put on the ${def.name}.`, 1.6);
   }
+  wearArmor(idx) { this.equipGear(idx); }
 
-  removeArmor() {
-    if (!this.armor) return;
-    const left = this.inventory.add(this.armor);
-    if (left > 0) this.dropItem(this.armor);
-    this.armor = null;
+  unequipGear(slot) {
+    const it = this.gear[slot];
+    if (!it) return false;
+    if (slot === 'pack') {
+      if (this.inventory.extraUsed()) { this.subtitle('Take everything out of the pack\'s pockets first.', 2); return false; }
+      this.inventory.setExtra(0);
+    }
+    this.gear[slot] = null;
+    const left = this.inventory.add(it);
+    if (left > 0) this.dropItem(it);
     this.applyArmorMods();
+    return true;
   }
+  removeArmor() { this.unequipGear('body'); }
 
+  // Speed, stamina, fall and noise modifiers from everything worn.
   applyArmorMods() {
-    const A = this.armor ? ITEMS[this.armor.id].armor : null;
-    this.player.armorSlow = A ? 1 - A.slow : 1;
-    this.armorStamina = A ? A.stamina : 1;
+    let slow = 0, stamina = 1, fall = 1, quiet = 1;
+    for (const k of GEAR_SLOTS) {
+      const it = this.gear[k];
+      if (!it) continue;
+      const d = ITEMS[it.id];
+      const A = d.armor || d.pack || {};
+      slow += A.slow || 0; stamina *= A.stamina || 1; fall *= A.fall || 1; quiet *= A.quiet || 1;
+    }
+    this.player.armorSlow = Math.max(0.6, 1 - slow);
+    this.armorStamina = stamina;
+    this.armorFall = fall;
+    this.armorQuiet = quiet;
     this.hud.armorChanged(this);
   }
+  armorProtection() {
+    let pass = 1;
+    for (const k of ARMOR_SLOTS) if (this.gear[k]) pass *= 1 - ITEMS[this.gear[k].id].armor.absorb;
+    return Math.min(0.75, 1 - pass);
+  }
+  gearIds() { return GEAR_SLOTS.map(k => this.gear[k]?.id || 0); }
 
   activeTransmitter() {
     for (const s of this.inventory.slots) if (s && s.id === 'transmitter' && s.data.on && s.data.charge > 0) return s;
@@ -867,6 +971,72 @@ export class Game {
     this.sfx('click', null, {});
     if (it.data.on) { this.sfx('keyChirp', null, {}); this.transT = 0; }
     this.inventory.changed();
+  }
+
+  // Radio scanner: leave it running and it slowly fixes the rough position of
+  // any transmitter (bases with a communications room) on this level.
+  toggleScanner(it) {
+    if (!it) return;
+    if (!it.data.on && it.data.charge <= 0) { this.subtitle('The scanner is dead. Use a battery on it.', 2); this.sfx('click', null, {}); return; }
+    for (const s of this.inventory.slots) if (s && s.id === 'radioScanner' && s !== it) s.data.on = false;
+    it.data.on = !it.data.on;
+    this.sfx('click', null, {});
+    if (it.data.on) { this.sfx('scanStatic', null, {}); this.scanT = 0; if (it.data.lvl !== this.levelId) { it.data.lvl = this.levelId; it.data.scan = 0; it.data.found = null; } }
+    this.inventory.changed();
+  }
+  // the base siren: the nearest wailing alarm on this level
+  updateSiren(dt) {
+    this.sirenT = (this.sirenT || 0) - dt;
+    if (this.sirenT > 0) return;
+    this.sirenT = 0.5;
+    let best = null, bd = 70;
+    for (const e of this.objects.all.values()) {
+      if (e.o.kind !== 'alarm') continue;
+      const t = this.world.flag(this.levelId, 'alarm:' + e.o.base);
+      if (!t || this.time - t > 32) continue;
+      const d = Math.hypot(e.o.x - this.player.pos.x, e.o.z - this.player.pos.z);
+      if (d < bd) { bd = d; best = e.o; }
+    }
+    if (best && !this.siren) this.siren = this.loopSfx('siren', { x: best.x, y: 2.4, z: best.z }, { volume: 1, ref: 8, rolloff: 0.8 });
+    if (best && this.siren) this.siren.setPos({ x: best.x, y: 2.4, z: best.z });
+    if (!best && this.siren) { this.siren.stop(1.2); this.siren = null; }
+  }
+
+  updateScannerHud(dt) {
+    const el = this._scEl || (this._scEl = document.getElementById('scannerPanel'));
+    let sc = null;
+    for (const s of this.inventory.slots) if (s && s.id === 'radioScanner' && s.data.on && s.data.charge > 0) sc = s;
+    if (!sc || !this.levelId || this.dead) { if (el && !el.classList.contains('hidden')) el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    const D = sc.data;
+    if (D.lvl !== this.levelId) { D.lvl = this.levelId; D.scan = 0; D.found = null; }
+    D.charge = Math.max(0, D.charge - dt * 0.12);
+    if (D.charge <= 0) { D.on = false; this.subtitle('The scanner\'s screen fades out. Battery dead.', 2); this.inventory.changed(); return; }
+    // a full sweep takes a while (it depends on the level's interference)
+    const need = 50 + (hash4(this.def.id.charCodeAt(1) || 0, this.seed | 0) % 40);
+    D.scan = Math.min(need, (D.scan || 0) + dt);
+    this.scanT = (this.scanT || 0) - dt;
+    if (this.scanT > 0) return;
+    this.scanT = 2;
+    if (Math.random() < 0.5) this.sfx('scanStatic', null, { volume: 0.5 });
+    const P = this.player.pos, yaw = this.player.yaw;
+    const fmt = v => (v >= 0 ? ' ' : '') + Math.round(v);
+    let rows;
+    if (D.scan < need) {
+      const pct = Math.floor(D.scan / need * 100);
+      rows = `<div class="tp-row"><span>Sweeping frequencies… ${pct}%</span></div><div class="sc-bar"><div style="width:${pct}%"></div></div><div class="tp-row far"><span>Keep it switched on.</span></div>`;
+    } else {
+      const was = D.found?.length || 0;
+      D.found = radioSources(this.level, P.x, P.z, 480).map(s => ({ x: s.x, z: s.z, faction: s.faction, strength: s.strength }));
+      if (D.found.length > was) { this.sfx('scanPing', null, {}); this.subtitle(D.found.length === 1 ? 'The scanner locks onto a transmission.' : 'The scanner picks out several transmissions.', 2.2); }
+      const arrows = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
+      rows = D.found.length ? D.found.map(f => {
+        const dx = f.x - P.x, dz = f.z - P.z, d = Math.hypot(dx, dz);
+        let a = Math.atan2(-dx, -dz) - yaw; a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        return `<div class="tp-row"><span>${f.strength > 0.6 ? 'Strong' : 'Faint'} signal <span class="arr">${arrows[Math.round((Math.PI * 2 - a) / (Math.PI / 4)) % 8]}</span>~${Math.round(d / 10) * 10}m</span><span>X≈${fmt(f.x)}</span><span>Z≈${fmt(f.z)}</span></div>`;
+      }).join('') : '<div class="tp-row far"><span>No transmissions within range.</span></div>';
+    }
+    el.innerHTML = `<div class="tp-h"><span>📡 RADIO SCANNER</span><span>${Math.round(D.charge)}%</span></div>${rows}`;
   }
 
   // HUD panel: your coordinates and every teammate's, refreshed every 3 s
@@ -1147,6 +1317,7 @@ export class Game {
     for (const p of targets) if (p.levelId !== this.levelId) this.getLevel(p.levelId).chunk(Math.floor(p.x / CHUNK), Math.floor(p.z / CHUNK));
     this.entities.update(dt, perLevel);
     this.entitiesOpenDoors(perLevel);
+    this.hostBases(perLevel, dt);
     this.director.update(dt, perLevel);
     for (const [lid, ctx] of perLevel) LEVELS[lid].hostUpdate?.(this, ctx, dt);
     this.noises.length = 0;
@@ -1244,7 +1415,7 @@ export class Game {
       lvl: this.levelId, cr: P.crouching, sp: P.sprinting, sw: P.swimming, dn: this.downed, dd: this.dead, hd: this.hidden, nt: this.notarget || undefined,
       hi: it ? it.id : null, fl: this.lights.on, fo: this.lights.focus, lt: this.held.lighterLit, hp: Math.round(this.stats.health),
       sn: Math.round(this.stats.sanity), iw: this.level ? this.level.waterAt(P.pos.x, P.pos.z) > P.pos.y + 0.4 : false,
-      us: this.held.useT > 0 ? useAnim(it) : undefined, cl: this.classId || undefined, wd: this.stats.hasStatus('inkward') || undefined,
+      us: this.held.useT > 0 ? useAnim(it) : undefined, cl: this.classId || undefined, gr: this.gearIds(), wd: this.stats.hasStatus('inkward') || undefined,
     };
   }
 
@@ -1325,16 +1496,21 @@ export class Game {
       }
       case 'int': this.hostInteract(pid, m); break;
       case 'drop': {
+        const it = sanitizeItem(m.item);
+        if (!it || !LEVELS[m.l] || ![m.x, m.y, m.z].every(Number.isFinite)) break;
         const id = 'd' + hash4(this.time * 1000 | 0, Math.random() * 1e9 | 0).toString(36);
-        const d = { id, kind: 'drop', item: m.item.id, qty: m.item.qty, data: m.item.data, x: m.x, y: m.y, z: m.z, ry: Math.random() * 6 };
+        const d = { id, kind: 'drop', item: it.id, qty: it.qty, data: it.data, x: m.x, y: m.y, z: m.z, ry: Math.random() * 6 };
         this.hostBroadcast({ t: 'dyn+', l: m.l, d });
         break;
       }
       case 'throw': {
+        if (!LEVELS[m.l] || ![m.x, m.y, m.z, m.vx, m.vy, m.vz].every(Number.isFinite)) break;
         const id = 't' + hash4(this.time * 1000 | 0, Math.random() * 1e9 | 0).toString(36);
-        const life = m.type === 'flare' ? 45 : m.type === 'glowstick' ? 120 : 15;
+        const nade = m.type === 'grenade' || m.type === 'rqGrenade';
+        const life = m.type === 'flare' ? 45 : m.type === 'glowstick' ? 120 : nade ? 3.1 : 15;
         const d = { id, kind: 'thrown', type: m.type, x: m.x, y: m.y, z: m.z, vx: m.vx, vy: m.vy, vz: m.vz, t0: this.time, life, owner: pid };
         this.hostBroadcast({ t: 'dyn+', l: m.l, d });
+        if (nade) this.hostGrenade(m.l, d, pid);
         break;
       }
       case 'fx': {
@@ -1347,6 +1523,15 @@ export class Game {
       }
       case 'cheat': this.hostCheat(pid, m); break;
       case 'call': this.hostCall(pid, m); break;
+      case 'baseCmd': this.hostBaseCmd(pid, m); break;
+      case 'claim': this.hostClaim(pid, m); break;
+      case 'saveData': {
+        const q = this._saveReq;
+        if (!q || m.sid !== q.sid || !q.peers.has(pid) || q.got.has(pid)) break;
+        q.got.set(pid, m.char ? sanitizeChar(m.char) : null);
+        if (q.got.size >= q.peers.size) q.done();
+        break;
+      }
       case 'chat': {
         const text = String(m.text || '').slice(0, 200);
         if (text) this.hostBroadcast({ t: 'chat', from: pid, name: this.nameOf(pid), text });
@@ -1355,7 +1540,7 @@ export class Game {
       case 'revive': this.hostSend(m.target, { t: 'revived', by: this.nameOf(pid) }); break;
       case 'role': {
         const r = this.roster.get(pid);
-        if (r && CLASSES[m.c]) { r.classId = m.c; this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} is the team's ${CLASSES[m.c].name.toLowerCase()}.` }, true); }
+        if (r && typeof m.c === 'string' && Object.hasOwn(CLASSES, m.c)) { r.classId = m.c; if (!m.quiet) this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} is the team's ${CLASSES[m.c].name.toLowerCase()}.` }, true); }
         break;
       }
       case 'respawned': this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} respawned at the level entrance.` }, true, pid); break;
@@ -1419,7 +1604,7 @@ export class Game {
     this.session.sendTo(pid, {
       t: 'welcome', id: pid, seed: this.seed, difficulty: this.difficulty, friendlyFire: this.friendlyFire,
       world: this.world.serialize(), roster: [...this.roster.entries()], hostId: this.myId, hostName: this.profile.name, hostSkin: this.profile.skin,
-      level: this.levelId, spawn: { x: hostState.x, y: hostState.y, z: hostState.z }, ht: this.time,
+      level: this.levelId, spawn: { x: hostState.x, y: hostState.y, z: hostState.z }, ht: this.time, run: this.runId,
     });
     this.hostBroadcast({ t: 'pinfo', id: pid, name, skin: normalizeSkin(m.skin) }, true, pid);
     if (this.cheats.on) this.hostSend(pid, { t: 'cheatPerm', on: true, ids: [...this.cheats.granted] });
@@ -1470,7 +1655,9 @@ export class Game {
           set({ opened: true, loot });
           this.hostSend(pid, { t: 'give', item: { id: it.item, qty: it.qty, data: it.data } });
         } else if (m.a === 'put' && m.item) {
-          loot.push({ item: m.item.id, qty: m.item.qty, data: m.item.data });
+          const it = sanitizeItem(m.item);
+          if (!it || loot.length >= 48) return;
+          loot.push({ item: it.id, qty: it.qty, data: it.data });
           set({ opened: true, loot });
         }
         break;
@@ -1496,6 +1683,26 @@ export class Game {
           if (prog >= 1) this.hostEvent(m.l, { k: 'sound', name: 'metalDoor', x: o.x, y: 0.5, z: o.z, volume: 1 });
         }
         break;
+      case 'gate': {
+        if (m.a !== 'bash' || s.open || o.broken0) return;
+        const hp = (s.hp ?? o.hp) - Math.max(0, Math.min(80, +m.d || 0));
+        this.hostDamageGate(m.l, o, hp, pid);
+        break;
+      }
+      case 'trader': {
+        if (m.a !== 'trade') return;
+        const offer = o.offers[m.i | 0];
+        const dead = (this.world.flag(m.l, 'bk:' + o.base) || []).includes(o.post);
+        if (!offer || s.traded || dead || this.world.flag(m.l, 'hostile:' + o.base)) { if (offer) this.hostSend(pid, { t: 'give', item: { id: offer[0], qty: offer[1] } }); return; }
+        set({ traded: true });
+        const def = ITEMS[offer[2]];
+        this.hostSend(pid, { t: 'give', item: { id: offer[2], qty: offer[3], data: def?.data ? { ...def.data } : undefined } });
+        this.hostEvent(m.l, { k: 'subtitle', text: ['"Did\'h smiles on fair trades."', '"Walk soft, stranger."', '"May you always find the warm places."'][hash4(o.post, 7) % 3], dur: 2.5 });
+        break;
+      }
+      case 'baseVault':
+        if (m.a === 'unlock' && !s.open) { set({ open: true }); if (o.collider) o.collider.disabled = true; this.hostEvent(m.l, { k: 'subtitle', text: 'The vault wheel spins and the door swings out.', dur: 2.5 }); }
+        break;
       case 'vendor': {
         const sold = s.sold || 0;
         if (m.a !== 'buy' || sold >= o.stock) return;
@@ -1506,6 +1713,258 @@ export class Game {
       }
       default:
         LEVELS[m.l]?.hostInteract?.(this, pid, o, s, m);
+    }
+  }
+
+  // ------------------------------------------------------------------ base NPCs
+  // Bring a base's garrison to life when a player comes near; put it away when
+  // everyone has left. The dead stay dead (a per-base list in the world flags).
+  hostBases(perLevel, dt) {
+    this.baseNpcs ??= new Map();
+    this.basesT = (this.basesT || 0) - dt;
+    if (this.basesT > 0) return;
+    this.basesT = 1;
+    const live = new Set();
+    for (const [lid, ctx] of perLevel) {
+      const level = ctx.level;
+      const cfg = level.def.bases;
+      if (!cfg || cfg.faction === 'dd') continue;
+      for (const p of ctx.players) for (const b of basesNear(level, p.x, p.z, 80)) {
+        live.add(b.id);
+        if (!this.baseNpcs.has(b.id)) this.spawnBaseNpcs(lid, b);
+      }
+    }
+    for (const [id, rec] of this.baseNpcs) {
+      if (live.has(id)) continue;
+      const ctx = perLevel.get(rec.l);
+      const L = rec.L;
+      if (ctx && ctx.players.some(p => Math.hypot(p.x - L.cx, p.z - L.cz) < 150)) continue;
+      for (const eid of rec.ids) { const e = this.entities.list.get(eid); if (e && e.state !== 'dead') this.entities.remove(eid); }
+      this.baseNpcs.delete(id);
+    }
+  }
+
+  spawnBaseNpcs(l, b) {
+    const L = baseLayout(this.getLevel(l), b);
+    const killed = this.world.flag(l, 'bk:' + b.id) || [];
+    const ids = [];
+    const rq = b.faction === 'rq';
+    const hostile = !!this.world.flag(l, 'hostile:' + b.id);
+    L.posts.forEach((post, k) => {
+      if (killed.includes(k)) return;
+      const [x, y, z, yaw, role, ri] = post;
+      const r = new RNG(hash4(b.seed, k, 404));
+      let weapon, gear = [0, 0, 0, 0, 0], nades = 0;
+      if (rq) {
+        weapon = role === 'sniper' ? 'rqSniper' : role === 'officer' || role === 'radio' ? 'rqPistol' : role === 'guard' ? (r.chance(0.75) ? 'rqRifle' : 'rqShotgun')
+          : r.weighted([['rqRifle', 45], ['rqSmg', 20], ['rqPistol', 15], ['rqMachete', 12], ['rqBaton', 8]]);
+        gear = [role === 'officer' ? 0 : r.chance(role === 'sniper' ? 1 : 0.5) ? 'ririqianHelmet' : 0, r.chance(role === 'officer' ? 1 : 0.35) ? 'ririqianVest' : 0, r.chance(0.15) ? 'ririqianGreaves' : 0, r.chance(0.6) ? 'ririqianBoots' : 0, 0];
+        nades = role !== 'sniper' && r.chance(0.3) ? 1 : 0;
+      } else weapon = r.weighted([['pistol', 35], ['knife', 35], ['shotgun', 15], ['crowbar', 15]]);
+      const room = L.rooms[ri];
+      const ey = role === 'sniper' && room?.role === 'watch' ? L.Y + 1.2 : y;
+      const e = this.entities.spawn(rq ? 'ririqian' : 'didh', l, x, z, {
+        y: ey, yaw, hpMul: role === 'officer' ? 1.3 : 1,
+        npc: { base: b.id, post: k, role, weapon, gear, faction: b.faction, nades, skin: hash4(b.seed, k, 7) % 100000, home: { x, z, yaw } },
+      });
+      if (!e) return;
+      if (hostile) e.hostile = true;
+      ids.push(e.id);
+    });
+    this.baseNpcs.set(b.id, { l, L, ids, b });
+  }
+
+  baseMates(e, R = 45) {
+    const rec = this.baseNpcs?.get(e.npc.base);
+    if (!rec) return [];
+    return rec.ids.map(id => this.entities.list.get(id)).filter(o => o && o.state !== 'dead' && o !== e && (rec.L.alarmed || Math.hypot(o.x - e.x, o.z - e.z) < R));
+  }
+
+  // One soldier sees you: he opens up, and everyone nearby joins in. Big bases sound the alarm.
+  hostNpcAlert(e, p) {
+    e.target = p.id; e.lastSeen = { x: p.x, z: p.z, t: this.time };
+    setStateNpc(e, 'combat');
+    for (const o of this.baseMates(e)) {
+      if (o.state === 'combat' || o.state === 'aim' || o.state === 'strike') continue;
+      if (o.npc.faction === 'didh' && !o.hostile) continue;
+      o.target = p.id; o.lastSeen = { x: p.x, z: p.z, t: this.time };
+      setStateNpc(o, Math.hypot(o.x - p.x, o.z - p.z) < 30 ? 'combat' : 'search');
+    }
+    const rec = this.baseNpcs.get(e.npc.base);
+    if (rec?.L.alarmed && !this.world.flag(e.levelId, 'seized:' + e.npc.base)) {
+      const t = this.world.flag(e.levelId, 'alarm:' + e.npc.base);
+      if (!t || this.time - t > 45) {
+        this.hostBroadcast({ t: 'flag', l: e.levelId, k: 'alarm:' + e.npc.base, v: this.time });
+        this.hostEvent(e.levelId, { k: 'subtitle', text: 'A siren starts to wail.', dur: 2.5, cls: 'scare' });
+      }
+    }
+  }
+
+  // RuckyOS admin commands: the passphrase is checked here, on the host.
+  hostBaseCmd(pid, m) {
+    const lvl = LEVELS[m.l] && this.getLevel(m.l);
+    const b = lvl && baseById(lvl, m.base);
+    if (!b || b.faction !== 'rq' || typeof m.pw !== 'string' || m.pw !== basePasswords(b.seed).admin) return;
+    if (m.cmd === 'alarmOff') this.hostBroadcast({ t: 'flag', l: m.l, k: 'alarm:' + b.id, v: 0 });
+    else if (m.cmd === 'alarmOn') {
+      this.hostBroadcast({ t: 'flag', l: m.l, k: 'alarm:' + b.id, v: this.time });
+      // the garrison comes to see who pressed it
+      const p = this.playerTargetById(pid);
+      const rec = this.baseNpcs?.get(b.id);
+      if (p && rec) for (const id of rec.ids) { const e = this.entities.list.get(id); if (e && e.state !== 'dead' && e.state !== 'combat') { e.lastSeen = { x: p.x, z: p.z, t: this.time }; setStateNpc(e, 'search'); } }
+    } else if (m.cmd === 'vault' && typeof m.vault === 'string') {
+      const o = this.findObject(m.l, m.vault);
+      if (!o || o.kind !== 'baseVault' || o.base !== b.id) return;
+      const s = this.world.get(m.l, o.id) || {};
+      if (s.open) return;
+      this.hostBroadcast({ t: 'os', l: m.l, id: o.id, s: { open: true } });
+      if (o.collider) o.collider.disabled = true;
+      this.hostEvent(m.l, { k: 'sound', name: 'metalDoor', x: o.x, y: 1, z: o.z, volume: 1 });
+    }
+  }
+
+  hostNpcHurt(e, from) {
+    if (e.npc.faction === 'didh' && !e.hostile) {
+      // strike one Wanderer and the whole camp remembers
+      this.hostBroadcast({ t: 'flag', l: e.levelId, k: 'hostile:' + e.npc.base, v: true });
+      e.hostile = true;
+      for (const o of this.baseMates(e, 999)) o.hostile = true;
+      this.hostEvent(e.levelId, { k: 'subtitle', text: 'The Wanderers draw their weapons.', dur: 2.5, cls: 'scare' });
+    }
+    const p = this.playerTargetById(from);
+    if (p && (e.npc.faction === 'rq' || e.hostile)) this.hostNpcAlert(e, p);
+  }
+
+  // A shot from an NPC: roll to hit against range, movement and stance.
+  hostNpcShoot(e, p, G) {
+    const lvl = this.getLevel(e.levelId);
+    const fx = Math.sin(e.yaw), fz = Math.cos(e.yaw);
+    const mx = e.x + fx * 0.5, my = e.y + 1.42, mz = e.z + fz * 0.5;
+    const tx = p.x, ty = p.y + (p.crouch ? 0.9 : 1.25), tz = p.z;
+    const d = Math.hypot(tx - mx, tz - mz);
+    const diff = this.difficulty === 'easy' ? 0.75 : this.difficulty === 'hard' ? 1.2 : 1;
+    let acc = G.acc * diff - (d / G.range) * 0.35 - (p.sprint ? 0.15 : 0) - (p.crouch ? 0.08 : 0);
+    acc = Math.max(0.06, Math.min(0.92, acc));
+    const clear = lvl.lineOfSight(mx, my, mz, tx, ty, tz);
+    const hit = clear && Math.random() < acc;
+    let ix = tx, iy = ty, iz = tz, n = null;
+    if (!hit) {
+      // a miss: past the target into whatever is behind
+      const ox = (Math.random() - 0.5) * 2.4, oy = (Math.random() - 0.3) * 1.2;
+      const dx = tx + Math.cos(e.yaw) * ox - mx, dy = ty + oy - my, dz = tz - Math.sin(e.yaw) * ox - mz;
+      const len = Math.hypot(dx, dy, dz) || 1;
+      const r = lvl.raycast(mx, my, mz, dx / len, dy / len, dz / len, G.range * 1.4);
+      if (r) { ix = r.x; iy = r.y; iz = r.z; n = [+r.nx.toFixed(2), +r.ny.toFixed(2), +r.nz.toFixed(2)]; }
+      else { ix = mx + dx / len * 40; iy = my + dy / len * 40; iz = mz + dz / len * 40; }
+    } else this.hostHurt(p.id, G.dmg * (G.burst > 1 ? 1 : 1), { from: e, type: e.npc.faction === 'rq' ? 'rq' : 'didh', scare: 4 });
+    this.noises.push({ x: e.x, y: e.y, z: e.z, r: 30, l: e.levelId, pid: 'npc' });
+    this.hostEvent(e.levelId, { k: 'npcShot', w: G.sound, x: +mx.toFixed(2), y: +my.toFixed(2), z: +mz.toFixed(2), tx: +ix.toFixed(2), ty: +iy.toFixed(2), tz: +iz.toFixed(2), n, h: hit ? 1 : 0, id: p.id });
+  }
+
+  hostNpcGrenade(e, at) {
+    const dx = at.x - e.x, dz = at.z - e.z, d = Math.hypot(dx, dz) || 1;
+    const sp = Math.min(13, 4 + d * 0.55);
+    const id = 't' + hash4(this.time * 1000 | 0, e.id).toString(36);
+    const dd = { id, kind: 'thrown', type: 'rqGrenade', x: e.x, y: e.y + 1.5, z: e.z, vx: dx / d * sp, vy: 3.2, vz: dz / d * sp, t0: this.time, life: 3.1, owner: 'npc' };
+    this.hostBroadcast({ t: 'dyn+', l: e.levelId, d: dd });
+    this.hostGrenade(e.levelId, dd, 'npc');
+    this.hostEvent(e.levelId, { k: 'subtitle', text: 'Something clatters across the floor toward you.', dur: 1.8, cls: 'scare' });
+  }
+
+  // A garrison member dies: drop their gear, remember the death, maybe seize the base.
+  hostNpcKilled(e) {
+    const N = e.npc, l = e.levelId;
+    const killed = [...(this.world.flag(l, 'bk:' + N.base) || [])];
+    if (!killed.includes(N.post)) killed.push(N.post);
+    this.hostBroadcast({ t: 'flag', l, k: 'bk:' + N.base, v: killed });
+    const drop = (item, qty, data) => { const a = Math.random() * 6.28; this.hostDropItemData(l, item, qty, e.x + Math.cos(a) * 0.5, e.z + Math.sin(a) * 0.5, data); };
+    if (N.weapon) drop(N.weapon, 1, ITEMS[N.weapon]?.data ? { ...ITEMS[N.weapon].data, ...(NPC_ARMS[N.weapon]?.mag ? { ammo: Math.max(0, Math.min(ITEMS[N.weapon].data.ammo ?? 0, e.mag)) } : {}) } : undefined);
+    const ammo = ITEMS[N.weapon]?.weapon && !NPC_ARMS[N.weapon]?.melee ? ({ rqRifle: 'rifleAmmo', rqSmg: 'ammo9', rqPistol: 'ammo9', rqShotgun: 'shells', rqSniper: 'sniperAmmo', pistol: 'ammo9', shotgun: 'shells' })[N.weapon] : null;
+    if (ammo && Math.random() < 0.7) drop(ammo, ammo === 'sniperAmmo' ? 3 : ammo === 'shells' ? 4 : 10 + (Math.random() * 10 | 0));
+    for (const g of N.gear || []) if (g && Math.random() < 0.35) drop(g, 1, { dur: 40 + Math.random() * 40 | 0 });
+    if (N.role === 'officer') { const rec = this.baseNpcs.get(N.base); if (rec?.L.rooms.some(r => r.role === 'vault')) drop('vaultKey', 1); if (Math.random() < 0.5) drop('goldBar', 1 + (Math.random() * 2 | 0)); }
+    if (e.nades > 0) drop('rqGrenade', e.nades);
+    if (N.faction === 'didh' && Math.random() < 0.4) drop('didhCharm', 1);
+    // every post dead: the base is yours
+    const rec = this.baseNpcs.get(N.base);
+    if (rec && rec.L.posts.every((p, k) => killed.includes(k)) && !this.world.flag(l, 'seized:' + N.base)) {
+      this.hostBroadcast({ t: 'flag', l, k: 'seized:' + N.base, v: true });
+      this.hostBroadcast({ t: 'flag', l, k: 'alarm:' + N.base, v: 0 });
+      const lp = this.lastPerLevel?.get(l)?.players.find(p => p.id === e.lastHitBy);
+      this.hostBroadcast({ t: 'sys', text: N.faction === 'rq' ? `The Ririqian ${rec.b.size === 'city' ? 'stronghold' : rec.b.size === 'large' ? 'base' : 'outpost'} falls silent. ${lp ? this.nameOf(e.lastHitBy) : 'Someone'} has seized it.` : 'The Wanderer camp is empty now.' });
+    }
+  }
+
+  hostDropItemData(l, item, qty, x, z, data) {
+    const lvl = this.getLevel(l);
+    let y = lvl.floorAt(x, z);
+    if (!isFinite(y)) y = lvl.floorAt(Math.round(x), Math.round(z));
+    if (!isFinite(y)) return;
+    const id = 'd' + hash4(this.time * 1000 | 0, Math.random() * 1e9 | 0).toString(36);
+    this.hostBroadcast({ t: 'dyn+', l, d: { id, kind: 'drop', item, qty, data, x, y: y + 0.02, z, ry: Math.random() * 6 } });
+  }
+
+  // Host: work out where a thrown grenade will be when its fuse runs out (the
+  // same physics every client runs), then blow it up there.
+  hostGrenade(l, d, pid, fuse = 3) {
+    const t = { d: { ...d, l }, pos: new THREE.Vector3(d.x, d.y, d.z), vel: new THREE.Vector3(d.vx, d.vy, d.vz), rest: false, spin: new THREE.Vector3() };
+    for (let k = 0; k < fuse / 0.02; k++) this.objects._physics(t, 0.02);
+    setTimeout(() => {
+      this.hostBroadcast({ t: 'dyn-', l, id: d.id });
+      this.hostExplode(l, { x: t.pos.x, y: t.pos.y + 0.15, z: t.pos.z }, pid);
+    }, fuse * 1000);
+  }
+
+  hostDamageGate(l, o, hp, pid) {
+    if (hp <= 0) {
+      this.hostBroadcast({ t: 'os', l, id: o.id, s: { open: true, hp: 0 } });
+      if (o.collider) o.collider.disabled = true;
+      this.hostEvent(l, { k: 'sound', name: 'crumble', x: o.x, y: 1, z: o.z, volume: 1.2 });
+      this.hostEvent(l, { k: 'subtitle', text: 'The gate tears loose and crashes down.', dur: 2.5 });
+      this.noises.push({ x: o.x, y: 1, z: o.z, r: 40, l, pid });
+    } else this.hostBroadcast({ t: 'os', l, id: o.id, s: { hp, hitT: performance.now() } });
+    // the garrison hears the gate being battered
+    const rec = this.baseNpcs?.get(o.base);
+    if (rec) for (const id of rec.ids) {
+      const e = this.entities.list.get(id);
+      if (!e || e.state === 'dead' || e.state === 'combat' || Math.hypot(e.x - o.x, e.z - o.z) > 40) continue;
+      if (e.npc.faction === 'didh') continue;
+      e.lastSeen = { x: o.x, z: o.z, t: this.time }; setStateNpc(e, 'search');
+    }
+  }
+
+  // Host: an explosion. Damage falls off with distance and walls stop it.
+  hostExplode(l, p, pid, R = 7.5, D = 150) {
+    const lvl = this.getLevel(l);
+    this.hostEvent(l, { k: 'explode', x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2), r: R });
+    this.noises.push({ x: p.x, y: p.y, z: p.z, r: NOISE.grenade, l, pid });
+    for (const e of this.entities.byLevel(l)) {
+      if (e.state === 'dead') continue;
+      const dist = Math.hypot(e.x - p.x, e.y + 0.8 - p.y, e.z - p.z);
+      if (dist > R || !lvl.lineOfSight(p.x, p.y, p.z, e.x, e.y + 0.8, e.z)) continue;
+      const res = this.entities.damage(e.id, D * Math.pow(1 - dist / R, 1.3) + 12, 'explosive', pid);
+      if (res?.killed && (this.roster.has(pid) || pid === this.myId)) {
+        this.hostSend(pid, { t: 'kill', e: e.id, type: e.type });
+        if (e.def.announceKill) this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} blew up ${ENTITY_TYPES[e.type]?.name}.` });
+      }
+    }
+    // gates in the blast
+    for (let cz = Math.floor((p.z - R) / CHUNK); cz <= Math.floor((p.z + R) / CHUNK); cz++) for (let cx = Math.floor((p.x - R) / CHUNK); cx <= Math.floor((p.x + R) / CHUNK); cx++) {
+      if (!lvl.hasChunk(cx, cz)) continue;
+      for (const o of lvl.chunk(cx, cz).objects) {
+        if (o.kind !== 'gate' || o.broken0) continue;
+        const s = this.world.get(l, o.id) || {};
+        const dist = Math.hypot(o.x - p.x, o.z - p.z);
+        if (s.open || dist > R) continue;
+        this.hostDamageGate(l, o, (s.hp ?? o.hp) - 260 * (1 - dist / R), pid);
+      }
+    }
+    for (const q of this.playerTargets()) {
+      if (q.levelId !== l || (q.dead && !q.downed)) continue;
+      const dist = Math.hypot(q.x - p.x, q.y + 0.9 - p.y, q.z - p.z);
+      if (dist > R || !lvl.lineOfSight(p.x, p.y, p.z, q.x, q.y + 1.0, q.z)) continue;
+      const k = 6 * (1 - dist / R) / Math.max(0.5, Math.hypot(q.x - p.x, q.z - p.z));
+      this.hostHurt(q.id, (D * Math.pow(1 - dist / R, 1.3) + 8) * 0.8, { from: { x: p.x, z: p.z }, type: 'blast', scare: 25, push: { x: (q.x - p.x) * k, z: (q.z - p.z) * k, y: 2 * (1 - dist / R) } });
     }
   }
 
@@ -1539,6 +1998,11 @@ export class Game {
   // ---------------------------------------------------------------- client handlers
   clientHandle(m) {
     switch (m.t) {
+      case 'saveReq':
+        if (typeof m.sid === 'string' && m.sid.length <= 32) this.request({ t: 'saveData', sid: m.sid, char: this.levelId && this.levelId !== 'P0' ? this.captureChar() : null });
+        break;
+      case 'saveTok': if (m.run === this.runId) setToken(this.runId, m.tok); break;
+      case 'restore': this.clientRestore(m); break;
       case 'snap': {
         if (m.ht !== undefined) this.hostTimeOffset = m.ht - this.time;
         if (m.l === this.levelId) this.views.apply(m.e, this.time);
@@ -1643,6 +2107,29 @@ export class Game {
       this.sfx(m.name, { x: m.x, y: m.y, z: m.z }, { volume: m.volume ?? 0.8, ref: 4 });
     } else if (m.k === 'subtitle') {
       this.subtitle(m.text, m.dur || 3, m.cls || '');
+    } else if (m.k === 'npcShot') {
+      const a = new THREE.Vector3(m.x, m.y, m.z), b = new THREE.Vector3(m.tx, m.ty, m.tz);
+      this.sfx(m.w, a, { volume: 1, ref: 6, maxDist: 140 });
+      this.effects.tracer(a, b);
+      this.effects.flash(a, 0.5, 0.05);
+      this.lights.muzzle?.(a);
+      if (m.n) this.effects.bulletHole(b, { x: m.n[0], y: m.n[1], z: m.n[2] });
+      // rounds cracking past you
+      if (!m.h && m.id === this.myId) {
+        const cam = this.engine.camera.position, ab = b.clone().sub(a), t = Math.max(0, Math.min(1, cam.clone().sub(a).dot(ab) / ab.lengthSq()));
+        if (a.clone().addScaledVector(ab, t).distanceTo(cam) < 2.5) { this.sfx('whizz', null, { volume: 0.8 }); this.player.shake = Math.min(1, this.player.shake + 0.15); this.stats.scare(1.5); }
+      }
+    } else if (m.k === 'explode') {
+      const p = new THREE.Vector3(m.x, m.y, m.z);
+      const d = this.player.pos.distanceTo(p);
+      this.sfx('explosion', p, { volume: 1.4, ref: 10, maxDist: 160 });
+      this.effects.flash(p, 6, 0.25);
+      for (let i = 0; i < 18; i++) this.effects.burst(i % 3 ? 'smoke' : 'ember', { x: m.x + (Math.random() - 0.5) * 1.5, y: m.y + Math.random() * 1.5, z: m.z + (Math.random() - 0.5) * 1.5 });
+      this.lights.muzzle?.(p);
+      this.player.shake = Math.min(1, this.player.shake + Math.max(0, 1.2 - d / 20));
+      if (d < 12) audio.setMuffle(0.7), setTimeout(() => audio.setMuffle(this.hidden ? 0.55 : 0), 1800);
+      const f = this.level.floorAt(m.x, m.z);
+      if (isFinite(f) && m.y - f < 1.2) this.effects.scorch({ x: m.x, y: f, z: m.z });
     } else if (m.k === 'shake') {
       this.player.shake = Math.min(1, this.player.shake + (m.a || 0.5));
     } else this.def?.clientEvent?.(this, m);
@@ -1685,6 +2172,164 @@ export class Game {
     this.ui.showVictory({ time: mins + ' min', kills: this.stats0.kills, deaths: this.stats0.deaths, notes: this.journal.length + ' / ' + Object.keys(NOTES).length, seed: this.seedLabel || this.seed });
   }
 
+  // ---------------------------------------------------------------- saves
+  // Why the game can't be saved right now (or null).
+  saveBlocked() {
+    if (this.online && !this.isHost) return 'Only the host can save a co-op game.';
+    if (!this.levelId || this.levelId === 'P0') return 'You can\'t save during the prologue.';
+    if (this.transitioning) return 'Wait until you arrive.';
+    if (this.won) return 'The run is over.';
+    if (this.dead || this.downed) return 'You can\'t save while you\'re down.';
+    if (this.hidden) return 'Get out of hiding first.';
+    return null;
+  }
+
+  // The local player's character, ready for a save.
+  captureChar() {
+    const P = this.player, S = this.stats;
+    const copy = it => (it ? { id: it.id, qty: it.qty, data: it.data ? { ...it.data } : undefined } : null);
+    return {
+      classId: this.classId || null,
+      inv: this.inventory.serialize(),
+      gear: Object.fromEntries(GEAR_SLOTS.map(k => [k, copy(this.gear[k])])),
+      stats: { ...S.serialize(), status: { ...S.status }, bleeding: S.bleeding, regen: S.regen, staminaBoost: S.staminaBoost },
+      journal: [...this.journal],
+      level: this.levelId,
+      pos: { x: P.pos.x, y: P.pos.y, z: P.pos.z }, yaw: P.yaw,
+      stats0: { kills: this.stats0.kills, deaths: this.stats0.deaths, notes: this.stats0.notes, levels: this.stats0.levels, playMs: performance.now() - this.stats0.startTime },
+    };
+  }
+
+  // Apply a (sanitized) character to the local player.
+  applyChar(c) {
+    applyClassMods(this, c.classId);
+    const inv = this.inventory;
+    inv.load(c.inv);
+    inv.holsters = c.classId ? Math.min(c.inv.holsters, CLASSES[c.classId].holsters || 0) : 0;
+    for (const k of GEAR_SLOTS) this.gear[k] = c.gear[k] ? { ...c.gear[k], data: c.gear[k].data ? { ...c.gear[k].data } : undefined } : null;
+    inv.extra = this.gear.pack ? Math.min(EXTRA_SLOTS, ITEMS[this.gear.pack.id].pack?.slots || 0) : 0;
+    // anything sitting where it may not (a gun-only holster, a pack slot that no longer exists) is re-added
+    const loose = [];
+    for (let i = 0; i < inv.slots.length; i++) { const it = inv.slots[i]; if (it && !inv.canPlace(i, it.id)) { loose.push(it); inv.slots[i] = null; } }
+    for (const it of loose) inv.add(it);
+    if (!inv.isHot(inv.selected)) inv.selected = 0;
+    const S = this.stats, st = c.stats;
+    S.health = st.health; S.hunger = st.hunger; S.thirst = st.thirst; S.sanity = st.sanity; S.stamina = st.stamina;
+    S.bleeding = st.bleeding; S.regen = st.regen; S.staminaBoost = st.staminaBoost; S.status = { ...st.status };
+    this.journal = [...c.journal];
+    Object.assign(this.stats0, { kills: c.stats0.kills, deaths: c.stats0.deaths, notes: c.stats0.notes, levels: c.stats0.levels, startTime: performance.now() - c.stats0.playMs });
+    this.applyArmorMods();
+    this.held?.cancel();
+    inv.changed();
+    this.hud.armorChanged?.(this);
+    if (this.online && c.classId) this.request({ t: 'role', c: c.classId, quiet: true });
+  }
+
+  // Host / solo: restore a whole (sanitized) save before entering its level.
+  applySave(save) {
+    this.runId = save.id;
+    this.saveName = save.name;
+    this.time = save.time;
+    this.world.load(save.world);
+    this.savedPlayers = save.players.map(p => ({ ...p, claimed: null }));
+    this.applyChar(save.host);
+  }
+
+  // Host: this client's character token (made and sent privately on first use).
+  tokenFor(pid) {
+    let t = this.saveTokens.get(pid);
+    if (!t) {
+      t = randomHex(16);
+      this.saveTokens.set(pid, t);
+      this.hostSend(pid, { t: 'saveTok', run: this.runId, tok: t });
+    }
+    return t;
+  }
+
+  // Host: ask every client for its character; resolves after all answer or 3 s.
+  collectChars() {
+    const peers = [...this.session.peers.keys()].filter(pid => pid !== this.myId);
+    if (!this.online || !peers.length) return Promise.resolve(new Map());
+    const sid = randomHex(8), got = new Map();
+    return new Promise(res => {
+      const done = () => { if (this._saveReq?.sid === sid) { this._saveReq = null; res(got); } };
+      this._saveReq = { sid, peers: new Set(peers), got, done };
+      for (const pid of peers) this.hostSend(pid, { t: 'saveReq', sid });
+      setTimeout(done, 3000);
+    });
+  }
+
+  async buildSave(name) {
+    const why = this.saveBlocked();
+    if (why) return { error: why };
+    const players = [];
+    if (this.online) {
+      const chars = await this.collectChars();
+      for (const [pid, char] of chars) if (char) players.push({ token: this.tokenFor(pid), name: this.nameOf(pid), char });
+    }
+    // characters from the loaded save whose owners aren't here right now (kept even in solo)
+    for (const p of this.savedPlayers) {
+      if (players.some(q => q.token === p.token)) continue;
+      if (p.claimed && this.session.peers.has(p.claimed)) continue;
+      players.push({ token: p.token, name: p.name, char: p.char });
+    }
+    const level = this.def;
+    const raw = {
+      magic: SAVE_MAGIC, v: SAVE_VERSION, id: this.runId, mode: this.online || players.length ? 'coop' : 'solo',
+      name: name || `${level?.name || ''} · ${new Date().toLocaleDateString()}`, saved: Date.now(),
+      seed: this.seed, seedLabel: String(this.seedLabel ?? ''), difficulty: this.difficulty, friendlyFire: this.friendlyFire,
+      time: this.time, hostName: this.profile.name, host: this.captureChar(), players, world: this.world.serialize(),
+    };
+    // the same validation every load goes through
+    const save = sanitizeSave(JSON.parse(JSON.stringify(raw)));
+    return save ? { save } : { error: 'Could not build the save.' };
+  }
+
+  async saveToSlot(slot, name) {
+    const r = await this.buildSave(name);
+    if (r.error) return r.error;
+    return writeSlot(slot, r.save);
+  }
+
+  autoSave() {
+    if (!settings.get('autosave') || this.saveBlocked() || this._autoSaving) return;
+    this._autoSaving = true;
+    this.saveToSlot(this.online ? 'auto-coop' : 'auto', 'Autosave').then(err => {
+      this._autoSaving = false;
+      if (!err) this.hud.toast('Game saved', 1.5);
+    });
+  }
+
+  // Host: a client presents its token to reclaim its saved character (one try per connection).
+  hostClaim(pid, m) {
+    if (pid === this.myId || this.claimTried.has(pid)) return;
+    this.claimTried.add(pid);
+    const p = isToken(m.tok) && this.savedPlayers.find(q => !q.claimed && tokenEq(q.token, m.tok));
+    if (!p) { this.hostSend(pid, { t: 'restore', none: true }); return; }
+    p.claimed = pid;
+    this.saveTokens.set(pid, p.token);
+    this.hostSend(pid, { t: 'restore', char: p.char });
+    this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} picks up where they left off.` });
+  }
+
+  // Client: after joining, try to reclaim my character for this run.
+  clientClaim() {
+    const tok = getToken(this.runId);
+    if (tok) { this.awaitingRestore = true; this.request({ t: 'claim', tok }); setTimeout(() => { if (this.awaitingRestore && this.running) { this.awaitingRestore = false; if (this.levelId !== 'P0') this.promptRole(); } }, 8000); }
+    else if (this.levelId !== 'P0') this.promptRole();
+  }
+
+  clientRestore(m) {
+    if (!this.awaitingRestore) return;
+    this.awaitingRestore = false;
+    if (!m.char) { if (this.levelId !== 'P0') this.promptRole(); return; }
+    const c = sanitizeChar(m.char);
+    this.applyChar(c);
+    this.subtitle('You pick up where you left off.', 3);
+    if (c.level && c.pos) this.travelTo(c.level, c.pos);
+    if (!c.classId) this.promptRole();
+  }
+
   dispose() {
     this.running = false;
     this.sceneDef?.teardownScene?.(this);
@@ -1715,3 +2360,5 @@ function useAnim(it) {
   const snd = it && ITEMS[it.id]?.sound;
   return snd === 'drink' ? 'drink' : snd === 'bandage' ? 'bandage' : 'eat';
 }
+
+function setStateNpc(e, s) { if (e.state !== s) { e.state = s; e.stateT = 0; e.stateChanged = true; } }

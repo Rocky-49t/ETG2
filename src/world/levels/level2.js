@@ -18,6 +18,7 @@ const COOL = [0.82, 0.9, 1.0], SEWER_LAMP = [0.72, 0.85, 0.5], PANEL_I = 3.0;
 const VEND_GOODS = [['snackBar', 5], ['energyDrink', 3], ['cleanWater', 3], ['dirtyWater', 1]];
 
 const LOOT = [
+  ['smallPack', 2], ['helmet', 1], ['hardHat', 1],
   ['dirtyWater', 14], ['cleanWater', 10], ['purifier', 5, [1, 2]], ['wire', 5], ['antenna', 2], ['gpsBoard', 2], ['snackBar', 14], ['energyDrink', 6], ['battery', 18, [1, 2]], ['bandage', 12], ['painkillers', 8],
   ['glowstick', 10, [1, 2]], ['ammo9', 10, [6, 12]], ['shells', 5, [2, 4]], ['decoy', 4], ['pistol', 2], ['knife', 3], ['ductTape', 4], [null, 16],
 ];
@@ -554,6 +555,8 @@ export default {
     secondary: [{ type: 'inkwalker', max: 1, spawnCd: 110, chance: 0, boost: ctx => ctx.players.some(p => p.y < -2) }],
   },
   exitStyle: 'emergency',
+  // Ririqian outposts and strongholds hidden among the offices (about one per 5 minutes of walking)
+  bases: { faction: 'rq', cell: 5, chance: 0.75, minR: 3, sizes: [['outpost', 3], ['small', 3], ['medium', 2.5], ['large', 1.5]], ceil: 2.8, yardCeil: 4.4, light: 'panel', lightColor: [0.9, 0.92, 1.0] },
   eventSounds: ['phoneRing', 'knock', 'distantThud', 'inkStep', 'scrape', 'whisper'],
 
   landmarks(level) {

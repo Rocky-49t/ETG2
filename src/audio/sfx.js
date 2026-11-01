@@ -855,3 +855,124 @@ Object.assign(SFX, {
     return 0.3;
   },
 });
+
+// ---------------------------------------------------------------- arms (bases update)
+Object.assign(SFX, {
+  sniper(A, dest, o, t) {
+    // a huge whip-crack, then a long rolling boom down the halls
+    burst(A, dest, t, { type: 'highpass', freq: 2000, a: 0.0004, d: 0.05, vol: 1.1 });
+    burst(A, dest, t, { type: 'lowpass', freq: 2400, a: 0.001, d: 0.2, vol: 1.1 });
+    tone(A, dest, t, { freq: 120, to: 32, a: 0.001, d: 0.35, vol: 1.1 });
+    burst(A, dest, t + 0.05, { kind: 'brown', type: 'lowpass', freq: 300, a: 0.03, d: 1.4, vol: 0.6 });
+    burst(A, dest, t + 0.4, { kind: 'pink', type: 'lowpass', freq: 500, a: 0.1, d: 1.0, vol: 0.18 });
+    return 1.6;
+  },
+  rqRifle(A, dest, o, t) {
+    // rougher, lower and boomier than the service rifle
+    burst(A, dest, t, { type: 'highpass', freq: 1800, a: 0.0005, d: 0.03, vol: 0.85 });
+    burst(A, dest, t, { type: 'lowpass', freq: 2200, a: 0.001, d: 0.14, vol: 1.0 });
+    tone(A, dest, t, { freq: 120, to: 34, a: 0.001, d: 0.22, vol: 1.0 });
+    burst(A, dest, t + 0.03, { kind: 'brown', type: 'lowpass', freq: 380, a: 0.01, d: 0.5, vol: 0.5 });
+    return 0.65;
+  },
+  bolt(A, dest, o, t) {
+    burst(A, dest, t, { type: 'bandpass', freq: 2400, Q: 6, d: 0.03, vol: 0.5 });
+    burst(A, dest, t + 0.12, { type: 'bandpass', freq: 1700, Q: 5, d: 0.04, vol: 0.45 });
+    burst(A, dest, t + 0.22, { type: 'bandpass', freq: 2800, Q: 6, d: 0.03, vol: 0.5 });
+    burst(A, dest, t + 0.32, { type: 'bandpass', freq: 1900, Q: 5, d: 0.05, vol: 0.55 });
+    return 0.45;
+  },
+  pinPull(A, dest, o, t) {
+    burst(A, dest, t, { type: 'bandpass', freq: 4200, Q: 8, d: 0.03, vol: 0.45 });
+    tone(A, dest, t + 0.04, { type: 'triangle', freq: 2600, to: 1800, d: 0.06, vol: 0.06 });
+    burst(A, dest, t + 0.18, { type: 'bandpass', freq: 1500, Q: 3, d: 0.05, vol: 0.4 });
+    return 0.3;
+  },
+  explosion(A, dest, o, t) {
+    burst(A, dest, t, { type: 'lowpass', freq: 6000, a: 0.001, d: 0.12, vol: 1.2 });
+    tone(A, dest, t, { freq: 70, to: 24, a: 0.002, d: 1.0, vol: 1.3 });
+    burst(A, dest, t, { kind: 'brown', type: 'lowpass', freq: 500, a: 0.005, d: 2.2, vol: 1.1 });
+    for (let i = 0; i < 14; i++) burst(A, dest, t + 0.2 + Math.random() * 1.4, { type: 'bandpass', freq: 800 + Math.random() * 3000, Q: 4, d: 0.03, vol: 0.12 });
+    return 2.6;
+  },
+  scanPing(A, dest, o, t) {
+    tone(A, dest, t, { type: 'sine', freq: 1320, a: 0.005, d: 0.12, vol: 0.08 });
+    tone(A, dest, t + 0.14, { type: 'sine', freq: 1760, a: 0.005, d: 0.2, vol: 0.08 });
+    return 0.4;
+  },
+  scanStatic(A, dest, o, t) {
+    burst(A, dest, t, { type: 'bandpass', freq: 1800, Q: 0.7, a: 0.05, d: 0.4, vol: 0.05 });
+    return 0.5;
+  },
+});
+
+// ---------------------------------------------------------------- bases
+Object.assign(SFX, {
+  // a barked order in the Brotherhood's language: two harsh syllables
+  rqShout(A, dest, o, t) {
+    const r = ((o.seed || 1) * 9301 + 49297) % 233280 / 233280;
+    const f0 = 120 + r * 50;
+    for (let k = 0; k < 2; k++) {
+      const st = t + k * 0.22, d = k ? 0.32 : 0.18;
+      const v = osc(A, 'sawtooth', f0 * (k ? 0.9 : 1.15));
+      v.frequency.linearRampToValueAtTime(f0 * (k ? 0.7 : 1.05), st + d);
+      const fa = filt(A, 'bandpass', k ? 750 : 950, 5), fb = filt(A, 'bandpass', k ? 1150 : 1700, 6);
+      const g = gain(A, 0); v.connect(fa).connect(g); v.connect(fb).connect(g); g.connect(dest);
+      g.gain.setValueAtTime(0.0001, st); g.gain.linearRampToValueAtTime(0.45, st + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, st + d);
+      v.start(st); v.stop(st + d + 0.05);
+      burst(A, dest, st, { type: 'bandpass', freq: 2500, Q: 1, d: 0.05, vol: 0.12 });
+    }
+    return 0.65;
+  },
+  whizz(A, dest, o, t) {
+    burst(A, dest, t, { type: 'bandpass', freq: 5000, Q: 2, a: 0.02, d: 0.12, vol: 0.4, sweepTo: 1800 });
+    tone(A, dest, t, { type: 'sine', freq: 3400, to: 1400, a: 0.01, d: 0.12, vol: 0.05 });
+    return 0.2;
+  },
+  siren(A, dest) {
+    // a wailing two-tone air-raid siren
+    const a = osc(A, 'sawtooth', 500), b = osc(A, 'square', 503);
+    const lf = osc(A, 'sine', 0.35); const lg = gain(A, 260); lf.connect(lg); lg.connect(a.frequency); lg.connect(b.frequency);
+    const f = filt(A, 'lowpass', 1800, 1); const g = gain(A, 0.16);
+    a.connect(f); b.connect(f); f.connect(g).connect(dest);
+    a.start(); b.start(); lf.start();
+    return { stop() { a.stop(); b.stop(); lf.stop(); } };
+  },
+});
+
+// ---------------------------------------------------------------- Level Gug
+Object.assign(SFX, {
+  // a thin, rising, almost-human wail that cuts off
+  gugScream(A, dest, o, t) {
+    const v = osc(A, 'sawtooth', 380); v.frequency.exponentialRampToValueAtTime(1150, t + 0.7); v.frequency.exponentialRampToValueAtTime(900, t + 1.0);
+    const fm = osc(A, 'sine', 6); const fg = gain(A, 40); fm.connect(fg).connect(v.frequency);
+    const fa = filt(A, 'bandpass', 1300, 6), fb = filt(A, 'bandpass', 2600, 8);
+    const g = gain(A, 0); v.connect(fa).connect(g); v.connect(fb).connect(g); g.connect(dest);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.35, t + 0.15); g.gain.setValueAtTime(0.32, t + 0.9); g.gain.linearRampToValueAtTime(0.0001, t + 1.02);
+    v.start(t); v.stop(t + 1.05); fm.start(t); fm.stop(t + 1.05);
+    burst(A, dest, t, { type: 'highpass', freq: 3000, a: 0.1, d: 0.9, vol: 0.12 });
+    return 1.1;
+  },
+  gugStep(A, dest, o, t) {
+    const v = o.volume ?? 1;
+    burst(A, dest, t, { type: 'bandpass', freq: 1400 + Math.random() * 600, Q: 3, d: 0.03, vol: 0.45 * v });
+    tone(A, dest, t, { freq: 90, to: 50, d: 0.06, vol: 0.18 * v });
+    return 0.1;
+  },
+  crawlerSlide(A, dest, o, t) {
+    const v = o.volume ?? 1;
+    burst(A, dest, t, { kind: 'pink', type: 'bandpass', freq: 700, Q: 1.2, a: 0.03, d: 0.25, vol: 0.3 * v, sweepTo: 400 });
+    burst(A, dest, t + 0.2, { type: 'bandpass', freq: 3200, Q: 6, d: 0.02, vol: 0.2 * v });
+    return 0.35;
+  },
+  crawlerShriek(A, dest, o, t) {
+    const v = osc(A, 'square', 220); v.frequency.exponentialRampToValueAtTime(90, t + 0.6);
+    const am = osc(A, 'square', 31); const ag = gain(A, 0.5);
+    const f = filt(A, 'bandpass', 900, 3); const g = gain(A, 0);
+    am.connect(ag).connect(g.gain); v.connect(f).connect(g).connect(dest);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.4, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+    v.start(t); v.stop(t + 0.75); am.start(t); am.stop(t + 0.75);
+    burst(A, dest, t, { kind: 'pink', type: 'lowpass', freq: 600, d: 0.6, vol: 0.3 });
+    return 0.8;
+  },
+});

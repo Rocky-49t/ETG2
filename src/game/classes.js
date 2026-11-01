@@ -9,8 +9,8 @@ export const CLASSES = {
   soldier: {
     name: 'Soldier', role: 'Expedition security', color: '#8a9a52', icon: '⛨',
     blurb: 'Issued a carbine and a sidearm for a scouting run — enough ammunition for a level or two, not a war.',
-    perks: ['Service rifle + pistol in two gun-only holster slots', 'Ballistic vest: absorbs 40% of damage', 'Vest slows you and tires you faster', 'Least food and medicine'],
-    holsters: 2, armor: 'vest',
+    perks: ['Service rifle + pistol in two gun-only holster slots', 'Ballistic vest and combat helmet: ~42% damage absorbed', 'Armor slows you and tires you faster', 'Least food and medicine'],
+    holsters: 2, gear: { body: 'vest', head: 'helmet' },
     kit: [['rifle', 1], ['pistol', 1], ['rifleAmmo', 60], ['ammo9', 24], ['flashlight', 1], ['cleanWater', 1], ['snackBar', 1], ['bandage', 1]],
     mods: { stamina: 1, sanity: 1, heal: 1 }, speed: 1,
   },
@@ -67,9 +67,20 @@ export function applyClass(game, id) {
   inv.changed();
   game.stats.mods = { ...C.mods };
   game.player.classSpeed = C.speed || 1;
-  game.armor = C.armor ? makeItem(C.armor) : null;
-  game.hud.armorChanged?.(game);
+  for (const k of Object.keys(game.gear)) game.gear[k] = null;
+  inv.setExtra(0);
+  for (const [k, id] of Object.entries(C.gear || {})) game.gear[k] = makeItem(id);
+  game.applyArmorMods?.();
   game.held?.cancel();
 }
 
 export function classPerk(game, key, def) { return CLASSES[game.classId]?.[key] ?? def; }
+
+// Restore a role's modifiers without handing out its kit (loading a save).
+export function applyClassMods(game, id) {
+  const C = CLASSES[id];
+  if (!C) { game.classId = null; game.stats.mods = { stamina: 1, sanity: 1, heal: 1 }; game.player.classSpeed = 1; return; }
+  game.classId = id;
+  game.stats.mods = { ...C.mods };
+  game.player.classSpeed = C.speed || 1;
+}

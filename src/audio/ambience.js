@@ -150,6 +150,20 @@ export const AMBIENCE = {
     };
   },
 
+  // Level Gug: a low concrete drone, very fast footsteps far away
+  gug(A, out) {
+    const air = noiseLayer(A, out, 'brown', 'lowpass', 180, 0.6, 0.12);
+    const hum = oscLayer(A, out, 'sine', 47, 0.025);
+    const hum2 = oscLayer(A, out, 'triangle', 94.5, 0.008, 9);
+    const sched = scheduler(A, [
+      { name: 'gugStep', min: 12, max: 40, dist: [25, 50], volume: 0.35 },
+      { name: 'distantThud', min: 40, max: 100, dist: [30, 50], volume: 0.3 },
+      { name: 'knock', min: 60, max: 140, dist: [10, 25], volume: 0.3 },
+      { name: 'whisper', min: 90, max: 200, dist: [6, 14], volume: 0.25 },
+    ]);
+    return { reverb: [3.2, 2.0, 0.5], update: dt => sched(dt), stop: () => { air.stop(); hum.stop(); hum2.stop(); } };
+  },
+
   pools(A, out) {
     const lap = noiseLayer(A, out, 'pink', 'bandpass', 520, 0.8, 0.14);
     const l1 = lfo(A, lap.g.gain, 0.17, 0.07);

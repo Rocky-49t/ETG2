@@ -32,8 +32,21 @@ export const ITEMS = {
   scrap: { name: 'Scrap Metal', desc: 'Bent plates and brackets. Crafting part.', type: 'part', stack: 8, icon: 'scrap', color: '#8a8f94' },
   wire: { name: 'Copper Wire', desc: 'A coil of salvaged wire. Crafting part.', type: 'part', stack: 8, icon: 'wire', color: '#c8783a' },
   transmitter: { name: 'Location Transmitter', desc: 'Use to switch it on: shows your coordinates and every teammate\'s, updating every few seconds. Runs on battery.', type: 'transmitter', stack: 1, data: { charge: 100 }, icon: 'transmitter', color: '#3a4a3c' },
-  vest: { name: 'Ballistic Vest', desc: 'Use to wear or remove. Absorbs 40% of damage until worn through, but slows you down and tires you faster.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { absorb: 0.4, slow: 0.12, stamina: 1.25 }, icon: 'vest', color: '#4f5a3c' },
-  scrapVest: { name: 'Scrap Armor', desc: 'Use to wear or remove. Rags and plates lashed together: absorbs 25% of damage, slows you a little.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { absorb: 0.25, slow: 0.06, stamina: 1.1 }, icon: 'vest', color: '#7a6a52' },
+  // ---- armor: four slots (head, body, legs, feet); protection stacks
+  vest: { name: 'Ballistic Vest', desc: 'Body armor. Absorbs 34% of damage until worn through, but slows you and tires you faster.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'body', absorb: 0.34, slow: 0.1, stamina: 1.2 }, icon: 'vest', color: '#4f5a3c' },
+  scrapVest: { name: 'Scrap Armor', desc: 'Body armor. Rags and plates lashed together: absorbs 22% of damage, slows you a little.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'body', absorb: 0.22, slow: 0.05, stamina: 1.08 }, icon: 'vest', color: '#7a6a52' },
+  plateCarrier: { name: 'Plate Carrier', desc: 'Heavy body armor with ceramic plates. Absorbs 45% of damage. Slow and tiring.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'body', absorb: 0.45, slow: 0.15, stamina: 1.32 }, icon: 'vest', color: '#a08a5e' },
+  ririqianVest: { name: 'Ririqian Vest', desc: 'Black Remnant body armor with a red stripe. Absorbs 30% of damage and is lighter than it looks.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'body', absorb: 0.3, slow: 0.06, stamina: 1.12 }, icon: 'vest', color: '#26262a' },
+  helmet: { name: 'Combat Helmet', desc: 'Head armor. A US-issue helmet: absorbs 12% of damage.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'head', absorb: 0.12, slow: 0, stamina: 1 }, icon: 'helmet', color: '#55603e' },
+  ririqianHelmet: { name: 'Ririqian Helmet', desc: 'Head armor. Steel helmet with a red band and a white star: absorbs 13% of damage.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'head', absorb: 0.13, slow: 0, stamina: 1 }, icon: 'helmet', color: '#3a3d30' },
+  hardHat: { name: 'Hard Hat', desc: 'Head armor. Yellow plastic: absorbs 6% of damage. Better than nothing.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'head', absorb: 0.06, slow: 0, stamina: 1 }, icon: 'helmet', color: '#e2b833' },
+  legGuards: { name: 'Leg Guards', desc: 'Leg armor. Thigh plates and knee pads: absorbs 9% of damage.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'legs', absorb: 0.09, slow: 0.03, stamina: 1.03 }, icon: 'legs', color: '#55603e' },
+  ririqianGreaves: { name: 'Ririqian Greaves', desc: 'Leg armor. Black composite greaves: absorbs 11% of damage.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'legs', absorb: 0.11, slow: 0.04, stamina: 1.04 }, icon: 'legs', color: '#26262a' },
+  combatBoots: { name: 'Combat Boots', desc: 'Foot armor. Absorbs 5% of damage, softens falls and muffles your footsteps a little.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'feet', absorb: 0.05, slow: 0, stamina: 1, fall: 0.6, quiet: 0.85 }, icon: 'boots', color: '#2a2620' },
+  ririqianBoots: { name: 'Ririqian Jackboots', desc: 'Foot armor. Tall black boots: absorbs 6% of damage and softens falls.', type: 'armor', stack: 1, data: { dur: 100 }, armor: { slot: 'feet', absorb: 0.06, slow: 0, stamina: 1, fall: 0.7 }, icon: 'boots', color: '#151515' },
+  // ---- packs: the accessory slot; each adds inventory slots
+  smallPack: { name: 'Field Pack', desc: 'A worn canvas backpack. Wear it for 4 extra inventory slots.', type: 'pack', stack: 1, pack: { slots: 4 }, icon: 'pack', color: '#6b5a3a' },
+  largePack: { name: 'Expedition Pack', desc: 'A big framed pack with a bedroll. Wear it for 8 extra inventory slots (slows you very slightly).', type: 'pack', stack: 1, pack: { slots: 8, slow: 0.02 }, icon: 'pack', color: '#4a5a6b' },
 
   flashlight: { name: 'Flashlight', desc: 'Press F to toggle. Hold RMB (empty hands) to focus the beam — it stuns things that hate light.', type: 'flashlight', stack: 1, data: { charge: 100 }, icon: 'flashlight', color: '#3c3f44' },
   lighter: { name: 'Lighter', desc: 'A small flame. Hold it out to keep hounds at bay. Uses fuel.', type: 'tool', tool: 'lighter', stack: 1, data: { fuel: 100 }, icon: 'lighter', color: '#c0392b', hands: 'one' },
@@ -42,7 +55,20 @@ export const ITEMS = {
   decoy: { name: 'Wind-up Music Box', desc: 'Throw it. It plays loudly for 15 seconds and draws things that listen.', type: 'throwable', throw: 'decoy', stack: 3, icon: 'decoy', color: '#a77bd8' },
 
   rifle: { name: 'Service Rifle', desc: 'Expedition-issue 5.56 carbine. Accurate and hard-hitting. Thirty rounds a magazine — and not many magazines.', type: 'weapon', weapon: 'rifle', gun: true, stack: 1, data: { ammo: 30 }, icon: 'rifle', color: '#2e3228' },
-  rifleAmmo: { name: '5.56 Rounds', desc: 'For the service rifle.', type: 'ammo', stack: 60, icon: 'ammo', color: '#9aa04a' },
+  rifleAmmo: { name: 'Rifle Rounds', desc: 'For the service rifle and Ririqian rifles.', type: 'ammo', stack: 60, icon: 'ammo', color: '#9aa04a' },
+  sniper: { name: 'Sniper Rifle', desc: 'Bolt-action .308 with a 4x scope. Hold aim to look through it. Five rounds, one at a time.', type: 'weapon', weapon: 'sniper', gun: true, stack: 1, data: { ammo: 5 }, icon: 'sniper', color: '#3a3f33' },
+  sniperAmmo: { name: '.308 Rounds', desc: 'For sniper rifles.', type: 'ammo', stack: 30, icon: 'ammo', color: '#c8b070' },
+  rqPistol: { name: 'Ririqian Pistol', desc: 'Remnant sidearm, stamped with a star. Hits hard, kicks harder. 8 rounds of 9mm.', type: 'weapon', weapon: 'rqPistol', gun: true, stack: 1, data: { ammo: 8 }, icon: 'pistol', color: '#3a2420' },
+  rqRifle: { name: 'Ririqian Rifle', desc: 'The Brotherhood\'s rifle: a crude, loud copy of a foreign design. Thirty rifle rounds.', type: 'weapon', weapon: 'rqRifle', gun: true, stack: 1, data: { ammo: 30 }, icon: 'rifle', color: '#5a2a22' },
+  rqSmg: { name: 'Ririqian SMG', desc: 'A stubby Remnant machine pistol. Sprays 9mm.', type: 'weapon', weapon: 'rqSmg', gun: true, stack: 1, data: { ammo: 35 }, icon: 'smg', color: '#3a2420' },
+  rqShotgun: { name: 'Ririqian Coachgun', desc: 'Double-barrelled, sawn short. Two shells, both at once if you like.', type: 'weapon', weapon: 'rqShotgun', gun: true, stack: 1, data: { ammo: 2 }, icon: 'shotgun', color: '#6b2a1e' },
+  rqSniper: { name: 'Ririqian Marksman Rifle', desc: 'Watchroom rifle with a crude 4x scope. Four .308 rounds.', type: 'weapon', weapon: 'rqSniper', gun: true, stack: 1, data: { ammo: 4 }, icon: 'sniper', color: '#4a2820' },
+  rqMachete: { name: 'Ririqian Machete', desc: 'A long blade with a red-wrapped grip.', type: 'weapon', weapon: 'rqMachete', stack: 1, data: { dur: 100 }, icon: 'knife', color: '#b3201a' },
+  rqBaton: { name: 'Ririqian Baton', desc: 'A weighted guard\'s baton. Fast, and it staggers.', type: 'weapon', weapon: 'rqBaton', stack: 1, data: { dur: 100 }, icon: 'crowbar', color: '#1d1d20' },
+  grenade: { name: 'Frag Grenade', desc: 'Pull and throw. Explodes after three seconds. Hurts everyone nearby — you too.', type: 'throwable', throw: 'grenade', stack: 4, icon: 'grenade', color: '#4f5a3c' },
+  rqGrenade: { name: 'Ririqian Grenade', desc: 'A stick grenade with a red band. Explodes after three seconds.', type: 'throwable', throw: 'grenade', stack: 4, icon: 'grenade', color: '#5a2a22' },
+  radioScanner: { name: 'Radio Scanner', desc: 'Sweeps for radio traffic. Switch it on and leave it running: after a while it fixes the rough position of any transmitter on this level. Eats batteries.', type: 'scanner', stack: 1, data: { charge: 100, on: false, scan: 0 }, icon: 'scanner', color: '#3a4a3a' },
+  grayGoo: { name: 'Gray Goo', desc: 'A thick gray drink from Level Gug. It stings on the way down (a little health) but for 60 seconds you never tire. Another bottle resets the clock.', type: 'consumable', stack: 3, effects: { health: -6, thirst: 12, status: ['goo', 60], statusSet: true }, useTime: 1.2, sound: 'drink', icon: 'bottle', color: '#8a8c8e' },
   pistol: { name: 'Pistol', desc: '9mm semi-automatic. Reliable.', type: 'weapon', weapon: 'pistol', gun: true, stack: 1, data: { ammo: 12 }, icon: 'pistol', color: '#2b2d30' },
   shotgun: { name: 'Pump Shotgun', desc: 'Devastating up close. Six shells.', type: 'weapon', weapon: 'shotgun', gun: true, stack: 1, data: { ammo: 6 }, icon: 'shotgun', color: '#5a3b22' },
   smg: { name: 'SMG', desc: 'Fast and hungry for 9mm.', type: 'weapon', weapon: 'smg', gun: true, stack: 1, data: { ammo: 30 }, icon: 'smg', color: '#26282a' },
@@ -54,6 +80,9 @@ export const ITEMS = {
 
   keycard: { name: 'Service Keycard', desc: 'A grimy maintenance keycard: "SERVICE ACCESS — TUNNEL EXIT". Opens the service door.', type: 'key', stack: 1, icon: 'keycard', color: '#e0a33a' },
   fuse: { name: 'Industrial Fuse', desc: 'A heavy ceramic fuse. Something in the stairwell needs power.', type: 'key', stack: 1, icon: 'fuse', color: '#5a8fd0' },
+  vaultKey: { name: 'Ririqian Vault Key', desc: 'A heavy brass key on a red cord, stamped with a star. Opens the vault of the base it came from.', type: 'key', stack: 3, icon: 'tkey', color: '#c9a640' },
+  goldBar: { name: 'Gold Bar', desc: 'A small Ririqian gold bar stamped with Rucky Rucky\'s face. Useless down here — unless you find someone who still believes in money.', type: 'part', stack: 10, icon: 'gold', color: '#e2b833' },
+  didhCharm: { name: 'Did\'h Charm', desc: 'A little blue stone on a string. The Wanderers say Did\'h watches over whoever carries one. Holding it steadies your nerves.', type: 'part', stack: 3, icon: 'charm', color: '#4a8aff' },
   level5Key: { name: 'Bridge Key', desc: 'A cold, heavy key stamped "5". Opens a Level 4 toll vault without solving its lock.', type: 'key', stack: 3, icon: 'tkey', color: '#d9d3a0' },
   drainKey: { name: 'Drain Valve Key', desc: 'A T-shaped key stamped "MAIN DRAIN". Opens the drainage grate.', type: 'key', stack: 1, icon: 'tkey', color: '#7fb8c9' },
 };
@@ -303,6 +332,47 @@ function drawIcon(g, icon, col) {
       g.beginPath(); g.moveTo(18, 10); g.lineTo(26, 10); g.quadraticCurveTo(32, 18, 38, 10); g.lineTo(46, 10); g.lineTo(52, 22); g.lineTo(48, 56); g.lineTo(16, 56); g.lineTo(12, 22); g.closePath(); fillStroke(col);
       g.fillStyle = shade(col, 0.75); g.fillRect(18, 30, 12, 10); g.fillRect(34, 30, 12, 10);
       g.strokeStyle = shade(col, 0.6); g.lineWidth = 2; g.beginPath(); g.moveTo(32, 20); g.lineTo(32, 56); g.stroke();
+      break;
+    case 'gold':
+      g.beginPath(); g.moveTo(10, 44); g.lineTo(18, 24); g.lineTo(46, 24); g.lineTo(54, 44); g.closePath(); fillStroke(col);
+      g.fillStyle = shade(col, 1.2); g.beginPath(); g.moveTo(18, 24); g.lineTo(46, 24); g.lineTo(42, 30); g.lineTo(22, 30); g.closePath(); g.fill();
+      break;
+    case 'charm':
+      g.strokeStyle = '#c8b890'; g.lineWidth = 2; g.beginPath(); g.moveTo(20, 8); g.quadraticCurveTo(32, 26, 44, 8); g.stroke();
+      g.beginPath(); g.ellipse(32, 38, 12, 15, 0, 0, Math.PI * 2); fillStroke(col);
+      g.fillStyle = '#fff6'; g.beginPath(); g.ellipse(28, 33, 3, 5, -0.4, 0, Math.PI * 2); g.fill();
+      break;
+    case 'helmet':
+      g.beginPath(); g.moveTo(10, 42); g.quadraticCurveTo(10, 12, 32, 12); g.quadraticCurveTo(54, 12, 54, 42); g.lineTo(58, 46); g.lineTo(6, 46); g.closePath(); fillStroke(col);
+      g.strokeStyle = shade(col, 0.6); g.lineWidth = 3; g.beginPath(); g.moveTo(12, 36); g.lineTo(52, 36); g.stroke();
+      g.strokeStyle = '#222'; g.lineWidth = 2; g.beginPath(); g.moveTo(14, 46); g.quadraticCurveTo(32, 60, 50, 46); g.stroke();
+      break;
+    case 'legs':
+      for (const x of [16, 36]) { rr(x, 8, 13, 46, 4); fillStroke(col); g.fillStyle = shade(col, 1.3); g.fillRect(x + 2, 30, 9, 8); }
+      break;
+    case 'boots':
+      for (const x of [8, 34]) { g.beginPath(); g.moveTo(x, 10); g.lineTo(x + 12, 10); g.lineTo(x + 12, 40); g.lineTo(x + 22, 44); g.lineTo(x + 22, 54); g.lineTo(x, 54); g.closePath(); fillStroke(col); g.fillStyle = shade(col, 0.6); g.fillRect(x, 50, 22, 4); }
+      break;
+    case 'pack':
+      rr(14, 12, 36, 44, 8); fillStroke(col);
+      rr(18, 34, 28, 16, 4); fillStroke(shade(col, 0.8));
+      g.strokeStyle = shade(col, 0.5); g.lineWidth = 3; g.beginPath(); g.moveTo(24, 12); g.quadraticCurveTo(32, 2, 40, 12); g.stroke();
+      break;
+    case 'sniper':
+      g.translate(32, 32); g.rotate(-0.25);
+      g.beginPath(); g.moveTo(-31, -2); g.lineTo(30, -2); g.lineTo(30, 1); g.lineTo(-4, 2); g.lineTo(-10, 10); g.lineTo(-16, 10); g.lineTo(-14, 3); g.lineTo(-31, 6); g.closePath(); fillStroke(col);
+      rr(-12, -10, 20, 6, 3); fillStroke('#1a1a1a');
+      break;
+    case 'grenade':
+      g.beginPath(); g.ellipse(32, 38, 15, 18, 0, 0, Math.PI * 2); fillStroke(col);
+      g.strokeStyle = shade(col, 0.6); g.lineWidth = 2; for (const y of [30, 38, 46]) { g.beginPath(); g.moveTo(18, y); g.lineTo(46, y); g.stroke(); }
+      rr(26, 12, 12, 9, 2); fillStroke('#777'); g.strokeStyle = '#ccc'; g.lineWidth = 2; g.beginPath(); g.arc(44, 14, 5, 0, Math.PI * 2); g.stroke();
+      break;
+    case 'scanner':
+      rr(16, 18, 32, 40, 5); fillStroke(col);
+      rr(21, 24, 22, 14, 2); fillStroke('#0f2a14'); g.strokeStyle = '#4dff7a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(22, 31); for (let x = 0; x < 20; x += 2) g.lineTo(23 + x, 31 + Math.sin(x) * 4); g.stroke();
+      g.strokeStyle = '#222'; g.lineWidth = 3; g.beginPath(); g.moveTo(42, 18); g.lineTo(48, 4); g.stroke();
+      for (const x of [24, 32, 40]) { g.beginPath(); g.arc(x, 48, 3, 0, Math.PI * 2); g.fillStyle = '#ccc'; g.fill(); }
       break;
     case 'rifle':
       g.translate(32, 32); g.rotate(-0.25);

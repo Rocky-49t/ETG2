@@ -21,7 +21,7 @@ const { chromium } = require('playwright');
   await A.waitForFunction(() => document.getElementById('roomCode').textContent !== '-----', null, { timeout: 10000 });
   const code = await A.textContent('#roomCode');
   console.log('room', code);
-  await B.click('#btnJoin');
+  await B.bringToFront(); await B.evaluate(() => document.getElementById('btnJoin').click());
   await B.selectOption('#netMode', 'local');
   await B.fill('#joinCodeInput', code);
   await B.click('#btnDoJoin');

@@ -24,8 +24,8 @@ const HELP = [
   ['speed <x>', 'movement speed multiplier (1 = normal)'],
   ['ammo', 'refill weapon magazines and flashlight battery'],
   ['sanity <0-100>', 'set sanity'],
-  ['level <L0|L1|L2|L3|L5>', 'travel to a level (also `level next`)'],
-  ['tp <x> <z> | exit | key | <player>', 'teleport (to a player on any level)'],
+  ['level <L0|L1|L2|L3|L4|L5|LG>', 'travel to a level (also `level next`)'],
+  ['tp <x> <z> | exit | key | <player> | <player> <player>', 'teleport you (or the first player to the second), across levels'],
   ['bring <player|all>', 'pull players to you, from any level'],
   ['send <player|all> <level>', 'send players to a level'],
   ['pos', 'print your position'],
@@ -194,6 +194,7 @@ export class CheatConsole {
       case 'level': {
         let id = (args[0] || '').toUpperCase();
         if (id === 'NEXT') id = g.def?.next || '';
+        if (id === 'GUG') id = 'LG';
         if (!LEVELS[id]) { say(`Levels: ${LEVEL_ORDER.join(' ')}`, 'warn'); return; }
         say(`Travelling to ${LEVELS[id].name} — ${LEVELS[id].title}.`, 'ok');
         this.close();
@@ -264,6 +265,18 @@ export class CheatConsole {
       if (!k) { say('This level has no key item.', 'warn'); return; }
       return go((k.tx + 0.5) * TILE, (k.tz + 0.5) * TILE);
     }
+    // tp <player> <player>: send the first player to the second
+    if (args.length === 2 && (isNaN(parseFloat(args[0])) || isNaN(parseFloat(args[1])))) {
+      const a1 = this.findPlayer(args[0]), b1 = this.findPlayer(args[1]);
+      if (!a1 || !b1) { say(`No such player: ${!a1 ? args[0] : args[1]}. Try \`players\`.`, 'warn'); return; }
+      if (a1 === b1) { say('Those are the same player.', 'sys'); return; }
+      const w = this.whereIs(b1);
+      if (!w?.l) { say(`${g.nameOf(b1)}'s position is unknown.`, 'warn'); return; }
+      if (a1 === g.myId) return this.teleport([args[1]]);
+      g.request({ t: 'cheat', c: 'tpPlayer', target: a1, to: { l: w.l, x: w.x + 1.0, y: w.y, z: w.z + 0.6 } });
+      say(`Teleporting ${g.nameOf(a1)} to ${g.nameOf(b1)}.`, 'ok');
+      return;
+    }
     if (args.length >= 2 && !isNaN(parseFloat(args[0]))) {
       const x = parseFloat(args[0]), z = parseFloat(args[args.length === 3 ? 2 : 1]);
       return go(x, z, args.length === 3 ? parseFloat(args[1]) : undefined);
@@ -280,7 +293,7 @@ export class CheatConsole {
       g.travelTo(w.l, { x: w.x + 1.0, y: w.y, z: w.z + 0.6 });
       return;
     }
-    say('Usage: tp <x> <z> | tp exit | tp key | tp <player>', 'warn');
+    say('Usage: tp <x> <z> | tp exit | tp key | tp <player> | tp <player> <player>', 'warn');
   }
 
   // bring <player|all>: pull players to you; send <player|all> <level>

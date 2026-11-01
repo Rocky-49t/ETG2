@@ -18,6 +18,7 @@ const WHITE = [0.9, 0.97, 1.0], DEEPBLUE = [0.62, 0.8, 1.0];
 const STAIR = { side: 6, band: 1.6, rise: 0.25, steps: 8, H: 30 };
 
 const LOOT = [
+  ['smallPack', 2], ['largePack', 0.6], ['combatBoots', 1],
   ['cleanWater', 14], ['dirtyWater', 10], ['blueberryFireSalts', 12], ['purifier', 4, [1, 2]], ['cloth', 5], ['snackBar', 12], ['cannedBeans', 6], ['battery', 14, [1, 2]], ['bandage', 12], ['medkit', 3], ['painkillers', 8],
   ['glowstick', 10, [1, 3]], ['ammo9', 8, [6, 12]], ['shells', 6, [2, 5]], ['decoy', 5], ['energyDrink', 6], [null, 14],
 ];
@@ -358,6 +359,8 @@ export default {
     secondary: [{ type: 'undertow', max: 1, spawnCd: 60, chance: 0.12, boost: ctx => ctx.players.some(p => zoneFor(ctx.level, Math.floor(p.x / 32), Math.floor(p.z / 32)) === 'blue') }],
   },
   exitStyle: 'mosaic',
+  // abandoned Didystani posts among the pools (about one per 7 minutes)
+  bases: { faction: 'dd', cell: 6, chance: 0.75, minR: 3, sizes: [['outpost', 3], ['small', 3], ['medium', 2], ['large', 0.7]], ceil: 3.2, yardCeil: 5, light: 'strip', lightColor: [0.8, 0.92, 1.0] },
   containerMats: { cabinet: 'poolTile', crate: 'poolTileBlue', cardboard: 'soggyCardboard' },
   allowBlackout: false,
   eventSounds: ['splash', 'drip', 'whisper', 'tideGroan', 'knock'],

@@ -1,5 +1,6 @@
-// Slot inventory: 6 hotbar slots, a 5x4 backpack grid, then 2 gun-only
-// holster slots that some classes unlock (they join the hotbar when enabled).
+// Slot inventory: 6 hotbar slots, a 5x4 main grid, 2 gun-only holster slots
+// that some classes unlock (they join the hotbar when enabled), then up to 8
+// pack slots that a worn backpack unlocks.
 import { ITEMS, makeItem } from './items.js';
 import { Emitter } from '../core/events.js';
 
@@ -7,14 +8,18 @@ export const HOTBAR = 6;
 export const BACKPACK = 20;
 export const HOLSTER0 = HOTBAR + BACKPACK;
 export const HOLSTERS = 2;
+export const EXTRA0 = HOLSTER0 + HOLSTERS;
+export const EXTRA = 8;
+export const TOTAL_SLOTS = EXTRA0 + EXTRA;
 const isGun = id => ITEMS[id]?.type === 'weapon' && ITEMS[id].gun;
 
 export class Inventory extends Emitter {
   constructor() {
     super();
-    this.slots = new Array(HOTBAR + BACKPACK + HOLSTERS).fill(null);
+    this.slots = new Array(TOTAL_SLOTS).fill(null);
     this.selected = 0;
     this.holsters = 0;     // enabled holster slots (soldier class)
+    this.extra = 0;        // pack slots unlocked by a worn backpack
   }
 
   // slot indices that make up the hotbar, in display order
@@ -26,15 +31,17 @@ export class Inventory extends Emitter {
   get hotbarSize() { return HOTBAR + this.holsters; }
   get selPos() { return Math.max(0, this.hotbarSlots.indexOf(this.selected)); }
   isHot(i) { return i < HOTBAR || (i >= HOLSTER0 && i < HOLSTER0 + this.holsters); }
-  isHolster(i) { return i >= HOLSTER0; }
+  isHolster(i) { return i >= HOLSTER0 && i < EXTRA0; }
+  isExtra(i) { return i >= EXTRA0; }
   // can item id live in slot i?
   canPlace(i, id) {
     if (i < 0 || i >= this.slots.length) return false;
+    if (i >= EXTRA0) return i < EXTRA0 + this.extra;
     if (i >= HOLSTER0) return i < HOLSTER0 + this.holsters && (!id || isGun(id));
     return true;
   }
   // general-purpose slots (no holsters) in fill order
-  get generalSlots() { return [...Array(HOTBAR + BACKPACK).keys()]; }
+  get generalSlots() { const out = [...Array(HOTBAR + BACKPACK).keys()]; for (let k = 0; k < this.extra; k++) out.push(EXTRA0 + k); return out; }
 
   changed() { this.emit('change'); }
 
@@ -133,7 +140,7 @@ export class Inventory extends Emitter {
   split(index) {
     const s = this.slots[index];
     if (!s || s.qty < 2) return;
-    const empty = this.slots.findIndex((x, i) => !x && i >= HOTBAR && i < HOLSTER0);
+    const empty = this.slots.findIndex((x, i) => !x && ((i >= HOTBAR && i < HOLSTER0) || (i >= EXTRA0 && i < EXTRA0 + this.extra)));
     const target = empty >= 0 ? empty : this.slots.findIndex((x, i) => !x && i < HOLSTER0);
     if (target < 0) return;
     const half = Math.floor(s.qty / 2);
@@ -160,12 +167,23 @@ export class Inventory extends Emitter {
     this.changed();
   }
 
-  serialize() { return { slots: this.slots.map(s => (s ? { ...s, data: s.data ? { ...s.data } : undefined } : null)), selected: this.selected, holsters: this.holsters }; }
+  // pack slots: shrinking is refused while the slots being removed hold items
+  setExtra(n) {
+    n = Math.max(0, Math.min(EXTRA, n));
+    for (let i = EXTRA0 + n; i < EXTRA0 + this.extra; i++) if (this.slots[i]) return false;
+    this.extra = n;
+    this.changed();
+    return true;
+  }
+  extraUsed(from = 0) { for (let i = EXTRA0 + from; i < EXTRA0 + this.extra; i++) if (this.slots[i]) return true; return false; }
+
+  serialize() { return { slots: this.slots.map(s => (s ? { ...s, data: s.data ? { ...s.data } : undefined } : null)), selected: this.selected, holsters: this.holsters, extra: this.extra }; }
   load(d) {
     if (!d) return;
-    this.slots = d.slots.map(s => (s ? { ...s } : null));
-    while (this.slots.length < HOTBAR + BACKPACK + HOLSTERS) this.slots.push(null);
+    this.slots = d.slots.slice(0, TOTAL_SLOTS).map(s => (s ? { ...s } : null));
+    while (this.slots.length < TOTAL_SLOTS) this.slots.push(null);
     this.holsters = d.holsters || 0;
+    this.extra = d.extra || 0;
     this.selected = d.selected || 0;
     this.changed();
   }

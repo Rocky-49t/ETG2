@@ -429,10 +429,10 @@ export default {
     for (let k = rng.int(0, 2); k > 0; k--) addDecal(c, { name: rng.pick(['stain', 'scratch', 'blood2']), x: x + rng.float(-2, 2), y: H + 0.005, z: z + rng.float(-2, 2), nx: 0, ny: 1, nz: 0, size: rng.float(1, 2), rot: rng.float(0, 6) });
     // rarely, a doorway standing alone on the platform: a way back up
     if (Math.max(Math.abs(c.cx - 2), Math.abs(c.cz)) > 5 && hash01(c.cx, c.cz, seed, 1601) < 0.07) {
-      const to = ['L0', 'L1', 'L3'][Math.floor(hash01(c.cx, c.cz, seed, 1602) * 3)];
+      const to = ['L0', 'L1', 'L3', 'LG'][Math.floor(hash01(c.cx, c.cz, seed, 1602) * 4)];
       const ry = Math.floor(hash01(c.cx, c.cz, seed, 1603) * 4) * Math.PI / 2;
       addProp(c, 'doorStand', x, H, z, ry);
-      addObject(c, { kind: 'levelDoor', to, label: 'LEVEL ' + to.slice(1), x: x + Math.sin(ry) * 0.27, y: H, z: z + Math.cos(ry) * 0.27, ry });
+      addObject(c, { kind: 'levelDoor', to, label: to === 'LG' ? 'LEVEL GUG' : 'LEVEL ' + to.slice(1), x: x + Math.sin(ry) * 0.27, y: H, z: z + Math.cos(ry) * 0.27, ry });
       addLight(c, { kind: 'none', x: x + Math.sin(ry) * 1.5, y: H + 2.2, z: z + Math.cos(ry) * 1.5, color: [1, 0.9, 0.7], intensity: 3, range: 6 });
     }
   },

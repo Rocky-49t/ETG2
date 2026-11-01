@@ -10,6 +10,15 @@ export const WEAPONS = {
   rifle: { kind: 'gun', damage: 34, rate: 0.1, auto: true, mag: 30, ammo: 'rifleAmmo', spread: 0.02, adsSpread: 0.0025, range: 95, recoil: 0.03, reload: 2.1, noise: NOISE.rifle, sound: 'rifle', pellets: 1, flash: 0.55 },
   smg: { kind: 'gun', damage: 15, rate: 0.072, auto: true, mag: 30, ammo: 'ammo9', spread: 0.035, adsSpread: 0.014, range: 55, recoil: 0.02, reload: 1.9, noise: NOISE.smg, sound: 'smg', pellets: 1, flash: 0.4 },
   shotgun: { kind: 'gun', damage: 14, rate: 0.9, auto: false, mag: 6, ammo: 'shells', spread: 0.075, adsSpread: 0.055, range: 30, recoil: 0.1, reload: 0.55, perShell: true, noise: NOISE.shotgun, sound: 'shotgun', pellets: 9, flash: 0.75 },
+  sniper: { kind: 'gun', damage: 95, rate: 1.25, auto: false, mag: 5, ammo: 'sniperAmmo', spread: 0.05, adsSpread: 0.0002, range: 220, recoil: 0.11, reload: 2.7, noise: NOISE.sniper, sound: 'sniper', pellets: 1, flash: 0.8, scope: 3.6, bolt: true },
+  // Ririqian arms: Remnant copies of foreign guns, rougher but serviceable
+  rqPistol: { kind: 'gun', damage: 29, rate: 0.2, auto: false, mag: 8, ammo: 'ammo9', spread: 0.018, adsSpread: 0.004, range: 65, recoil: 0.045, reload: 1.5, noise: NOISE.pistol, sound: 'pistol', pellets: 1, flash: 0.5 },
+  rqRifle: { kind: 'gun', damage: 36, rate: 0.115, auto: true, mag: 30, ammo: 'rifleAmmo', spread: 0.026, adsSpread: 0.004, range: 90, recoil: 0.04, reload: 2.4, noise: NOISE.rifle, sound: 'rqRifle', pellets: 1, flash: 0.6 },
+  rqSmg: { kind: 'gun', damage: 14, rate: 0.066, auto: true, mag: 35, ammo: 'ammo9', spread: 0.04, adsSpread: 0.016, range: 50, recoil: 0.022, reload: 2.0, noise: NOISE.smg, sound: 'smg', pellets: 1, flash: 0.4 },
+  rqShotgun: { kind: 'gun', damage: 15, rate: 0.35, auto: false, mag: 2, ammo: 'shells', spread: 0.085, adsSpread: 0.065, range: 26, recoil: 0.12, reload: 1.9, noise: NOISE.shotgun, sound: 'shotgun', pellets: 10, flash: 0.8 },
+  rqSniper: { kind: 'gun', damage: 105, rate: 1.4, auto: false, mag: 4, ammo: 'sniperAmmo', spread: 0.06, adsSpread: 0.0003, range: 220, recoil: 0.13, reload: 3.0, noise: NOISE.sniper, sound: 'sniper', pellets: 1, flash: 0.85, scope: 4, bolt: true },
+  rqMachete: { kind: 'melee', damage: 38, rate: 0.5, range: 2.0, hitAt: 0.22, durCost: 2, noise: NOISE.melee, swing: 'crowbar' },
+  rqBaton: { kind: 'melee', damage: 26, rate: 0.42, range: 1.9, hitAt: 0.18, durCost: 1, noise: NOISE.melee, swing: 'crowbar', stagger: true },
   crowbar: { kind: 'melee', damage: 40, rate: 0.62, range: 2.2, hitAt: 0.3, durCost: 3, noise: NOISE.melee, swing: 'crowbar' },
   knife: { kind: 'melee', damage: 24, rate: 0.36, range: 1.75, hitAt: 0.1, durCost: 1.5, noise: 2, swing: 'knife', backstab: 2.5 },
 };
@@ -28,13 +37,18 @@ export class HeldController {
     this.lighterLit = false;
     this.ads = false;
     this.lastId = null;
+    this.boltT = 0;
+    this.scopeK = 0;
   }
 
   get item() { return this.game.inventory.held; }
 
   cancel() {
-    this.reloading = 0; this.useT = 0; this.useSlot = -1; this.swingT = -1; this.throwT = -1;
+    this.reloading = 0; this.useT = 0; this.useSlot = -1; this.swingT = -1; this.throwT = -1; this.boltT = 0; this.scopeK = 0;
     this.game.viewmodel.stopUse();
+    this.game.viewmodel.root.visible = true;
+    this.game.player.scope = 0; this.game.player.lookScale = 1;
+    this.game.hud.scope?.(false);
   }
 
   update(dt) {
@@ -69,7 +83,8 @@ export class HeldController {
     else if (def.type === 'tool' && def.tool === 'lighter') this.updateLighter(dt, it, canAct);
     else if (def.type === 'repair') { if (canAct && input.actPressed('use')) this.useRepair(); }
     else if (def.type === 'transmitter') { if (canAct && input.actPressed('use')) g.toggleTransmitter(it); }
-    else if (def.type === 'armor') { if (canAct && input.actPressed('use')) g.wearArmor(g.inventory.selected); }
+    else if (def.type === 'scanner') { if (canAct && input.actPressed('use')) g.toggleScanner(it); }
+    else if (def.type === 'armor' || def.type === 'pack') { if (canAct && input.actPressed('use')) g.equipGear(g.inventory.selected); }
     else if (def.type === 'part') { if (canAct && input.actPressed('use')) g.subtitle('A crafting part. Open the inventory to see recipes.', 2); }
     else if (def.type === 'key' || def.type === 'ammo') {
       if (canAct && input.actPressed('use')) g.subtitle(def.type === 'key' ? 'Use it at the right door: look at it and press E.' : 'Ammo loads automatically when you reload (R).', 2.5);
@@ -83,6 +98,14 @@ export class HeldController {
     if (W.kind === 'melee') return this.updateMelee(dt, it, W, canAct);
     this.ads = canAct && input.act('aim') && this.reloading <= 0;
     g.player.zoom = this.ads ? -12 : 0;
+    // scoped rifles: settle into the scope after a beat, then zoom right in
+    this.scopeK = W.scope && this.ads ? Math.min(1, (this.scopeK || 0) + dt * 5) : 0;
+    const scoped = this.scopeK >= 1 && this.boltT <= 0;
+    g.player.scope = scoped ? W.scope : 0;
+    g.player.lookScale = scoped ? 1.15 / W.scope : 1;
+    g.viewmodel.root.visible = !scoped;
+    g.hud.scope?.(scoped);
+    if (this.boltT > 0) this.boltT -= dt;
     // reloading
     if (this.reloading > 0) {
       this.reloading -= dt;
@@ -132,6 +155,7 @@ export class HeldController {
       this.fire(W);
       g.inventory.changed();
       if (W.perShell) setTimeout(() => { if (this.item === it) { g.viewmodel.pump(); g.sfx('pump', null, { volume: 0.8 }); } }, 280);
+      if (W.bolt && it.data.ammo > 0) { this.boltT = 0.65; setTimeout(() => { if (this.item === it) { g.viewmodel.pump(); g.sfx('bolt', null, { volume: 0.9 }); } }, 380); }
     }
   }
 
@@ -142,7 +166,7 @@ export class HeldController {
     const fwd = _d.set(0, 0, -1).applyQuaternion(cam.quaternion);
     const muzzle = g.viewmodel.muzzleWorldPos(_m.clone());
     const moving = g.player.speed > 1 ? 1.6 : 1;
-    const spread = (this.ads ? W.adsSpread : W.spread) * moving * (g.player.crouching ? 0.75 : 1);
+    const spread = (this.ads && (!W.scope || this.scopeK >= 1) ? W.adsSpread : W.spread) * moving * (g.player.crouching ? 0.75 : 1);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
     let hitAny = false, killed = false;
@@ -285,7 +309,7 @@ export class HeldController {
     const inv = g.inventory;
     let best = -1, low = 101;
     // flashlights first, then transmitters — whichever is lowest
-    inv.slots.forEach((s, i) => { if (s && (s.id === 'flashlight' || s.id === 'transmitter') && s.data.charge < low) { low = s.data.charge; best = i; } });
+    inv.slots.forEach((s, i) => { if (s && (s.id === 'flashlight' || s.id === 'transmitter' || s.id === 'radioScanner') && s.data.charge < low) { low = s.data.charge; best = i; } });
     if (best < 0) { g.subtitle('You have nothing to put it in.', 1.5); return; }
     if (low > 95) { g.subtitle('Everything is already charged.', 1.5); return; }
     inv.slots[best].data.charge = 100;
@@ -316,11 +340,11 @@ export class HeldController {
         const cam = g.engine.camera;
         const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
         const pos = cam.position.clone().addScaledVector(fwd, 0.4).add(new THREE.Vector3(0, -0.1, 0));
-        const vel = fwd.clone().multiplyScalar(def.throw === 'decoy' ? 9 : 11).add(new THREE.Vector3(0, 2.2, 0));
+        const vel = fwd.clone().multiplyScalar(def.throw === 'decoy' ? 9 : def.throw === 'grenade' ? 13 : 11).add(new THREE.Vector3(0, 2.2, 0));
         vel.x += g.player.vel.x * 0.5; vel.z += g.player.vel.z * 0.5;
-        g.throwItem(def.throw, pos, vel);
+        g.throwItem(def.throw === 'grenade' ? it.id : def.throw, pos, vel);
         g.inventory.takeFrom(g.inventory.selected, 1);
-        g.sfx(def.throw === 'glowstick' ? 'glowCrack' : 'throw', null, {});
+        g.sfx(def.throw === 'glowstick' ? 'glowCrack' : def.throw === 'grenade' ? 'pinPull' : 'throw', null, {});
         if (def.throw === 'flare') g.sfx('lighterFlick', null, {});
       }
       if (this.throwT > 0.5) this.throwT = -1;

@@ -286,6 +286,169 @@ The order changed when we came back. Everything resets if you leave.
 If you find one of the heavy "5" bridge keys, it opens a vault without the lock.`,
   },
 
+  // ---- Ririqian bases (lore is translated for you; the walls are not)
+  rq_missing: {
+    title: 'Internal circular (translated)',
+    level: 'Ririqian base',
+    body: `BROTHERHOOD COMMAND — RESTRICTED
+
+It has now been NINE MONTHS since the Supreme Leader was last seen by any loyal eye.
+
+Officers will continue to read the Leader's daily address at morning assembly. Officers will NOT discuss where the addresses come from. Any soldier who asks whether the Leader is alive is to be assigned to the lower pools.
+
+The Leader is not missing. The Leader is elsewhere, on business of the State.`,
+  },
+  rq_portal: {
+    title: 'Scrawled on the back of a ration card',
+    level: 'Ririqian base',
+    body: `Haddik says he saw it. The Leader's guard walked him into the big room on Gug where the air shimmers, and the Leader stepped into it and was gone.
+
+Haddik says it was a door to the Tufferverse. Haddik says the Leader went to take back what Tufflandia stole.
+
+Haddik was sent to the pools the next morning.
+
+I believe Haddik.`,
+  },
+  rq_orders: {
+    title: 'Standing orders (translated)',
+    level: 'Ririqian base',
+    body: `1. Outsiders are to be shot on sight. Americans especially.
+2. The alarm is to be sounded at the first sighting. Do not wait for an officer.
+3. The vault key stays on the base commander's person at all times.
+4. Do not shoot at the thin ones on Gug. You will only make them faster. Hide.
+5. Glory to Ririqia Below.`,
+  },
+  rq_rations: {
+    title: 'Quartermaster\'s ledger (translated)',
+    level: 'Ririqian base',
+    body: `Fire salts: 412 pouches (down 60)
+Clean water: 96 drums (filters failing)
+Rifle rounds: 7,800
+Generator fuel: 11 drums — REQUEST RESUPPLY
+Gray goo: confiscated, 40 bottles. Men keep drinking it on watch.
+
+Resupply has not come in eleven weeks.`,
+  },
+  rq_doubt: {
+    title: 'A letter that was never sent',
+    level: 'Ririqian base',
+    body: `Mother,
+
+We came down here in 2013 because the Leader said Tufflandia would never follow. He was right. Nobody followed. Nobody comes at all, except the Americans with their machine, and they don't come for us.
+
+The Leader is gone. The officers say "elsewhere". The men say "the Tufferverse". I say we are guarding empty rooms for a man who left.
+
+I am still saluting the portraits. Everyone is. That is the worst part.`,
+  },
+  rq_radio: {
+    title: 'Radio log (translated)',
+    level: 'Ririqian base',
+    body: `0400 — Outpost 9 reports contact with American scouts. Two killed. Their machine-radio recovered.
+0415 — Outpost 9 not responding.
+0600 — Outpost 9 not responding.
+0900 — Patrol sent. Patrol reports Outpost 9 empty. No bodies. Doors open. Gate intact.
+0905 — Command orders log entry 0400-0900 struck from the record.`,
+  },
+  rq_propaganda: {
+    title: 'Morning address no. 271 (translated)',
+    level: 'Ririqian base',
+    body: `"Brothers! The rooms are endless, but so is our will. Tufflandia believed it had buried us; instead it planted us. Every corridor we hold is a corridor of Ririqia. Every door we seal is a border.
+
+I am with you always — in the portraits, in the flag, in the morning silence before the generators start.
+
+Glory to Ririqia Below."
+
+(Address 271 is word-for-word the same as address 12.)`,
+  },
+  rq_prisoner: {
+    title: 'Carved into the cell wall',
+    level: 'Ririqian base',
+    body: `SGT. D. ALVAREZ — US EXPEDITION 1 — TEAM WREN
+DAY 40
+
+they keep asking where the machine is
+i tell them it's on the other side
+they think i'm lying
+
+if you're from kestrel: they don't know the way back either
+nobody does`,
+  },
+  // ---- abandoned Didystani bases
+  dd_last: {
+    title: 'Last entry — Didystani garrison log',
+    level: 'Didystani base',
+    body: `Day 311. The pools are rising. Three more men did not return from the water detail.
+Day 312. Something in the deep pools. Not the Undertow. Bigger.
+Day 313. We sealed the gate. It does not need the gate.
+Day 314.`,
+  },
+  dd_orders: {
+    title: 'Didystani field orders',
+    level: 'Didystani base',
+    body: `BY ORDER OF THE DIRECTORATE OF DIDYSTAN
+
+This post is to be held until relieved. Relief will come via the long stair. Under no circumstances is the long stair to be climbed by garrison personnel.
+
+Sniper teams are to keep the watch posts manned at all hours. Ammunition is to be conserved: one shot, one kill.`,
+  },
+  dd_overrun: {
+    title: 'Scrawled in grease pencil on a map',
+    level: 'Didystani base',
+    body: `NOT THE RIRIQIANS
+NOT THE WATER
+IT CAME UP THROUGH THE FLOOR TILES
+DO NOT SLEEP NEAR THE DRAINS`,
+  },
+  dd_diary: {
+    title: 'A soldier\'s diary',
+    level: 'Didystani base',
+    body: `Didystan sent us down before the Brotherhood ever came. We were here first. That should mean something.
+
+Now the Ririqians hold the offices above and the halls of Gug, and we hold a few tiled rooms that smell of chlorine and rot.
+
+Korrin found a door marked 4 at the top of the long stair. He went through. He did not come back. Neither did the sound of his footsteps.`,
+  },
+  dd_pools: {
+    title: 'Quartermaster\'s note',
+    level: 'Didystani base',
+    body: `Water from the clear pools is NOT safe however clean it looks. Boil it or purify it.
+The blue halls are off-limits after the incident.
+Remaining stock: 2 marksman rifles, 40 rounds, 1 medkit, 12 tins of blueberry salts.
+Nobody is coming.`,
+  },
+  // ---- Did'h Wanderers
+  didh_scripture: {
+    title: 'The Sayings of Did\'h',
+    level: 'Did\'h camp',
+    body: `Did'h sleeps in the warm places, so we seek the warm places.
+Did'h knocks things from tables, so we do not cling to things.
+Did'h comes when he wishes and leaves when he wishes, so we wander.
+Did'h wears his own name upon his chest, so that he will never forget it.
+
+Do not forget your name.`,
+  },
+  didh_trade: {
+    title: 'A Wanderer\'s trade list',
+    level: 'Did\'h camp',
+    body: `Will trade:
+- salts for juice
+- scrap for batteries
+- Ririqian gold for medicine (gold is pretty, Did'h likes pretty)
+- charms for anyone who is kind
+
+Will not trade:
+- with anyone who raises a hand to a Wanderer. Did'h remembers.`,
+  },
+  didh_wander: {
+    title: 'Note pinned under a stone',
+    level: 'Did\'h camp',
+    body: `We are the Wanderers. We do not hold rooms, we pass through them. We do not fight unless we are struck.
+
+The Brotherhood calls us mad. The Brotherhood salutes a portrait of a man who walked into the air and vanished. We salute a cat who is right here, on the wall, wearing a shirt.
+
+Who is mad?`,
+  },
+
   l5_a: {
     title: 'Leader\'s log — Ines',
     level: 'Level 5',

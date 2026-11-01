@@ -16,6 +16,8 @@ import { UI } from './ui/ui.js';
 import { buildSettings, Customizer } from './ui/menus.js';
 import { CheatConsole } from './ui/console.js';
 import { Lobby, randomSeedWord } from './ui/lobby.js';
+import { SaveMenu } from './ui/saves.js';
+import { randomId } from './game/save.js';
 import { normalizeSkin, randomSkin } from './game/avatar.js';
 import { audio } from './audio/audio.js';
 
@@ -37,6 +39,7 @@ class App {
     this.lobby = new Lobby(this);
     this.customizer = new Customizer(skin => this.onSkinSaved(skin));
     this.console = new CheatConsole(this.ui);
+    this.saves = new SaveMenu(this);
     this.attract = null;
     this.screenStack = [];
     if (!settings.get('skin')) settings.set('skin', normalizeSkin(randomSkin()));
@@ -65,6 +68,7 @@ class App {
   // ------------------------------------------------------------------ menu
   bindMenu() {
     $('btnSolo').onclick = () => { audio.init(); this.startSolo(); };
+    $('btnLoad').onclick = () => { audio.init(); this.saves.open('load'); };
     $('btnHost').onclick = () => { audio.init(); this.lobby.openHost(); };
     $('btnJoin').onclick = () => { audio.init(); this.lobby.openJoin(); };
     $('btnCustomize').onclick = () => { audio.init(); this.showScreen('customize'); this.customizer.open(); };
@@ -76,11 +80,12 @@ class App {
     this.ui.onSettings = () => { this.ui.closeModal('pause', false); this.openSettings(true); };
     this.ui.onHelp = () => { this.ui.closeModal('pause', false); this.ui.open.add('help'); this.ui.screen('help', true); };
     this.ui.onQuit = () => this.quitToMenu();
+    this.ui.onSave = () => this.game && this.saves.open('save');
     document.addEventListener('click', () => audio.init(), { once: true });
   }
 
   showScreen(id) {
-    for (const s of ['menu', 'customize', 'lobby', 'settings', 'help']) this.ui.screen(s, s === id);
+    for (const s of ['menu', 'customize', 'lobby', 'settings', 'help', 'saves']) this.ui.screen(s, s === id);
     if (id === 'menu') audio.ready && !this.game && audio.setAmbience('menu');
   }
 
@@ -148,11 +153,11 @@ class App {
     this.ui.resetGameScreens();
     const seed = typeof seedStr === 'number' ? seedStr : hashString(String(seedStr));
     const profile = { name: settings.get('playerName') || 'Wanderer', skin: normalizeSkin(settings.get('skin')) };
-    const game = new Game({ engine: this.engine, lib: this.lib, ui: this.ui, session, seed, difficulty: opts.difficulty, friendlyFire: opts.friendlyFire, profile, roster: opts.roster });
+    const game = new Game({ engine: this.engine, lib: this.lib, ui: this.ui, session, seed, difficulty: opts.difficulty, friendlyFire: opts.friendlyFire, profile, roster: opts.roster, runId: opts.runId });
     game.seedLabel = typeof seedStr === 'number' ? seedStr : seedStr;
     this.game = game;
     this.ui.game = game;
-    for (const s of ['menu', 'customize', 'lobby', 'settings', 'help']) this.ui.screen(s, false);
+    for (const s of ['menu', 'customize', 'lobby', 'settings', 'help', 'saves']) this.ui.screen(s, false);
     this.ui.hud.show(true);
     this.ui.hud.inventoryChanged(game);
     return game;
@@ -171,11 +176,40 @@ class App {
     this.relock();
   }
 
-  async startCoop(session, m, lateJoin) {
+  // Continue a saved game alone (a co-op save plays as its host's character).
+  async loadSolo(save) {
+    audio.init();
+    this.lobby.reset();
+    const game = this.makeGame(new Session(), save.seed, { difficulty: save.difficulty, runId: save.id });
+    game.seedLabel = save.seedLabel || save.seed;
+    game.applySave(save);
+    await game.enterLevel(save.host.level, { spawn: save.host.pos, yaw: save.host.yaw });
+    if (!game.classId) game.promptRole();
+    this.ui.hud.toast(`Loaded "${save.name}"`, 3);
+    this.relock();
+  }
+
+  async startCoop(session, m, lateJoin, save) {
     audio.init();
     const roster = new Map(m.roster || []);
-    const game = this.makeGame(session, m.seed, { difficulty: m.difficulty, friendlyFire: m.friendlyFire, roster });
-    if (lateJoin) {
+    const game = this.makeGame(session, m.seed, { difficulty: m.difficulty, friendlyFire: m.friendlyFire, roster, runId: m.run });
+    if (m.seedLabel) game.seedLabel = String(m.seedLabel).slice(0, 40);
+    if (save) {
+      // host continuing a saved game
+      game.applySave(save);
+      await game.enterLevel(save.host.level, { spawn: save.host.pos, yaw: save.host.yaw });
+      if (!game.classId) game.promptRole();
+    } else if (m.load) {
+      // client joining a loaded game at its start: same as a late join, then reclaim my character
+      game.world.load(m.world || {});
+      game.hostTimeOffset = m.ht;
+      const lvl = LEVELS[m.level] ? m.level : FIRST_LEVEL;
+      const level = game.getLevel(lvl);
+      const sp = m.spawn ? { x: m.spawn.x + 0.8, y: m.spawn.y, z: m.spawn.z } : level.spawnPoint();
+      if (!isFinite(level.floorAt(sp.x, sp.z))) Object.assign(sp, level.spawnPoint());
+      await game.enterLevel(lvl, { spawn: sp });
+      game.clientClaim();
+    } else if (lateJoin) {
       game.world.load(m.world);
       roster.set(m.hostId, { name: m.hostName, skin: m.hostSkin });
       game.hostTimeOffset = m.ht;
@@ -184,7 +218,7 @@ class App {
       const sp = m.spawn ? { x: m.spawn.x + 0.8, y: m.spawn.y, z: m.spawn.z } : level.spawnPoint();
       if (!isFinite(level.floorAt(sp.x, sp.z))) Object.assign(sp, level.spawnPoint());
       await game.enterLevel(lvl, { spawn: sp });
-      if (lvl !== 'P0') game.promptRole();
+      game.clientClaim();
     } else {
       await game.enterLevel(m.prologue ? 'P0' : FIRST_LEVEL);
       if (!m.prologue) game.promptRole();

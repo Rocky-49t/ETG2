@@ -12,6 +12,7 @@ import { registerObjectKind } from '../../game/objects.js';
 import { ITEMS } from '../../game/items.js';
 
 const LOOT = [
+  ['hardHat', 3], ['legGuards', 1], ['combatBoots', 1],
   ['dirtyWater', 16], ['cleanWater', 8], ['fireSalts', 14], ['snackBar', 8], ['scrap', 8], ['wire', 6], ['gpsBoard', 2], ['cannedBeans', 8], ['battery', 14, [1, 2]], ['bandage', 12],
   ['flare', 10, [1, 2]], ['lighter', 6], ['ammo9', 10, [6, 12]], ['glowstick', 8, [1, 2]], ['crowbar', 3], ['knife', 10], ['pistol', 2], ['ductTape', 4], [null, 18],
 ];

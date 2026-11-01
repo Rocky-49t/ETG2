@@ -45,7 +45,8 @@ export class Stats extends Emitter {
 
     // stamina
     for (const k in this.status) { this.status[k] -= dt; if (this.status[k] <= 0) { delete this.status[k]; this.emit('statusEnd', k); } }
-    if (env.sprinting || env.swimFast) {
+    if (this.hasStatus('goo')) { this.stamina = 100; this.staminaLock = 0; this.sinceSprint = 0; }
+    else if (env.sprinting || env.swimFast) {
       this.stamina -= dt * (env.swimming ? 9 : 17) * this.mods.stamina * (env.armorStamina || 1) / (this.hasStatus('vigor') ? 3 : 1);
       this.sinceSprint = 0;
       if (this.stamina <= 0) { this.stamina = 0; this.staminaLock = 1; this.emit('exhausted'); }
@@ -82,8 +83,11 @@ export class Stats extends Emitter {
 
     // sanity
     let ds = 0;
-    ds -= env.darkness * 0.3 * this.mods.sanity;
-    ds -= env.nearbyThreat * 1.8 * this.mods.sanity;
+    // a Did'h charm in hand takes the edge off the dark and the things in it
+    const calm = env.charm ? 0.6 : 1;
+    ds -= env.darkness * 0.3 * this.mods.sanity * calm;
+    ds -= env.nearbyThreat * 1.8 * this.mods.sanity * calm;
+    if (env.charm) ds += 0.1;
     if (env.inBrightLight) ds += 0.45;
     if (env.teammatesNear) ds += 0.35;
     // a calm, lit stretch slowly settles the nerves
@@ -111,7 +115,10 @@ export class Stats extends Emitter {
     if (fx.health) this.health = clamp(this.health + (fx.health > 0 ? fx.health * heal : fx.health), 0, 100);
     if (fx.sanity) this.sanity = clamp(this.sanity + fx.sanity, 0, 100);
     if (fx.regen) this.regen += fx.regen * heal;
-    if (fx.status) this.addStatus(fx.status[0], fx.status[1]);
+    if (fx.status) {
+      if (fx.statusSet) { this.status[fx.status[0]] = fx.status[1]; this.emit('status', fx.status[0]); }
+      else this.addStatus(fx.status[0], fx.status[1]);
+    }
     if (fx.stopBleed) this.bleeding = 0;
     if (fx.staminaBoost) { this.staminaBoost += fx.staminaBoost; this.stamina = Math.min(100, this.stamina + 30); }
   }

@@ -8,7 +8,7 @@ import { angleDiff } from '../core/rng.js';
 import { CLASSES } from './classes.js';
 import { input } from '../core/input.js';
 
-const TWO_HANDED = new Set(['shotgun', 'smg', 'rifle']);
+export const TWO_HANDED = new Set(['shotgun', 'smg', 'rifle', 'sniper', 'rqRifle', 'rqSmg', 'rqShotgun', 'rqSniper']);
 
 function beamMaterial() {
   return new THREE.ShaderMaterial({
@@ -92,6 +92,7 @@ export class RemotePlayer {
     const speed = span > 0 ? Math.hypot(s1.x - s0.x, s1.z - s0.z) / span : 0;
     this.group.position.set(st.x, st.y, st.z);
     this.group.rotation.y = st.yaw + Math.PI;
+    if (L.gr) this.avatar.setGear(L.gr);
     if (L.hi !== this.heldId) {
       this.heldId = L.hi;
       this.avatar.setHeld(L.hi ? itemModel(L.hi) : null);

@@ -6,11 +6,12 @@ import { ITEMS, iconInto } from '../game/items.js';
 import { NOTES } from '../game/notes.js';
 import { input } from '../core/input.js';
 import { audio } from '../audio/audio.js';
-import { HOTBAR, HOLSTER0, HOLSTERS } from '../game/inventory.js';
+import { HOTBAR, HOLSTER0, HOLSTERS, EXTRA0, EXTRA } from '../game/inventory.js';
 import { WEAPONS } from '../game/weapons.js';
 import { RECIPES, canCraft, craft } from '../game/crafting.js';
 import { CLASSES, CLASS_ORDER } from '../game/classes.js';
 import { ComputerUI, PhoneUI } from './computer.js';
+import { RuckyOS } from './ruckyos.js';
 
 const $ = id => document.getElementById(id);
 const TIPS = [
@@ -47,6 +48,7 @@ export class UI {
     this.onHelp = null;
     this.computer = new ComputerUI(this);
     this.phone = new PhoneUI(this);
+    this.ruckyos = new RuckyOS(this);
     this.bindInventory();
     this.bindPause();
     this.bindChat();
@@ -102,9 +104,10 @@ export class UI {
     const mk = (parent, idx) => {
       const s = document.createElement('div');
       s.className = 'slot';
-      const key = idx < HOTBAR ? idx + 1 : idx >= HOLSTER0 ? HOTBAR + 1 + idx - HOLSTER0 : null;
+      const key = idx < HOTBAR ? idx + 1 : idx >= HOLSTER0 && idx < EXTRA0 ? HOTBAR + 1 + idx - HOLSTER0 : null;
       s.innerHTML = `${key ? `<span class="key">${key}</span>` : ''}<div class="ic"></div><span class="qty"></span><div class="dur hidden"><div></div></div>`;
-      if (idx >= HOLSTER0) s.classList.add('holster', 'off');
+      if (idx >= HOLSTER0 && idx < EXTRA0) s.classList.add('holster', 'off');
+      if (idx >= EXTRA0) s.classList.add('pocket');
       s.draggable = true;
       s.dataset.idx = idx;
       s.addEventListener('click', e => this.slotClick(idx, e));
@@ -124,6 +127,8 @@ export class UI {
     for (let i = HOTBAR; i < HOTBAR + 20; i++) mk(grid, i);
     for (let i = 0; i < HOTBAR; i++) mk(hot, i);
     for (let i = HOLSTER0; i < HOLSTER0 + HOLSTERS; i++) mk(hot, i);
+    for (let i = EXTRA0; i < EXTRA0 + EXTRA; i++) mk($('packGrid'), i);
+    this.bindGear();
     // dropping into the container panel
     cont.addEventListener('dragover', e => e.preventDefault());
     cont.addEventListener('drop', e => {
@@ -160,7 +165,7 @@ export class UI {
     this.game = game;
     this.containerObj = o;
     $('containerBox').classList.remove('hidden');
-    $('containerTitle').textContent = { cabinet: 'Filing cabinet', crate: 'Crate', toolbox: 'Toolbox', backpack: 'Old backpack' }[o.ctype] || 'Box';
+    $('containerTitle').textContent = { cabinet: 'Filing cabinet', crate: 'Crate', toolbox: 'Toolbox', backpack: 'Old backpack', ammo: 'Ammo crate', footlocker: 'Footlocker', med: 'Medicine cabinet', safe: 'Safe' }[o.ctype] || 'Box';
     if (!this.open.has('inventory')) this.openModal('inventory');
     this.renderInventory();
   }
@@ -192,7 +197,7 @@ export class UI {
       if (this.containerObj) { this.putInContainer(idx); return; }
       const it = inv.slots[idx];
       if (!it) return;
-      const target = inv.isHot(idx) ? inv.slots.findIndex((s, i) => i >= HOTBAR && i < HOLSTER0 && !s) : inv.freeHotSlot(it.id);
+      const target = inv.isHot(idx) ? inv.slots.findIndex((s, i) => ((i >= HOTBAR && i < HOLSTER0) || (i >= EXTRA0 && i < EXTRA0 + inv.extra)) && !s) : inv.freeHotSlot(it.id);
       if (target >= 0) inv.move(idx, target);
       this.selSlot = target >= 0 ? target : idx;
       this.renderInventory();
@@ -226,8 +231,9 @@ export class UI {
       g.consumeNow(def, idx);
     } else if (def.type === 'battery') withSel(() => g.held.useBattery());
     else if (def.type === 'repair') withSel(() => g.held.useRepair());
-    else if (def.type === 'armor') g.wearArmor(idx);
+    else if (def.type === 'armor' || def.type === 'pack') g.equipGear(idx);
     else if (def.type === 'transmitter') g.toggleTransmitter(it);
+    else if (def.type === 'scanner') g.toggleScanner(it);
     else if (def.type === 'part' || def.type === 'ammo' || def.type === 'key') g.subtitle(def.type === 'part' ? 'A crafting part — see the recipes on the right.' : def.type === 'ammo' ? 'Ammo loads when you reload.' : 'Use it at the right door.', 1.8);
     else {
       // equip: move into the hotbar and select
@@ -251,7 +257,8 @@ export class UI {
       const el = this.invSlots[i];
       if (!el) continue;
       const s = inv.slots[i];
-      if (i >= HOLSTER0) el.classList.toggle('off', !inv.canPlace(i));
+      if (i >= HOLSTER0 && i < EXTRA0) el.classList.toggle('off', !inv.canPlace(i));
+      if (i >= EXTRA0) el.classList.toggle('hidden', i >= EXTRA0 + inv.extra);
       el.classList.toggle('sel', i === this.selSlot);
       el.classList.toggle('picked', i === this.selSlot && !!s);
       iconInto(el.querySelector('.ic'), s?.id, 48);
@@ -272,11 +279,12 @@ export class UI {
       extra = W.kind === 'gun' ? `\nLoaded: ${s.data.ammo}/${W.mag} · Reserve: ${inv.count(W.ammo)}` : `\nCondition: ${Math.round(s.data.dur)}%`;
     } else if (def?.type === 'flashlight') extra = `\nBattery: ${Math.round(s.data.charge)}%`;
     else if (def?.type === 'tool') extra = `\nFuel: ${Math.round(s.data.fuel)}%`;
-    else if (def?.type === 'transmitter') extra = `\nBattery: ${Math.round(s.data.charge)}% · ${s.data.on ? 'ON' : 'off'}`;
-    else if (def?.type === 'armor') extra = `\nCondition: ${Math.round(s.data.dur)}%`;
+    else if (def?.type === 'transmitter' || def?.type === 'scanner') extra = `\nBattery: ${Math.round(s.data.charge)}% · ${s.data.on ? 'ON' : 'off'}`;
+    else if (def?.type === 'armor') extra = `\nSlot: ${def.armor.slot} · absorbs ${Math.round(def.armor.absorb * 100)}% · condition ${Math.round(s.data.dur)}%`;
+    else if (def?.type === 'pack') extra = `\n+${def.pack.slots} inventory slots`;
     $('detailDesc').textContent = def ? def.desc + extra : 'Select an item.';
     $('btnUseItem').disabled = !def;
-    $('btnUseItem').textContent = !def ? 'Use' : def.type === 'armor' ? 'Wear' : def.type === 'transmitter' ? (s.data.on ? 'Switch off' : 'Switch on') : (def.type === 'consumable' || def.type === 'battery' || def.type === 'repair') ? 'Use' : 'Equip';
+    $('btnUseItem').textContent = !def ? 'Use' : def.type === 'armor' || def.type === 'pack' ? 'Wear' : def.type === 'transmitter' || def.type === 'scanner' ? (s.data.on ? 'Switch off' : 'Switch on') : (def.type === 'consumable' || def.type === 'battery' || def.type === 'repair') ? 'Use' : 'Equip';
     this.renderWorn();
     this.renderCrafting();
     $('btnDropItem').disabled = !def;
@@ -308,14 +316,56 @@ export class UI {
     }
   }
 
+  // Gear: head, body, legs, feet and pack slots. Click to take off; drop an
+  // item on a slot (or right-click it in the inventory) to put it on.
+  bindGear() {
+    const box = $('wornBox');
+    const LABELS = { head: 'Head', body: 'Body', legs: 'Legs', feet: 'Feet', pack: 'Pack' };
+    box.innerHTML = '<div class="gear-head"><b>Gear</b><span id="gearStats" class="muted"></span></div><div class="gear-slots"></div>';
+    this.gearEls = {};
+    for (const k of Object.keys(LABELS)) {
+      const s = document.createElement('div');
+      s.className = 'slot gear';
+      s.innerHTML = `<span class="glabel">${LABELS[k]}</span><div class="ic"></div><div class="dur hidden"><div></div></div>`;
+      s.addEventListener('click', () => {
+        const g = this.game, inv = g.inventory;
+        const sel = inv.slots[this.selSlot];
+        const sd = sel && ITEMS[sel.id];
+        if (sd && (sd.type === 'pack' ? 'pack' : sd.armor?.slot) === k) g.equipGear(this.selSlot);
+        else if (g.gear[k]) g.unequipGear(k);
+        this.renderInventory();
+      });
+      s.addEventListener('dragover', e => { e.preventDefault(); s.classList.add('drag-over'); });
+      s.addEventListener('dragleave', () => s.classList.remove('drag-over'));
+      s.addEventListener('drop', e => {
+        e.preventDefault(); s.classList.remove('drag-over');
+        const src = e.dataTransfer.getData('text/plain');
+        if (!src.startsWith('inv:')) return;
+        const idx = +src.slice(4), it = this.game.inventory.slots[idx], d = it && ITEMS[it.id];
+        if (d && (d.type === 'pack' ? 'pack' : d.armor?.slot) === k) this.game.equipGear(idx);
+        else this.game.subtitle(`That doesn't go in the ${LABELS[k].toLowerCase()} slot.`, 1.4);
+        this.renderInventory();
+      });
+      box.querySelector('.gear-slots').appendChild(s);
+      this.gearEls[k] = s;
+    }
+  }
+
   renderWorn() {
-    const g = this.game, box = $('wornBox');
-    const a = g.armor;
-    box.classList.toggle('hidden', !a);
-    if (!a) return;
-    box.innerHTML = `<div class="ic"></div><div><b>Wearing: ${ITEMS[a.id].name}</b><div class="muted">${Math.round(ITEMS[a.id].armor.absorb * 100)}% damage absorbed · ${Math.round(a.data.dur)}% left</div></div><div class="bar"><div style="width:${a.data.dur}%"></div></div><button class="small" id="btnTakeOff">Take off</button>`;
-    iconInto(box.querySelector('.ic'), a.id, 36);
-    box.querySelector('#btnTakeOff').onclick = () => { g.removeArmor(); this.renderInventory(); };
+    const g = this.game;
+    if (!this.gearEls) return;
+    for (const [k, el] of Object.entries(this.gearEls)) {
+      const it = g.gear[k];
+      iconInto(el.querySelector('.ic'), it?.id, 40);
+      el.classList.toggle('filled', !!it);
+      el.title = it ? `${ITEMS[it.id].name} — click to take off` : 'Empty';
+      const dur = el.querySelector('.dur');
+      dur.classList.toggle('hidden', !it?.data?.dur && it?.data?.dur !== 0);
+      if (it?.data?.dur !== undefined) dur.firstChild.style.width = Math.max(0, it.data.dur) + '%';
+    }
+    const slow = Math.round((1 - (g.player.armorSlow || 1)) * 100);
+    $('gearStats').textContent = `${Math.round(g.armorProtection() * 100)}% protection${slow ? ` · ${slow}% slower` : ''}${g.inventory.extra ? ` · +${g.inventory.extra} slots` : ''}`;
+    $('packGrid').classList.toggle('hidden', !g.inventory.extra);
   }
 
   renderCrafting() {
@@ -368,6 +418,44 @@ export class UI {
   }
 
   // ------------------------------------------------------------------ notes & journal
+  // Trading with a Did'h Wanderer: three offers, one trade.
+  openTrade(o, s, game) {
+    this.game = game;
+    let el = document.getElementById('trade');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'trade'; el.className = 'screen modal-screen';
+      document.body.appendChild(el);
+    }
+    const inv = game.inventory;
+    el.innerHTML = `<section class="panel trade-panel"><h2>Did'h Wanderer</h2><p class="muted">"Did'h teaches us to share. Once. Choose well, stranger."</p><div class="trade-list"></div><div class="row end"><button class="small" data-x>Leave</button></div></section>`;
+    const list = el.querySelector('.trade-list');
+    o.offers.forEach(([cid, cq, rid, rq], i) => {
+      const ok = inv.count(cid) >= cq && !s?.traded;
+      const row = document.createElement('div'); row.className = 'trade-row' + (ok ? '' : ' no');
+      row.innerHTML = `<div class="ti"></div><span>${cq}× ${ITEMS[cid].name}</span><span class="arr">→</span><div class="ti"></div><span>${rq}× ${ITEMS[rid].name}</span><button class="small" ${ok ? '' : 'disabled'}>Trade</button>`;
+      const ics = row.querySelectorAll('.ti'); iconInto(ics[0], cid, 32); iconInto(ics[1], rid, 32);
+      row.querySelector('button').onclick = () => {
+        if (inv.count(cid) < cq) return;
+        inv.consume(cid, cq);
+        game.request({ t: 'int', l: game.levelId, id: o.id, a: 'trade', i });
+        audio.play('ui', { freq: 760 });
+        this.closeModal('trade');
+      };
+      list.appendChild(row);
+    });
+    el.querySelector('[data-x]').onclick = () => this.closeModal('trade');
+    this.openModal('trade');
+  }
+
+  // a framed picture up close, with a caption
+  showImage(src, title, body) {
+    $('noteTitle').textContent = title;
+    $('noteBody').innerHTML = '';
+    if (src) { const img = typeof src === 'string' ? Object.assign(new Image(), { src }) : src; img.className = 'note-img'; $('noteBody').appendChild(img); }
+    const p = document.createElement('div'); p.textContent = body || ''; $('noteBody').appendChild(p);
+    this.openModal('note');
+  }
+
   showNote(n) {
     $('noteTitle').textContent = n.title;
     $('noteBody').textContent = n.body;
@@ -403,6 +491,7 @@ export class UI {
   // ------------------------------------------------------------------ pause
   bindPause() {
     $('btnResume').onclick = () => this.resume();
+    $('btnPauseSave').onclick = () => this.onSave?.();
     $('btnPauseJournal').onclick = () => this.game && this.openJournal(this.game);
     $('btnPauseSettings').onclick = () => this.onSettings?.();
     $('btnPauseHelp').onclick = () => this.onHelp?.();
@@ -414,6 +503,7 @@ export class UI {
     if (!game.online) game.paused = true;
     $('pauseInfo').textContent = `${game.def?.name || ''} — ${game.def?.title || ''} · seed ${game.seedLabel || game.seed}${game.online ? ' · co-op continues while paused' : ''}`;
     $('btnSkipPrologue').classList.toggle('hidden', !(game.levelId === 'P0' && game.isHost));
+    $('btnPauseSave').classList.toggle('hidden', !game.isHost);
     this.openModal('pause');
   }
   resume() {
@@ -497,7 +587,8 @@ export class UI {
   }
 
   resetGameScreens() {
-    for (const id of ['death', 'victory', 'pause', 'inventory', 'note', 'journal']) this.screen(id, false);
+    for (const n of [...this.open]) { try { this.closeModal(n, false); } catch { /* ignore */ } }
+    for (const id of ['death', 'victory', 'pause', 'inventory', 'note', 'journal', 'roleSelect', 'saves', 'computer', 'phone', 'ruckyos', 'trade']) if ($(id)) this.screen(id, false);
     this.open.clear();
     $('spectate').classList.add('hidden');
     $('hideOverlay').classList.add('hidden');

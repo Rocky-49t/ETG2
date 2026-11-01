@@ -83,8 +83,11 @@ export class Stats extends Emitter {
 
     // sanity
     let ds = 0;
-    ds -= env.darkness * 0.3 * this.mods.sanity;
-    ds -= env.nearbyThreat * 1.8 * this.mods.sanity;
+    // a Did'h charm in hand takes the edge off the dark and the things in it
+    const calm = env.charm ? 0.6 : 1;
+    ds -= env.darkness * 0.3 * this.mods.sanity * calm;
+    ds -= env.nearbyThreat * 1.8 * this.mods.sanity * calm;
+    if (env.charm) ds += 0.1;
     if (env.inBrightLight) ds += 0.45;
     if (env.teammatesNear) ds += 0.35;
     // a calm, lit stretch slowly settles the nerves

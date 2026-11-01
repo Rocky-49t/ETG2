@@ -402,7 +402,7 @@ export class Game {
     this.stats.update(dt, {
       sprinting: P.sprinting, swimming: P.swimming, swimFast: P.swimming && input.act('sprint'), underwater: P.underwater,
       darkness: lit ? 0 : (flags & F_DARK || ambient < 0.08 ? 1 : 0.35), nearbyThreat: threat, inBrightLight: ambient > 0.55, teammatesNear: teammates,
-      sanityDrain: this.def.sanityDrain || 0, armorStamina: this.armorStamina || 1,
+      sanityDrain: this.def.sanityDrain || 0, charm: this.inventory.held?.id === 'didhCharm', armorStamina: this.armorStamina || 1,
     });
     this.threat = threat;
     audio.setUnderwater(P.underwater);

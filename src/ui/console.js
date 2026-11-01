@@ -24,7 +24,7 @@ const HELP = [
   ['speed <x>', 'movement speed multiplier (1 = normal)'],
   ['ammo', 'refill weapon magazines and flashlight battery'],
   ['sanity <0-100>', 'set sanity'],
-  ['level <L0|L1|L2|L3|L5>', 'travel to a level (also `level next`)'],
+  ['level <L0|L1|L2|L3|L4|L5|LG>', 'travel to a level (also `level next`)'],
   ['tp <x> <z> | exit | key | <player> | <player> <player>', 'teleport you (or the first player to the second), across levels'],
   ['bring <player|all>', 'pull players to you, from any level'],
   ['send <player|all> <level>', 'send players to a level'],
@@ -194,6 +194,7 @@ export class CheatConsole {
       case 'level': {
         let id = (args[0] || '').toUpperCase();
         if (id === 'NEXT') id = g.def?.next || '';
+        if (id === 'GUG') id = 'LG';
         if (!LEVELS[id]) { say(`Levels: ${LEVEL_ORDER.join(' ')}`, 'warn'); return; }
         say(`Travelling to ${LEVELS[id].name} — ${LEVELS[id].title}.`, 'ok');
         this.close();

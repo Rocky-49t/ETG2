@@ -71,9 +71,12 @@ glowsticks, a scrap vest and duct tape.
 | **2: Offices & Sewers** | Cubicle farms, numbered offices, conference, break, storage and plant rooms, dark office blocks; usable corrupted computers and wall phones; long sewers reached by ladder holes and stairs, with rusted side rooms | **The Inkwalker**: a persistent black skeleton (more of them in the sewers). A flashlight held on its skull stuns it. A rare pale draught from the vending machines makes it ignore you for 10 minutes. Dial **1143141967** on a wall phone and something pale comes to see you; do not hurt it. *(hard)* | The **stairwell** (find a fuse in a sewer pump room), or rare doors marked **LEVEL 3**. |
 | **3: Pool Rooms** | White-tiled halls, clear pools with caustics and railings, raised ledges, flooded corridors, blue halls of deep dark water, skylights onto a sky that isn't there | **The Undertow**: hunts swimmers and lunges at people standing at the pool edge. It gurgles as it closes in. *(hard if it gets you, easy to avoid)* | The **main drain** at the bottom of the deepest pool (drain valve key from a pump room), or a rare long spiral staircase up to a hatch. Both lead to Level 4. |
 | **4: The Quiet Rooms** | Beige walls, gray carpet, a gray-green ceiling; windows onto a painted sky throwing daylight across the floor, and darkness everywhere else. Empty rooms, dead restaurants, storage units, staircases to nowhere | **Platinum snakes**: strike only when you're close, and speed up each time a bullet hits them (knives don't). Harmless figures stand behind the windows when your sanity is low. | **Toll rooms**: press the plates in the order the lock hums or lists, and the vault opens onto the LEVEL 5 door. They re-seal with a new order when you come back. |
+| **Gug** | Gray concrete halls of tall cylinders scrawled with "gug", glossy reflective tile floors, frameless doors and round black holes in the ceiling; a Level 0-like grid of square white lights and gray pillars; room blocks with supplies; stairs down to service tunnels; rare dark districts | **Walkers**: tall and thin, fast, see far, and run in straight lines, turning only when they hit a wall. **Crawlers**: hunched and black, even faster, blind, but hear the faintest sound from far away, and moonwalk toward it (most common in the grid). | Doors to Levels 0, 2, 4 and 5 (follow the chalk arrows). Reached through rare LEVEL GUG doors on Levels 4 and 5. |
 | **5: The Sky Bridge** | A colossal bridge over an endless fog void, wind gusts, lanterns, and around it an endless network of platforms on giant columns joined by bridges and stairs | **The Goaner**: three-phase boss (see below) | Defeat the Goaner. The gate beyond the arena opens. |
 
 **More than one way out.** Every level except the Sky Bridge has secondary exits generated with the rest of the map: extra pits on Level 0, maintenance hatches on Level 1 (force one open, or pry it with a crowbar), LEVEL 3 doors on Level 2, the spiral staircase on Level 3 and several toll rooms on Level 4. Rare **back doors** lead up a level (L1→L0, L2→L0, L3→L2, L4→L3), and lone doorways on far Sky Bridge platforms lead to Levels 0, 1 and 3. Each level paints its exit signs in its own style. Exits breathe a cold draft you can hear from about 40 m away, EXIT arrows are painted beside the doorway that leads toward the nearest exit (so they chain room to room), and objective items (keycard, fuse, valve key) chirp softly when you're close.
+
+**Gray Goo** (mostly on Gug, more common in its rooms): drinking it costs a little health but gives unlimited stamina for 60 seconds. Another drink resets the timer.
 
 **Rare:** **The Lookalike** wears a teammate's shape (yours, when you're alone). It only moves while nobody is looking at it, and a sustained flashlight beam makes it come apart.
 
@@ -85,13 +88,36 @@ A goat-headed, wasp-bodied chimera on six bone legs, faithful to the original's 
 - **Phase III: Collapse.** Sections of the platform crack and fall. Debris drops (red rings). Stinger slams (big red circle, jump the shockwave) leave it **stuck**, and it takes heavy damage from any source while stuck.
 - Health scales with player count. There's a checkpoint at the gatehouse, and the fight resets if everyone leaves or dies.
 
+## Bases and factions
+
+Fortified settlements are built into Levels 2, 3, 4 and Gug. They use the level's own walls and floors, grow organically into the space around them, and range from one-room outposts to walled mini-cities with yards, corridors and up to thirty rooms: quarters and housing, meeting rooms, a key-locked vault, watchrooms with raised posts, breakable gates, armories, hospitals, recreation, storage, power, comms, industrial, computers, research, messes, cells and water rooms. Smaller bases have fewer.
+
+- **Ririqian Brotherhood** (Gug, about one every 3 minutes of walking, and Level 2, about every 5). Red, white and black flags, Rucky Rucky portraits and propaganda, and signs in a script nobody can read. Armed soldiers, officers, guards and snipers who alert each other; bigger bases have sirens and red alarm lights, generators and utilities. Nobody respawns: kill the whole garrison and the base is **seized**. They drop their own guns (Ririqian Pistol, Rifle, SMG, Coachgun, Sniper, Machete, Baton and grenades) and armor, and their notes say Rucky Rucky has been missing for nine months, and that the leadership is looking for a portal to the Tufferverse.
+- **Didystani ruins** (Level 3, about every 7 minutes). Abandoned, smaller and without pools: skeletons, wreckage, a little loot including weapons and sniper rifles, and the last diaries of the garrison. Their radios are dead, so the scanner can't find them.
+- **Did'h Wanderers** (Level 4). Tiny 1–4 room camps of robed pilgrims who revere the cat Did'h (only ever seen on their posters). They're peaceful unless attacked, carry ordinary weapons and drop them when killed, and each trader makes one trade from a short list of basics. Their **Did'h charms** steady your nerves while you hold one.
+- **RuckyOS computers** in Ririqian command, comms and research rooms: a red, white and black desktop with a file explorer, notepad, calculator, paint, minesweeper, a command shell, a system monitor, mail, the radio log and an anthem player. Some folders need a password (it's written down somewhere in the base); some files are encrypted for good. The admin shell can silence the alarm or open the vault.
+- **Radio Signal Scanner** (craft: antenna, 2 wire, scrap, battery). Runs on batteries, sweeps slowly, and gives rough coordinates of bases with a working radio.
+
+## Armor, packs and new weapons
+
+- **Gear slots** in the inventory: head, body, legs, feet and an accessory slot. Armor protection stacks (capped at 75%) and wears out; heavier pieces slow you and tire you faster. Combat boots soften falls and muffle footsteps. Armor shows on your character, so teammates can see it. Find it in bases (armories have armor stands) and in loot.
+- **Packs** in the accessory slot add inventory slots: a small pack adds 4 and a large pack 8.
+- **Sniper rifles** with a working scope (hold aim) and a bolt between shots. **Grenades** (craft: 2 scrap, 2 fire salts, duct tape) bounce, cook for 3 seconds and hurt everything in the blast, gates included.
+
+## Saving
+
+- **Pause → Save Game** writes to one of five slots. The game also **autosaves** every 5 minutes and shortly after you reach a new level (toggle it in Settings). **Load Game** on the main menu lists every save.
+- **Export** writes a `.etg2save` file you can keep or move to another computer; **Import** reads one back. A save holds the world (opened doors and containers, items on the floor, killed garrisons and seized bases, level flags), and your character: role, inventory, gear, stats, status effects, journal, level and position.
+- **Co-op:** only the host saves. The save includes every teammate's character. To continue, the host clicks **Load save…** in the lobby (or **Host** on a co-op save). Teammates who rejoin from the same browser get their character back automatically; newcomers start fresh.
+- **Security:** every save, whether from storage, a file or a client, is rebuilt field by field (known items only, clamped values, size and depth limits, no prototype keys) before the game uses it, and nothing from a save is ever executed or inserted as HTML. Each co-op character is tied to a random 128-bit token known only to the host and that player's browser, so nobody can take someone else's character by using their name. Clients can only send save data when the host asks for it, and get one claim attempt per connection. A checksum flags files edited outside the game.
+
 ## Survival
 
 - **Health, stamina, hunger, thirst, sanity, oxygen.** Hunger and thirst drain slowly (about 30 and 18 minutes). Bandages heal over time and stop bleeding.
 - **Sanity** drains in darkness and near entities. Low sanity brings whispers, phantom footsteps, a heartbeat, shadow figures that vanish when stared at, and visual distortion. Light, teammates, water (clean more than dirty) and painkillers help.
 - **Noise** is a resource. Crouching is silent; walking, sprinting, landing, doors, reloading and gunfire all emit noise that entities hear, muffled by walls.
 - **Food and drink:** dirty and clean water, Fire Salts (L1), Blueberry Fire Salts (L3), Goan Juice and Vigor Tonic (L4), and more. Item counts scale with the number of players.
-- **Inventory:** 6-slot hotbar (+2 holster slots for some roles) plus a 20-slot backpack. Items stack. Weapons have ammo or durability (repair with duct tape); flashlights use batteries; lighters use fuel. You can search containers (boxes, filing cabinets, crates, toolboxes) and store items in them.
+- **Inventory:** 6-slot hotbar (+2 holster slots for some roles) plus a 20-slot main inventory, and up to 8 more slots from a worn pack. Items stack. Weapons have ammo or durability (repair with duct tape); flashlights use batteries; lighters use fuel. You can search containers (boxes, filing cabinets, crates, toolboxes) and store items in them.
 - **Death:** you wake up again on the same level and keep your inventory, just farther from the team. In co-op you're downed first (45 s to be revived with E); hold **X** to give up and respawn straight away.
 - **Movement:** jumps are buffered and forgiving at ledges; hold jump while swimming into a pool edge to haul yourself out.
 
@@ -131,8 +157,8 @@ Press **`** to open it. It's always available in solo. In co-op the host runs `c
 | `heal`, `god`, `notarget` | Restore all stats · invulnerability · creatures ignore you |
 | `fly`, `noclip`, `speed <x>` | Fly with collision (Space/C) · fly through walls · speed multiplier |
 | `ammo`, `sanity <n>` | Refill magazines, durability, battery and fuel · set sanity |
-| `level <id\|next>` | Travel to L0, L1, L2, L3, L5 |
-| `tp <x> <z>`, `tp exit`, `tp key`, `tp <player>`, `pos` | Teleport · print position |
+| `level <id\|next>` | Travel to L0, L1, L2, L3, L4, L5 or LG (Gug) |
+| `tp <x> <z>`, `tp exit`, `tp key`, `tp <player>`, `tp <player1> <player2>`, `pos` | Teleport · move player 1 to player 2 · print position |
 | `spawn <entity> [n]`, `entities`, `killall` | Spawn creatures in front of you · list types · kill everything on the level |
 | `flag <name> [0\|1]` | Set a level flag (`serviceDoor`, `power`, `stairOpen`, `drainOpen`, `bossDead`) |
 
@@ -148,18 +174,21 @@ src/
                       materials (baked-light patch, decal atlas), postfx, lights (pool), water
   world/              chunk data, level instance (collision, raycasts, A*), generation helpers,
                       mesher (geometry + baking), builder, props, renderer (streaming)
-  world/levels/       prologue, level0..level5 + common helpers + registry (index.js)
+  world/levels/       prologue, level0..level5, levelGug + common helpers + registry (index.js)
+  world/bases/        faction bases: placement and layout (index.js), props, objects
+                      (posters, gates, alarms, vaults, radios, traders, computers)
   world/machine.js    the Goaning Machine (prologue and Level 0 wreck)
   game/               game session (host/client logic), player controller, stats, inventory,
                       items + icons, weapons, viewmodel, models, objects, world state,
                       effects, player lights, sanity, avatar, remote players, notes (lore),
-                      classes (roles), crafting
+                      classes (roles), crafting, save (validation, slots, files)
   ai/                 brain (perception/steering), manager (host sim), views (client),
                       director (tension), entities/* (one module per creature)
   audio/              engine, sfx recipes, ambience profiles
   net/session.js      PeerJS + BroadcastChannel transports
   ui/                 HUD, screens/modals, menus (settings, keybinds, customization), lobby,
-                      cheat console, computer.js (L2 computers and phones)
+                      cheat console, computer.js (L2 computers and phones), ruckyos.js
+                      (Ririqian computers), saves.js (save/load screen)
 tools/                dev harnesses (screenshots, multiplayer smoke test, syntax check)
 ```
 
@@ -187,6 +216,11 @@ Screenshots the game, optionally after running a script.
 node tools/mp.cjs
 ```
 Two-tab co-op smoke test over the local transport.
+
+```bash
+node tools/mpsave.cjs
+```
+Co-op save test: host saves, both quit, the host hosts the save again and the client reclaims its character.
 
 ## Status and known limitations
 This is a prototype of the full game.

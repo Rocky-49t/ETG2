@@ -491,6 +491,7 @@ export class UI {
   // ------------------------------------------------------------------ pause
   bindPause() {
     $('btnResume').onclick = () => this.resume();
+    $('btnPauseSave').onclick = () => this.onSave?.();
     $('btnPauseJournal').onclick = () => this.game && this.openJournal(this.game);
     $('btnPauseSettings').onclick = () => this.onSettings?.();
     $('btnPauseHelp').onclick = () => this.onHelp?.();
@@ -502,6 +503,7 @@ export class UI {
     if (!game.online) game.paused = true;
     $('pauseInfo').textContent = `${game.def?.name || ''} — ${game.def?.title || ''} · seed ${game.seedLabel || game.seed}${game.online ? ' · co-op continues while paused' : ''}`;
     $('btnSkipPrologue').classList.toggle('hidden', !(game.levelId === 'P0' && game.isHost));
+    $('btnPauseSave').classList.toggle('hidden', !game.isHost);
     this.openModal('pause');
   }
   resume() {
@@ -585,7 +587,8 @@ export class UI {
   }
 
   resetGameScreens() {
-    for (const id of ['death', 'victory', 'pause', 'inventory', 'note', 'journal']) this.screen(id, false);
+    for (const n of [...this.open]) { try { this.closeModal(n, false); } catch { /* ignore */ } }
+    for (const id of ['death', 'victory', 'pause', 'inventory', 'note', 'journal', 'roleSelect', 'saves', 'computer', 'phone', 'ruckyos', 'trade']) if ($(id)) this.screen(id, false);
     this.open.clear();
     $('spectate').classList.add('hidden');
     $('hideOverlay').classList.add('hidden');

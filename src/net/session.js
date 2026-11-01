@@ -30,16 +30,49 @@ function loadPeerJS() {
 // ---------------------------------------------------------------------------
 // Connection wrappers expose: id, send(obj), close(), and events message/close.
 
-class PeerConn extends Emitter {
+// Large messages (world state on join, save data) are split into parts so
+// they stay under WebRTC's per-message size limit. Reassembly is bounded:
+// at most MAX_PARTS parts per message and a few messages in flight.
+const PART = 16000, MAX_PARTS = 320, MAX_INFLIGHT = 4;
+
+export class PeerConn extends Emitter {
   constructor(dc) {
     super();
     this.dc = dc;
     this.id = dc.peer;
-    dc.on('data', d => this.emit('message', d));
+    this.parts = new Map();
+    dc.on('data', d => this.onData(d));
     dc.on('close', () => this.emit('close'));
     dc.on('error', () => this.emit('close'));
   }
-  send(o) { try { if (this.dc.open) this.dc.send(o); } catch { /* ignore */ } }
+  send(o) {
+    try {
+      if (!this.dc.open) return;
+      const s = JSON.stringify(o);
+      if (s.length <= PART) { this.dc.send(o); return; }
+      const n = Math.ceil(s.length / PART);
+      if (n > MAX_PARTS) return;
+      const id = Math.random().toString(36).slice(2, 10);
+      for (let i = 0; i < n; i++) this.dc.send({ t: '_part', id, i, n, d: s.slice(i * PART, (i + 1) * PART) });
+    } catch { /* ignore */ }
+  }
+  onData(d) {
+    if (!d || d.t !== '_part') { this.emit('message', d); return; }
+    if (typeof d.id !== 'string' || d.id.length > 12 || !Number.isInteger(d.n) || !Number.isInteger(d.i) || d.n < 2 || d.n > MAX_PARTS || d.i < 0 || d.i >= d.n || typeof d.d !== 'string' || d.d.length > PART) return;
+    let p = this.parts.get(d.id);
+    if (!p) {
+      if (this.parts.size >= MAX_INFLIGHT) this.parts.delete(this.parts.keys().next().value);
+      p = { n: d.n, got: 0, a: new Array(d.n) };
+      this.parts.set(d.id, p);
+    }
+    if (p.n !== d.n || p.a[d.i] !== undefined) return;
+    p.a[d.i] = d.d;
+    if (++p.got < p.n) return;
+    this.parts.delete(d.id);
+    let o;
+    try { o = JSON.parse(p.a.join('')); } catch { return; }
+    if (o && typeof o === 'object' && o.t !== '_part') this.emit('message', o);
+  }
   close() { try { this.dc.close(); } catch { /* ignore */ } }
 }
 

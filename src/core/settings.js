@@ -59,6 +59,7 @@ const DEFAULTS = {
   brightness: 1.0,
   binds: {},
   prologue: true,
+  autosave: true,
   invertY: false,
   flashing: true,
   headBob: true,

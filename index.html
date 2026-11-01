@@ -38,6 +38,7 @@
       <div class="tagline">The machine was supposed to bring you back.</div>
       <nav class="menu-buttons">
         <button id="btnSolo" class="big primary">Play Solo</button>
+        <button id="btnLoad" class="big">Load Game</button>
         <button id="btnHost" class="big">Host Co-op</button>
         <button id="btnJoin" class="big">Join Co-op</button>
         <button id="btnCustomize" class="big">Customize Wanderer</button>
@@ -84,6 +85,10 @@
               <option value="peer">Online (PeerJS WebRTC)</option>
               <option value="local">Local tabs (same browser, testing)</option>
             </select>
+          </div>
+          <div class="field host-only">
+            <label>Game</label>
+            <div class="code-row"><div id="lobbySave" class="lobby-save">New game</div><button id="btnLobbyLoad" class="small">Load save…</button><button id="btnLobbyClear" class="small hidden">New</button></div>
           </div>
           <div class="field host-only">
             <label for="seedInput">World seed</label>
@@ -266,6 +271,18 @@
     </section>
   </div>
 
+  <!-- ============================== SAVES -->
+  <div id="saves" class="screen modal-screen">
+    <section class="panel wide">
+      <h2 id="savesTitle">Saves</h2>
+      <div id="savesTop" class="saves-top"></div>
+      <div id="savesStatus" class="status"></div>
+      <ul id="savesList" class="save-list"></ul>
+      <p class="muted small">Saves live in this browser. Export a save to keep it safe or move it to another computer. Co-op saves remember each teammate's character; they reclaim it automatically when they rejoin from the same browser.</p>
+      <div class="row end"><button id="btnSavesClose">Close</button></div>
+    </section>
+  </div>
+
   <!-- ============================== PAUSE -->
   <div id="pause" class="screen modal-screen">
     <section class="panel">
@@ -273,6 +290,7 @@
       <p id="pauseInfo" class="muted"></p>
       <div class="stack">
         <button id="btnResume" class="primary">Resume</button>
+        <button id="btnPauseSave">Save Game</button>
         <button id="btnSkipPrologue" class="hidden">Skip prologue ▸</button>
         <button id="btnPauseJournal">Journal</button>
         <button id="btnPauseSettings">Settings</button>

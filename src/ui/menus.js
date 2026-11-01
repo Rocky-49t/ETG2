@@ -52,6 +52,7 @@ export function buildSettings(container, onChange) {
   toggle('flashing', 'Intense visual effects');
   toggle('showFps', 'Show FPS');
   toggle('prologue', 'Play the prologue (solo)');
+  toggle('autosave', 'Autosave (every 5 minutes and on each new level)');
   buildKeybinds(container);
 }
 

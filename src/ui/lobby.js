@@ -5,6 +5,7 @@ import { settings } from '../core/settings.js';
 import { normalizeSkin } from '../game/avatar.js';
 import { escapeHtml } from '../game/remote.js';
 import { audio } from '../audio/audio.js';
+import { describeSave, randomId } from '../game/save.js';
 
 const $ = id => document.getElementById(id);
 
@@ -40,13 +41,34 @@ export class Lobby {
       if (this.isHost) this.onChat(this.session.myId, text); else this.session.sendToHost({ t: 'lchat', text });
     });
     $('netMode').onchange = () => settings.set('netMode', $('netMode').value);
+    $('btnLobbyLoad').onclick = () => this.app.saves.open('pick');
+    $('btnLobbyClear').onclick = () => this.useSave(null);
+  }
+
+  // Host: continue a saved game instead of starting a new one (null = new game).
+  useSave(save) {
+    if (this.started) return;
+    this.save = save || null;
+    const on = !!this.save;
+    $('lobbySave').textContent = on ? `${save.name} — ${describeSave(save).level}` : 'New game';
+    $('btnLobbyClear').classList.toggle('hidden', !on);
+    for (const id of ['seedInput', 'btnRandSeed', 'difficultySel', 'friendlyFire', 'prologueToggle']) $(id).disabled = on;
+    if (on) {
+      $('seedInput').value = save.seedLabel || String(save.seed);
+      $('difficultySel').value = save.difficulty;
+      $('friendlyFire').checked = save.friendlyFire;
+      $('prologueToggle').checked = false;
+    }
+    if (this.app.game) return;
+    this.app.showScreen('lobby');
+    this.pushState();
   }
 
   get isHost() { return this.session?.role === 'host'; }
   status(t) { $('lobbyStatus').textContent = t; }
   profile() { return { name: (settings.get('playerName') || 'Wanderer').slice(0, 18), skin: normalizeSkin(settings.get('skin')) }; }
 
-  openHost() {
+  openHost(save) {
     this.reset();
     this.active = true;
     $('lobbyTitle').textContent = 'Host a Room';
@@ -60,6 +82,7 @@ export class Lobby {
     this.status('Choose a connection, then create the room.');
     $('btnStart').textContent = 'Create Room';
     $('btnReady').classList.add('hidden');
+    this.useSave(save || null);
   }
 
   openJoin() {
@@ -82,6 +105,10 @@ export class Lobby {
     this.session = null;
     this.players.clear();
     this.started = false;
+    this.save = null;
+    for (const id of ['seedInput', 'btnRandSeed', 'difficultySel', 'friendlyFire', 'prologueToggle']) $(id).disabled = false;
+    $('lobbySave').textContent = 'New game';
+    $('btnLobbyClear').classList.add('hidden');
     $('lobbyPlayers').innerHTML = '';
     $('lobbyChatLog').innerHTML = '';
     $('btnStart').textContent = 'Start Game';
@@ -164,7 +191,8 @@ export class Lobby {
       if (m.t === 'lobby') {
         this.players = new Map(m.players.map(p => [p.id, p]));
         $('seedInput').value = m.seed;
-        this.status(`Seed: ${m.seed} · Difficulty: ${m.difficulty}${m.friendlyFire ? ' · friendly fire' : ''}${m.prologue ? ' · prologue' : ''}\nWaiting for the host to start.`);
+        const saved = typeof m.saveName === 'string' ? `Continuing a saved game: ${m.saveName.slice(0, 80)}\n` : '';
+        this.status(`${saved}Seed: ${m.seed} · Difficulty: ${m.difficulty}${m.friendlyFire ? ' · friendly fire' : ''}${m.prologue ? ' · prologue' : ''}\nWaiting for the host to start.`);
         this.render();
       } else if (m.t === 'lchat') this.chatLine(m.name, m.text, m.color);
       else if (m.t === 'start') this.app.startCoop(this.session, m, false);
@@ -202,7 +230,9 @@ export class Lobby {
     const state = {
       t: 'lobby', players: [...this.players.entries()].map(([id, p]) => ({ id, ...p })),
       seed: $('seedInput').value || 'GOANROOMS', difficulty: $('difficultySel').value, friendlyFire: $('friendlyFire').checked, prologue: $('prologueToggle').checked,
+      saveName: this.save ? `${this.save.name} (${describeSave(this.save).level})` : undefined,
     };
+    if (!this.session) { this.render(); return; }
     this.session.broadcast(state);
     this.render();
   }
@@ -223,13 +253,24 @@ export class Lobby {
     const notReady = [...this.players.values()].filter(p => !p.ready).length;
     if (notReady && !this._confirmStart) { this._confirmStart = true; this.status(`${notReady} player(s) not ready. Press Start again to begin anyway.`); return; }
     this._confirmStart = false;
-    settings.set('lastSeed', $('seedInput').value);
-    const m = {
-      t: 'start', seed: $('seedInput').value || 'GOANROOMS', difficulty: $('difficultySel').value, friendlyFire: $('friendlyFire').checked, prologue: $('prologueToggle').checked,
-      roster: [...this.players.entries()].map(([id, p]) => [id, { name: p.name, skin: p.skin }]),
-    };
+    const roster = [...this.players.entries()].map(([id, p]) => [id, { name: p.name, skin: p.skin }]);
+    const sv = this.save;
+    let m;
+    if (sv) {
+      m = {
+        t: 'start', load: true, run: sv.id, seed: sv.seed, seedLabel: sv.seedLabel || String(sv.seed), difficulty: sv.difficulty, friendlyFire: sv.friendlyFire, prologue: false,
+        roster, world: sv.world, level: sv.host.level, spawn: sv.host.pos, ht: sv.time,
+      };
+    } else {
+      settings.set('lastSeed', $('seedInput').value);
+      m = {
+        t: 'start', run: randomId(), seed: $('seedInput').value || 'GOANROOMS', difficulty: $('difficultySel').value, friendlyFire: $('friendlyFire').checked, prologue: $('prologueToggle').checked,
+        roster,
+      };
+    }
+    this.started = true;
     this.session.broadcast(m);
-    this.app.startCoop(this.session, m, false);
+    this.app.startCoop(this.session, m, false, sv);
   }
 
   leave() {

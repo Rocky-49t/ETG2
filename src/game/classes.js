@@ -75,3 +75,12 @@ export function applyClass(game, id) {
 }
 
 export function classPerk(game, key, def) { return CLASSES[game.classId]?.[key] ?? def; }
+
+// Restore a role's modifiers without handing out its kit (loading a save).
+export function applyClassMods(game, id) {
+  const C = CLASSES[id];
+  if (!C) { game.classId = null; game.stats.mods = { stamina: 1, sanity: 1, heal: 1 }; game.player.classSpeed = 1; return; }
+  game.classId = id;
+  game.stats.mods = { ...C.mods };
+  game.player.classSpeed = C.speed || 1;
+}

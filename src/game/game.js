@@ -19,7 +19,7 @@ import { TILE, CHUNK, F_DARK } from '../world/chunk.js';
 import { LEVELS, FIRST_LEVEL, LEVEL_ORDER } from '../world/levels/index.js';
 import { PlayerController } from './player.js';
 import { Stats } from './stats.js';
-import { Inventory } from './inventory.js';
+import { Inventory, EXTRA as EXTRA_SLOTS } from './inventory.js';
 import { ITEMS, makeItem } from './items.js';
 import { NOTES } from './notes.js';
 import { Viewmodel } from './viewmodel.js';
@@ -33,7 +33,8 @@ import { RemotePlayer } from './remote.js';
 import { initModels } from './models.js';
 import { normalizeSkin } from './avatar.js';
 import { escapeHtml } from './remote.js';
-import { CLASSES, applyClass, classPerk } from './classes.js';
+import { CLASSES, applyClass, applyClassMods, classPerk } from './classes.js';
+import { SAVE_MAGIC, SAVE_VERSION, sanitizeSave, sanitizeChar, sanitizeItem, randomHex, randomId, isToken, isRunId, tokenEq, getToken, setToken, writeSlot } from './save.js';
 import { EntityManager } from '../ai/manager.js';
 import { EntityViews } from '../ai/views.js';
 import { Director } from '../ai/director.js';
@@ -121,6 +122,12 @@ export class Game {
     this.cheats = { on: false, granted: new Set() };
     this._lootPlayers = Math.max(1, this.roster.size || 1);   // co-op cheat permissions (host-owned)
     this.cheatGod = false; this.notarget = false;
+    // saves: this run's id, co-op character tokens (host), characters waiting to be reclaimed
+    this.runId = isRunId(opts.runId) ? opts.runId : randomId();
+    this.saveTokens = new Map();
+    this.savedPlayers = [];
+    this.claimTried = new Set();
+    this.autoSaveT = 300;
 
     this.world.on('obj', (l, id) => { if (l === this.levelId) this.objects.refresh(id); this.onObjState?.(l, id); });
     this.world.on('dyn+', (l, d) => { if (l === this.levelId) this.objects.addDyn(d); });
@@ -259,7 +266,7 @@ export class Game {
     this.ui.fade(false);
     this.ui.titleCard(def.name, def.title, def.subtitle);
     this.hud.setObjective(def, this);
-    if (!first) this.stats0.levels++;
+    if (!first) { this.stats0.levels++; if (this.isHost) this.autoSaveT = Math.min(this.autoSaveT, 4); }
     this.transitioning = false;
     this.levelEnterTime = this.time;
     def.onEnter?.(this);
@@ -310,6 +317,7 @@ export class Game {
 
     this.updateLocal(dt, level);
     if (this.isHost) this.hostUpdate(dt);
+    if (this.isHost && (this.autoSaveT -= dt) <= 0) { this.autoSaveT = 300; this.autoSave(); }
 
     // world + visuals
     const cam = this.engine.camera;
@@ -1488,8 +1496,10 @@ export class Game {
       }
       case 'int': this.hostInteract(pid, m); break;
       case 'drop': {
+        const it = sanitizeItem(m.item);
+        if (!it || !LEVELS[m.l] || ![m.x, m.y, m.z].every(Number.isFinite)) break;
         const id = 'd' + hash4(this.time * 1000 | 0, Math.random() * 1e9 | 0).toString(36);
-        const d = { id, kind: 'drop', item: m.item.id, qty: m.item.qty, data: m.item.data, x: m.x, y: m.y, z: m.z, ry: Math.random() * 6 };
+        const d = { id, kind: 'drop', item: it.id, qty: it.qty, data: it.data, x: m.x, y: m.y, z: m.z, ry: Math.random() * 6 };
         this.hostBroadcast({ t: 'dyn+', l: m.l, d });
         break;
       }
@@ -1514,6 +1524,14 @@ export class Game {
       case 'cheat': this.hostCheat(pid, m); break;
       case 'call': this.hostCall(pid, m); break;
       case 'baseCmd': this.hostBaseCmd(pid, m); break;
+      case 'claim': this.hostClaim(pid, m); break;
+      case 'saveData': {
+        const q = this._saveReq;
+        if (!q || m.sid !== q.sid || !q.peers.has(pid) || q.got.has(pid)) break;
+        q.got.set(pid, m.char ? sanitizeChar(m.char) : null);
+        if (q.got.size >= q.peers.size) q.done();
+        break;
+      }
       case 'chat': {
         const text = String(m.text || '').slice(0, 200);
         if (text) this.hostBroadcast({ t: 'chat', from: pid, name: this.nameOf(pid), text });
@@ -1522,7 +1540,7 @@ export class Game {
       case 'revive': this.hostSend(m.target, { t: 'revived', by: this.nameOf(pid) }); break;
       case 'role': {
         const r = this.roster.get(pid);
-        if (r && CLASSES[m.c]) { r.classId = m.c; this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} is the team's ${CLASSES[m.c].name.toLowerCase()}.` }, true); }
+        if (r && typeof m.c === 'string' && Object.hasOwn(CLASSES, m.c)) { r.classId = m.c; if (!m.quiet) this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} is the team's ${CLASSES[m.c].name.toLowerCase()}.` }, true); }
         break;
       }
       case 'respawned': this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} respawned at the level entrance.` }, true, pid); break;
@@ -1586,7 +1604,7 @@ export class Game {
     this.session.sendTo(pid, {
       t: 'welcome', id: pid, seed: this.seed, difficulty: this.difficulty, friendlyFire: this.friendlyFire,
       world: this.world.serialize(), roster: [...this.roster.entries()], hostId: this.myId, hostName: this.profile.name, hostSkin: this.profile.skin,
-      level: this.levelId, spawn: { x: hostState.x, y: hostState.y, z: hostState.z }, ht: this.time,
+      level: this.levelId, spawn: { x: hostState.x, y: hostState.y, z: hostState.z }, ht: this.time, run: this.runId,
     });
     this.hostBroadcast({ t: 'pinfo', id: pid, name, skin: normalizeSkin(m.skin) }, true, pid);
     if (this.cheats.on) this.hostSend(pid, { t: 'cheatPerm', on: true, ids: [...this.cheats.granted] });
@@ -1637,7 +1655,9 @@ export class Game {
           set({ opened: true, loot });
           this.hostSend(pid, { t: 'give', item: { id: it.item, qty: it.qty, data: it.data } });
         } else if (m.a === 'put' && m.item) {
-          loot.push({ item: m.item.id, qty: m.item.qty, data: m.item.data });
+          const it = sanitizeItem(m.item);
+          if (!it || loot.length >= 48) return;
+          loot.push({ item: it.id, qty: it.qty, data: it.data });
           set({ opened: true, loot });
         }
         break;
@@ -1978,6 +1998,11 @@ export class Game {
   // ---------------------------------------------------------------- client handlers
   clientHandle(m) {
     switch (m.t) {
+      case 'saveReq':
+        if (typeof m.sid === 'string' && m.sid.length <= 32) this.request({ t: 'saveData', sid: m.sid, char: this.levelId && this.levelId !== 'P0' ? this.captureChar() : null });
+        break;
+      case 'saveTok': if (m.run === this.runId) setToken(this.runId, m.tok); break;
+      case 'restore': this.clientRestore(m); break;
       case 'snap': {
         if (m.ht !== undefined) this.hostTimeOffset = m.ht - this.time;
         if (m.l === this.levelId) this.views.apply(m.e, this.time);
@@ -2145,6 +2170,164 @@ export class Game {
     this.sfx('victory', null, {});
     const mins = Math.round((performance.now() - this.stats0.startTime) / 60000);
     this.ui.showVictory({ time: mins + ' min', kills: this.stats0.kills, deaths: this.stats0.deaths, notes: this.journal.length + ' / ' + Object.keys(NOTES).length, seed: this.seedLabel || this.seed });
+  }
+
+  // ---------------------------------------------------------------- saves
+  // Why the game can't be saved right now (or null).
+  saveBlocked() {
+    if (this.online && !this.isHost) return 'Only the host can save a co-op game.';
+    if (!this.levelId || this.levelId === 'P0') return 'You can\'t save during the prologue.';
+    if (this.transitioning) return 'Wait until you arrive.';
+    if (this.won) return 'The run is over.';
+    if (this.dead || this.downed) return 'You can\'t save while you\'re down.';
+    if (this.hidden) return 'Get out of hiding first.';
+    return null;
+  }
+
+  // The local player's character, ready for a save.
+  captureChar() {
+    const P = this.player, S = this.stats;
+    const copy = it => (it ? { id: it.id, qty: it.qty, data: it.data ? { ...it.data } : undefined } : null);
+    return {
+      classId: this.classId || null,
+      inv: this.inventory.serialize(),
+      gear: Object.fromEntries(GEAR_SLOTS.map(k => [k, copy(this.gear[k])])),
+      stats: { ...S.serialize(), status: { ...S.status }, bleeding: S.bleeding, regen: S.regen, staminaBoost: S.staminaBoost },
+      journal: [...this.journal],
+      level: this.levelId,
+      pos: { x: P.pos.x, y: P.pos.y, z: P.pos.z }, yaw: P.yaw,
+      stats0: { kills: this.stats0.kills, deaths: this.stats0.deaths, notes: this.stats0.notes, levels: this.stats0.levels, playMs: performance.now() - this.stats0.startTime },
+    };
+  }
+
+  // Apply a (sanitized) character to the local player.
+  applyChar(c) {
+    applyClassMods(this, c.classId);
+    const inv = this.inventory;
+    inv.load(c.inv);
+    inv.holsters = c.classId ? Math.min(c.inv.holsters, CLASSES[c.classId].holsters || 0) : 0;
+    for (const k of GEAR_SLOTS) this.gear[k] = c.gear[k] ? { ...c.gear[k], data: c.gear[k].data ? { ...c.gear[k].data } : undefined } : null;
+    inv.extra = this.gear.pack ? Math.min(EXTRA_SLOTS, ITEMS[this.gear.pack.id].pack?.slots || 0) : 0;
+    // anything sitting where it may not (a gun-only holster, a pack slot that no longer exists) is re-added
+    const loose = [];
+    for (let i = 0; i < inv.slots.length; i++) { const it = inv.slots[i]; if (it && !inv.canPlace(i, it.id)) { loose.push(it); inv.slots[i] = null; } }
+    for (const it of loose) inv.add(it);
+    if (!inv.isHot(inv.selected)) inv.selected = 0;
+    const S = this.stats, st = c.stats;
+    S.health = st.health; S.hunger = st.hunger; S.thirst = st.thirst; S.sanity = st.sanity; S.stamina = st.stamina;
+    S.bleeding = st.bleeding; S.regen = st.regen; S.staminaBoost = st.staminaBoost; S.status = { ...st.status };
+    this.journal = [...c.journal];
+    Object.assign(this.stats0, { kills: c.stats0.kills, deaths: c.stats0.deaths, notes: c.stats0.notes, levels: c.stats0.levels, startTime: performance.now() - c.stats0.playMs });
+    this.applyArmorMods();
+    this.held?.cancel();
+    inv.changed();
+    this.hud.armorChanged?.(this);
+    if (this.online && c.classId) this.request({ t: 'role', c: c.classId, quiet: true });
+  }
+
+  // Host / solo: restore a whole (sanitized) save before entering its level.
+  applySave(save) {
+    this.runId = save.id;
+    this.saveName = save.name;
+    this.time = save.time;
+    this.world.load(save.world);
+    this.savedPlayers = save.players.map(p => ({ ...p, claimed: null }));
+    this.applyChar(save.host);
+  }
+
+  // Host: this client's character token (made and sent privately on first use).
+  tokenFor(pid) {
+    let t = this.saveTokens.get(pid);
+    if (!t) {
+      t = randomHex(16);
+      this.saveTokens.set(pid, t);
+      this.hostSend(pid, { t: 'saveTok', run: this.runId, tok: t });
+    }
+    return t;
+  }
+
+  // Host: ask every client for its character; resolves after all answer or 3 s.
+  collectChars() {
+    const peers = [...this.session.peers.keys()].filter(pid => pid !== this.myId);
+    if (!this.online || !peers.length) return Promise.resolve(new Map());
+    const sid = randomHex(8), got = new Map();
+    return new Promise(res => {
+      const done = () => { if (this._saveReq?.sid === sid) { this._saveReq = null; res(got); } };
+      this._saveReq = { sid, peers: new Set(peers), got, done };
+      for (const pid of peers) this.hostSend(pid, { t: 'saveReq', sid });
+      setTimeout(done, 3000);
+    });
+  }
+
+  async buildSave(name) {
+    const why = this.saveBlocked();
+    if (why) return { error: why };
+    const players = [];
+    if (this.online) {
+      const chars = await this.collectChars();
+      for (const [pid, char] of chars) if (char) players.push({ token: this.tokenFor(pid), name: this.nameOf(pid), char });
+    }
+    // characters from the loaded save whose owners aren't here right now (kept even in solo)
+    for (const p of this.savedPlayers) {
+      if (players.some(q => q.token === p.token)) continue;
+      if (p.claimed && this.session.peers.has(p.claimed)) continue;
+      players.push({ token: p.token, name: p.name, char: p.char });
+    }
+    const level = this.def;
+    const raw = {
+      magic: SAVE_MAGIC, v: SAVE_VERSION, id: this.runId, mode: this.online || players.length ? 'coop' : 'solo',
+      name: name || `${level?.name || ''} · ${new Date().toLocaleDateString()}`, saved: Date.now(),
+      seed: this.seed, seedLabel: String(this.seedLabel ?? ''), difficulty: this.difficulty, friendlyFire: this.friendlyFire,
+      time: this.time, hostName: this.profile.name, host: this.captureChar(), players, world: this.world.serialize(),
+    };
+    // the same validation every load goes through
+    const save = sanitizeSave(JSON.parse(JSON.stringify(raw)));
+    return save ? { save } : { error: 'Could not build the save.' };
+  }
+
+  async saveToSlot(slot, name) {
+    const r = await this.buildSave(name);
+    if (r.error) return r.error;
+    return writeSlot(slot, r.save);
+  }
+
+  autoSave() {
+    if (!settings.get('autosave') || this.saveBlocked() || this._autoSaving) return;
+    this._autoSaving = true;
+    this.saveToSlot(this.online ? 'auto-coop' : 'auto', 'Autosave').then(err => {
+      this._autoSaving = false;
+      if (!err) this.hud.toast('Game saved', 1.5);
+    });
+  }
+
+  // Host: a client presents its token to reclaim its saved character (one try per connection).
+  hostClaim(pid, m) {
+    if (pid === this.myId || this.claimTried.has(pid)) return;
+    this.claimTried.add(pid);
+    const p = isToken(m.tok) && this.savedPlayers.find(q => !q.claimed && tokenEq(q.token, m.tok));
+    if (!p) { this.hostSend(pid, { t: 'restore', none: true }); return; }
+    p.claimed = pid;
+    this.saveTokens.set(pid, p.token);
+    this.hostSend(pid, { t: 'restore', char: p.char });
+    this.hostBroadcast({ t: 'sys', text: `${this.nameOf(pid)} picks up where they left off.` });
+  }
+
+  // Client: after joining, try to reclaim my character for this run.
+  clientClaim() {
+    const tok = getToken(this.runId);
+    if (tok) { this.awaitingRestore = true; this.request({ t: 'claim', tok }); setTimeout(() => { if (this.awaitingRestore && this.running) { this.awaitingRestore = false; if (this.levelId !== 'P0') this.promptRole(); } }, 8000); }
+    else if (this.levelId !== 'P0') this.promptRole();
+  }
+
+  clientRestore(m) {
+    if (!this.awaitingRestore) return;
+    this.awaitingRestore = false;
+    if (!m.char) { if (this.levelId !== 'P0') this.promptRole(); return; }
+    const c = sanitizeChar(m.char);
+    this.applyChar(c);
+    this.subtitle('You pick up where you left off.', 3);
+    if (c.level && c.pos) this.travelTo(c.level, c.pos);
+    if (!c.classId) this.promptRole();
   }
 
   dispose() {
